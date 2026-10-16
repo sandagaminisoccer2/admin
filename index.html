@@ -13002,6 +13002,19 @@ window.alokasiPengeluaranCash = function(items, tgl, lapCash, minCash){
     sisaMinuman: minCash - dariMin
   };
 };
+/* Cash (tunai) dari satu data pemasukan — dipakai untuk Uang Masuk yang diarahkan ke Uang Minuman.
+   Logikanya sama dengan perhitungan Cash Lapangan di cek saldo sumber cash. */
+window.getPemasukanCashItem = function(item){
+  if(!item) return 0;
+  var hasSplit = item.jumlah1 !== undefined && item.jumlah1 !== null;
+  if(!hasSplit && item.jumlah !== undefined && item.jumlah !== null){
+    return (item.metode || 'Cash') === 'Cash' ? Number(item.jumlah || 0) : 0;
+  }
+  var t = 0;
+  if(typeof window.getPaymentCash === 'function') t += Number(window.getPaymentCash(item,1)||0) + Number(window.getPaymentCash(item,2)||0);
+  if(Number(item.totalKaosKaki || 0) > 0 && (item.metode1 || 'Cash') === 'Cash') t += Number(item.totalKaosKaki || 0);
+  return t;
+};
 document.addEventListener('input', function(e){
   if(e.target && e.target.id === 'k-jumlah' && typeof window.cekSaldoSumberCash === 'function'){
     try{ window.cekSaldoSumberCash(); }catch(err){}
@@ -13975,6 +13988,11 @@ function scheduleRender(fn) {
             let minCash = 0;
 
             Object.values(globalCache.pemasukan).forEach(item => {
+                // Uang Masuk manual yang diarahkan ke Uang Minuman dihitung sebagai Cash Minuman.
+                if(item && item.masukKe === 'minuman') {
+                    if(item.tgl === tglSumber) minCash += Number(window.getPemasukanCashItem(item) || 0);
+                    return;
+                }
                 if(item.tgl === tglSumber) {
                     let met1 = item.metode1 || 'Cash';
                     let met2 = item.metode2 || 'Cash';
@@ -15609,6 +15627,12 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 if (metode !== 'Belum Bayar' && metode !== 'Free') {
                     uangMasuk += Number.isFinite(total) ? total : 0;
                 }
+            });
+
+            // Uang Masuk manual yang diarahkan ke Uang Minuman ikut dihitung.
+            Object.values(globalCache.pemasukan || {}).forEach(item => {
+                if (!item || item.masukKe !== 'minuman' || item.tgl !== tanggal) return;
+                uangMasuk += Number(window.getPaymentTotal(item,1) || 0) + Number(window.getPaymentTotal(item,2) || 0);
             });
 
             const uangEl = document.getElementById('minuman-summary-uang');
@@ -23586,8 +23610,11 @@ return;
                     : '';
             };
 
+            // Uang Masuk manual yang dipilih "Uang Minuman" dihitung & ditampilkan di bagian Minuman.
+            const __masukMinumanItems = [];
             Object.entries(globalCache.pemasukan).forEach(([key, item]) => {
                 if(item.tgl === filterTgl) {
+                    if(item.masukKe === 'minuman') { __masukMinumanItems.push([key, item]); return; }
                     // Jika jumlah1 tersedia, termasuk ketika nilainya 0,
                     // jangan fallback ke jumlah lama.
                     let jml1 = (item.jumlah1 !== undefined && item.jumlah1 !== null)
@@ -23781,6 +23808,28 @@ return;
                             <td class="p-2 border border-slate-900/40 text-center"><button type="button" onclick="hapusDataKeuangan('minuman', '${key}')" class="bg-rose-700 hover:bg-rose-800 text-white px-2 py-1 rounded text-xs">Hapus</button></td>
                         </tr>`;
                     }
+                }
+            });
+
+            // Uang Masuk manual yang diarahkan ke Uang Minuman.
+            __masukMinumanItems.forEach(([key, item]) => {
+                const totMasuk = window.getPaymentTotal(item,1) + window.getPaymentTotal(item,2);
+                const cashMasuk = window.getPaymentCash(item,1) + window.getPaymentCash(item,2);
+                const nonCashMasuk = window.getPaymentNonCash(item,1) + window.getPaymentNonCash(item,2);
+                totalMinuman += totMasuk;
+                totalMinumanCash += cashMasuk;
+                totalMinumanQrif += nonCashMasuk;
+                const metMasuk = item.metode1 || item.metode || 'Cash';
+                const ketMasuk = (typeof escapeHtmlSparing === 'function')
+                    ? escapeHtmlSparing(String(item.ket || 'Uang Masuk'))
+                    : String(item.ket || 'Uang Masuk');
+                if(tbodyMinuman) {
+                    tbodyMinuman.innerHTML += `<tr data-masuk-minuman="1" class="border-b border-slate-900/40 text-center font-bold">
+                        <td class="p-2 border border-slate-900/40 text-left">💰 ${ketMasuk}</td>
+                        <td class="p-2 border border-slate-900/40 text-xs">Uang Masuk</td>
+                        <td class="p-2 border border-slate-900/40 text-amber-900 font-black">Rp ${totMasuk.toLocaleString('id-ID')} (${metMasuk})</td>
+                        <td class="p-2 border border-slate-900/40 text-center"><button type="button" onclick="hapusDataKeuangan('pemasukan', '${key}')" class="bg-rose-700 hover:bg-rose-800 text-white px-2 py-1 rounded text-xs">Hapus</button></td>
+                    </tr>`;
                 }
             });
 
@@ -29995,7 +30044,8 @@ window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=docum
           const cells=row.querySelectorAll('td');
           if(cells.length<3) return;
           const nama=String(cells[0].textContent||'').trim();
-          if(!Object.prototype.hasOwnProperty.call(qtyMinuman,nama)) return;
+          const __masukMinuman=row.getAttribute('data-masuk-minuman')==='1';
+          if(!__masukMinuman && !Object.prototype.hasOwnProperty.call(qtyMinuman,nama)) return;
 
           const pcsText=String(cells[1].textContent||'');
           const transaksiText=String(cells[2].textContent||'');
@@ -30004,7 +30054,7 @@ window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=docum
           const total=moneyNumber(transaksiText);
           const metode=(transaksiText.match(/\(([^)]+)\)\s*$/)?.[1]||'Cash').trim();
 
-          qtyMinuman[nama]+=Number.isFinite(pcs)?Math.max(0,pcs):0;
+          if(!__masukMinuman) qtyMinuman[nama]+=Number.isFinite(pcs)?Math.max(0,pcs):0;
           if(metode==='Cash') minumanCashNumber+=total;
           else minumanQrisNumber+=total;
           adaBarisMinuman=true;
@@ -32630,6 +32680,19 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
                 <button type="button" id="manual-uang-masuk-date-btn"><span>📅</span><span id="manual-uang-masuk-date-text">Pilih tanggal</span><span>⌄</span></button>
               </div>
             </div>
+            <div class="manual-uang-masuk-field">
+              <label>Masuk ke Uang</label>
+              <div class="masuk-tujuan-uang-options" role="radiogroup" aria-label="Uang masuk dimasukkan ke">
+    <label class="masuk-tujuan-uang-option">
+      <input type="radio" name="manual-uang-masuk-tujuan" value="lapangan" checked/>
+      <span><b>🏟️ Uang Lapangan</b><small>Dicatat sebagai pemasukan lapangan</small></span>
+    </label>
+    <label class="masuk-tujuan-uang-option">
+      <input type="radio" name="manual-uang-masuk-tujuan" value="minuman"/>
+      <span><b>🥤 Uang Minuman</b><small>Dicatat sebagai pemasukan minuman</small></span>
+    </label>
+  </div>
+            </div>
             <div id="manual-uang-masuk-actions"><button id="manual-uang-masuk-save" type="submit">💾 Simpan</button></div>
           </form>
         </div>
@@ -32746,14 +32809,22 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
       if(!db||!pushFn||!refFn){alert('Koneksi database belum siap.');return}
       const save=document.getElementById('manual-uang-masuk-save'); save.disabled=true; save.textContent='⏳ Menyimpan...';
       try{
-        await pushFn(refFn(db,'pemasukan'),{
+        // Data langsung tersimpan di perangkat; tunggu konfirmasi server maks. 3 detik
+        // supaya tombol tidak menggantung saat koneksi lambat/putus.
+        let __acked=false;
+        const __savePromise=Promise.resolve(pushFn(refFn(db,'pemasukan'),{
           ket, jumlah, jumlah1:jumlah, jumlah2:0,
           metode:methodHidden?.value||'Cash',
           metode1:methodHidden?.value||'Cash',
           metode2:'Cash',
-          tgl, sumber:'manual-uang-masuk', manual:true, timestamp:Date.now()
-        });
-        if(typeof window.showSuccessPopup==='function') window.showSuccessPopup('Uang masuk berhasil disimpan.');
+          tgl, sumber:'manual-uang-masuk', manual:true,
+          masukKe:((document.querySelector('input[name="manual-uang-masuk-tujuan"]:checked')||{}).value==='minuman'?'minuman':'lapangan'),
+          timestamp:Date.now()
+        })).then(()=>{__acked=true;});
+        __savePromise.catch(()=>{});
+        await Promise.race([__savePromise,new Promise(r=>setTimeout(r,3000))]);
+        if(!__acked && typeof window.trackPendingSync==='function') window.trackPendingSync(__savePromise,'Uang masuk '+ket);
+        if(typeof window.showSuccessPopup==='function') window.showSuccessPopup(__acked?'Uang masuk berhasil disimpan.':'Uang masuk tersimpan dan sedang dikirim ke server. Jangan tutup halaman sampai terkirim.');
         if(typeof window.renderRekapHarian==='function') window.renderRekapHarian();
         if(typeof window.renderTabelKeuangan==='function') window.renderTabelKeuangan();
         setTimeout(closeModal,250);
@@ -39063,6 +39134,18 @@ input[type="date"],input[type="time"],input[type="month"]{-webkit-tap-highlight-
       const v2 = window.getPaymentTotal(item,2);
       const totalKaosKaki = Number(item.totalKaosKaki || 0);
       const total = v1 + v2 + totalKaosKaki;
+      if(item.masukKe === 'minuman'){
+        // Uang Masuk manual yang diarahkan ke Uang Minuman.
+        totalMinuman += total;
+        minumanRows.push({
+          tanggal:String(item.tgl).split('T')[0],
+          keterangan:'Uang Masuk - ' + (item.ket || '-'),
+          metode:m1,
+          jumlahPcs:0,
+          jumlah:total
+        });
+        return;
+      }
       totalLapangan += total;
       pemasukanRows.push({
         tanggal:String(item.tgl).split('T')[0],
@@ -44995,6 +45078,20 @@ body.jadwal-uang-masuk-modal-active #page-masuk > form > :last-child{
           </button>
         </div>
 
+        <div class="masuk-tujuan-uang-wrap">
+          <label class="uang-masuk-manual-label">MASUK KE UANG</label>
+          <div class="masuk-tujuan-uang-options" role="radiogroup" aria-label="Uang masuk dimasukkan ke">
+    <label class="masuk-tujuan-uang-option">
+      <input type="radio" name="um-manual-tujuan" value="lapangan" checked/>
+      <span><b>🏟️ Uang Lapangan</b><small>Dicatat sebagai pemasukan lapangan</small></span>
+    </label>
+    <label class="masuk-tujuan-uang-option">
+      <input type="radio" name="um-manual-tujuan" value="minuman"/>
+      <span><b>🥤 Uang Minuman</b><small>Dicatat sebagai pemasukan minuman</small></span>
+    </label>
+  </div>
+        </div>
+
         <div class="uang-masuk-manual-actions">
           <button type="submit" id="uang-masuk-manual-save">💾 <span>Simpan</span></button>
         </div>
@@ -45305,6 +45402,19 @@ body.jadwal-uang-masuk-modal-active #page-masuk > form > :last-child{
 }
 </style>
 
+<style id="masuk-tujuan-uang-v1">
+/* UANG MASUK MANUAL — pilihan "Masuk ke Uang" (Lapangan / Minuman), sama seperti "Pengeluaran dari Uang" di Uang Keluar. */
+.masuk-tujuan-uang-options{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;margin:0!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option{position:relative!important;display:block!important;cursor:pointer!important;margin:0!important;padding:0!important;text-transform:none!important;font-size:inherit!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option input{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;box-shadow:none!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option>span{display:flex!important;flex-direction:column!important;justify-content:center!important;gap:3px!important;min-height:56px!important;padding:10px 12px!important;box-sizing:border-box!important;border-radius:13px!important;border:1.5px solid rgba(148,163,184,.55)!important;background:rgba(255,255,255,.72)!important;color:#334155!important;text-align:left!important;text-transform:none!important;transition:all .15s ease!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option>span b{font-size:12px!important;font-weight:950!important;color:#102a56!important;text-transform:none!important;line-height:1.2!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option>span small{font-size:9.5px!important;font-weight:700!important;color:#64748b!important;line-height:1.25!important;text-transform:none!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option input:checked+span{border-color:#059669!important;background:rgba(236,253,245,.96)!important;box-shadow:0 0 0 3px rgba(16,185,129,.16)!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option input:checked+span b{color:#065f46!important}
+.masuk-tujuan-uang-options label.masuk-tujuan-uang-option input:focus-visible+span{outline:2px solid #1d4ed8!important;outline-offset:2px!important}
+.masuk-tujuan-uang-wrap{margin:0 0 14px}
+</style>
 <script id="uang-masuk-manual-popup-final">
 (function(){
   'use strict';
@@ -45509,7 +45619,8 @@ body.jadwal-uang-masuk-modal-active #page-masuk > form > :last-child{
     if(btn) {btn.dataset.saving='1';btn.disabled=true;}
 
     try{
-      await pushFn(refFn(db,'pemasukan'),{
+      let __acked=false;
+      const __savePromise=Promise.resolve(pushFn(refFn(db,'pemasukan'),{
         ket:ket,
         jumlah:jumlah,
         jumlah1:jumlah,
@@ -45518,15 +45629,19 @@ body.jadwal-uang-masuk-modal-active #page-masuk > form > :last-child{
         metode1:'Cash',
         metode2:'Cash',
         tgl:tgl,
-        sumber:'Lapangan',
+        sumber:((document.querySelector('input[name="um-manual-tujuan"]:checked')||{}).value==='minuman'?'Minuman':'Lapangan'),
+        masukKe:((document.querySelector('input[name="um-manual-tujuan"]:checked')||{}).value==='minuman'?'minuman':'lapangan'),
         kategori:'Uang Masuk',
         jenisPembayaran:'manual',
         timNamaBersih:'',
         timestamp:Date.now()
-      });
+      })).then(()=>{__acked=true;});
+      __savePromise.catch(()=>{});
+      await Promise.race([__savePromise,new Promise(r=>setTimeout(r,3000))]);
+      if(!__acked && typeof window.trackPendingSync==='function') window.trackPendingSync(__savePromise,'Uang masuk '+ket);
 
       if(typeof window.showSuccessPopup==='function'){
-        window.showSuccessPopup('Uang Masuk berhasil disimpan.');
+        window.showSuccessPopup(__acked?'Uang Masuk berhasil disimpan.':'Uang Masuk tersimpan dan sedang dikirim ke server. Jangan tutup halaman sampai terkirim.');
       }else{
         alert('Uang Masuk berhasil disimpan.');
       }
@@ -47306,6 +47421,7 @@ body > header .admin-global-header-brand-title{
     let total=0;
     Object.values((window.__sandagaGlobalCache&&window.__sandagaGlobalCache.pemasukan)||{}).forEach(item=>{
       if(!item||normalizeDate(item.tgl)!==tgl)return;
+      if(item.masukKe==='minuman')return;
       if(typeof window.getPaymentCash==='function'){total+=Number(window.getPaymentCash(item,1)||0)+Number(window.getPaymentCash(item,2)||0)}
       else{const m1=item.metode1||item.metode||'Cash',m2=item.metode2||'Cash';if(m1==='Cash')total+=Number(item.jumlah1??item.jumlah??0);if(m2==='Cash')total+=Number(item.jumlah2||0)}
       const kaos=Number(item.totalKaosKaki||0),met1=item.metode1||item.metode||'Cash';
@@ -47315,6 +47431,7 @@ body > header .admin-global-header-brand-title{
   }
   function cashMinumanMasuk(tgl){
     let total=0;
+    Object.values((window.__sandagaGlobalCache&&window.__sandagaGlobalCache.pemasukan)||{}).forEach(item=>{if(item&&item.masukKe==='minuman'&&normalizeDate(item.tgl)===tgl&&typeof window.getPemasukanCashItem==='function')total+=Number(window.getPemasukanCashItem(item)||0)});
     Object.values((window.__sandagaGlobalCache&&window.__sandagaGlobalCache.minuman)||{}).forEach(item=>{if(item&&normalizeDate(item.tgl)===tgl&&String(item.metode||'Cash')==='Cash')total+=Number(item.total||0)});
     return total;
   }
