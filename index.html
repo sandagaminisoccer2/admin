@@ -12761,50 +12761,117 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
 </div>
 
 </div>
-<!-- FORM UANG KELUAR -->
-<div class="sub-menu-modern glass-panel p-4 sm:p-6 rounded-2xl hidden font-bold text-slate-900" id="page-keluar">
+<!-- FORM UANG KELUAR (desain card mandiri v1) -->
+<div class="sub-menu-modern hidden font-bold text-slate-900 fx-page fx-keluar" id="page-keluar">
 
-<h2 class="text-base sm:text-lg font-black mb-4 text-rose-950 text-center uppercase w-full">UANG KELUAR</h2>
-<form onsubmit="submitData(event, 'pengeluaran')">
-<input class="w-full p-2 rounded mb-3 text-sm glass-input font-bold" id="k-ket" placeholder="Keterangan Pengeluaran" required="" type="text"/>
-<input class="w-full p-2 rounded mb-3 text-sm glass-input font-bold" id="k-jumlah" placeholder="Nominal (Rp)" required="" type="text" inputmode="numeric" oninput="formatNominalInput(this)"/>
-<label class="block text-xs font-bold mb-1 text-slate-900">TANGGAL PENGELUARAN</label>
-<div class="uang-keluar-date-picker-wrap mb-3">
-  <input class="uang-keluar-native-date" id="k-tgl" required="" type="date" tabindex="-1" aria-hidden="true"/>
-  <button type="button" id="uang-keluar-date-button" class="uang-keluar-date-button" onclick="openUangKeluarCalendar()" aria-label="Pilih tanggal pengeluaran">
-    <span class="uang-keluar-date-icon" aria-hidden="true">📅</span>
-    <span class="uang-keluar-date-button-text">Pilih tanggal</span>
-    <span class="uang-keluar-date-chevron" aria-hidden="true">⌄</span>
-  </button>
-</div>
-<div class="keluar-sumber-uang mb-3">
-  <label class="block text-xs font-black text-rose-950 mb-2">PENGELUARAN DARI UANG</label>
-  <div class="keluar-sumber-uang-options" role="radiogroup" aria-label="Sumber uang pengeluaran">
-    <label class="keluar-sumber-uang-option">
+<h2 class="fx-title"><span class="fx-title-ico" aria-hidden="true">💸</span><span class="fx-title-txt">UANG KELUAR<small>Catat pengeluaran dari kas</small></span></h2>
+<form onsubmit="submitData(event, 'pengeluaran')" class="fx-form">
+
+<section class="fx-card">
+  <div class="fx-card-title"><span class="fx-chip">📝</span><b>Detail Pengeluaran</b></div>
+  <input class="fx-input" id="k-ket" placeholder="Keterangan pengeluaran" required="" type="text" autocomplete="off"/>
+  <div class="fx-money"><span class="fx-rp">Rp</span><input class="fx-input fx-input-money" id="k-jumlah" placeholder="0" required="" type="text" inputmode="numeric" oninput="formatNominalInput(this)" autocomplete="off"/></div>
+</section>
+
+<section class="fx-card">
+  <div class="fx-card-title"><span class="fx-chip">📅</span><b>Tanggal Pengeluaran</b></div>
+  <div class="uang-keluar-date-picker-wrap">
+    <input class="uang-keluar-native-date" id="k-tgl" required="" type="date" tabindex="-1" aria-hidden="true"/>
+    <button type="button" id="uang-keluar-date-button" class="uang-keluar-date-button" onclick="openUangKeluarCalendar()" aria-label="Pilih tanggal pengeluaran">
+      <span class="uang-keluar-date-icon" aria-hidden="true">📅</span>
+      <span class="uang-keluar-date-button-text">Pilih tanggal</span>
+      <span class="uang-keluar-date-chevron" aria-hidden="true">⌄</span>
+    </button>
+  </div>
+</section>
+
+<section class="fx-card">
+  <div class="fx-card-title"><span class="fx-chip">👛</span><b>Pengeluaran dari Uang</b></div>
+  <div class="fx-choices" role="radiogroup" aria-label="Sumber uang pengeluaran">
+    <label class="fx-choice">
       <input type="radio" name="k-sumber-uang" id="k-sumber-uang-lapangan" value="lapangan" checked onchange="window.cekSaldoSumberCash&&window.cekSaldoSumberCash()"/>
-      <span><b>🏟️ Uang Lapangan</b><small>Dipotong dari cash lapangan</small></span>
+      <span><i>🏟️</i><b>Uang Lapangan</b><small>Dipotong dari cash lapangan</small></span>
     </label>
-    <label class="keluar-sumber-uang-option">
+    <label class="fx-choice">
       <input type="radio" name="k-sumber-uang" id="k-sumber-uang-minuman" value="minuman" onchange="window.cekSaldoSumberCash&&window.cekSaldoSumberCash()"/>
-      <span><b>🥤 Uang Minuman</b><small>Dipotong dari cash minuman</small></span>
+      <span><i>🥤</i><b>Uang Minuman</b><small>Dipotong dari cash minuman</small></span>
     </label>
   </div>
+</section>
+
+<section class="fx-card">
+  <div class="fx-card-title"><span class="fx-chip">💵</span><b>Cash Diambil dari Tanggal</b></div>
+  <div class="uang-keluar-source-date-wrap">
+    <input class="uang-keluar-source-native-date" id="k-sumber-tgl" required="" type="date" tabindex="-1" aria-hidden="true"/>
+    <button type="button" id="uang-keluar-source-date-button" class="uang-keluar-source-date-button" onclick="openUangKeluarSourceCalendar()" aria-label="Pilih tanggal sumber cash">
+      <span class="uang-keluar-source-date-icon" aria-hidden="true">📅</span>
+      <span class="uang-keluar-source-date-text">Memuat tanggal...</span>
+      <span class="uang-keluar-source-date-chevron" aria-hidden="true">⌄</span>
+    </button>
+  </div>
+  <p class="fx-saldo" id="info-saldo-sumber">SISA CASH TANGGAL TERPILIH: MENGHITUNG...</p>
+</section>
+
+<div class="fx-actions">
+  <button class="fx-save" type="submit">💾 <span>Simpan Pengeluaran</span></button>
 </div>
-<div class="keluar-sumber-cash-simple mb-3">
-  <label class="block text-xs font-black text-rose-950 mb-2">CASH DIAMBIL DARI TANGGAL</label>
-    <div class="uang-keluar-source-date-wrap mb-3">
-      <input class="uang-keluar-source-native-date" id="k-sumber-tgl" required="" type="date" tabindex="-1" aria-hidden="true"/>
-      <button type="button" id="uang-keluar-source-date-button" class="uang-keluar-source-date-button" onclick="openUangKeluarSourceCalendar()" aria-label="Pilih tanggal sumber cash">
-        <span class="uang-keluar-source-date-icon" aria-hidden="true">📅</span>
-        <span class="uang-keluar-source-date-text">Memuat tanggal...</span>
-        <span class="uang-keluar-source-date-chevron" aria-hidden="true">⌄</span>
+</form>
+</div>
+
+<!-- UANG MASUK — halaman biasa (desain card mandiri v1) -->
+<div class="sub-menu-modern hidden font-bold text-slate-900 fx-page fx-masuk" id="page-masuk-manual">
+
+<h2 class="fx-title"><span class="fx-title-ico" aria-hidden="true">💰</span><span class="fx-title-txt">UANG MASUK<small>Catat pemasukan tambahan</small></span></h2>
+<form id="manual-uang-masuk-form" class="fx-form" autocomplete="off">
+
+  <section class="fx-card">
+    <div class="fx-card-title"><span class="fx-chip">📝</span><b>Detail Pemasukan</b></div>
+    <input class="fx-input" id="manual-uang-masuk-ket" type="text" placeholder="Contoh: Penjualan / tambahan pemasukan" required autocomplete="off">
+    <div class="fx-money"><span class="fx-rp">Rp</span><input class="fx-input fx-input-money" id="manual-uang-masuk-jumlah" type="text" inputmode="numeric" placeholder="0" required autocomplete="off"></div>
+  </section>
+
+  <section class="fx-card fx-card-method">
+    <div class="fx-card-title"><span class="fx-chip">💳</span><b>Metode Pembayaran</b></div>
+    <div class="manual-uang-masuk-method-wrap" id="manual-uang-masuk-method-wrap">
+      <button type="button" id="manual-uang-masuk-method-btn" class="manual-uang-masuk-method-btn" aria-haspopup="listbox" aria-expanded="false">
+        <span class="manual-uang-masuk-method-icon" id="manual-uang-masuk-method-icon">💵</span>
+        <span class="manual-uang-masuk-method-value" id="manual-uang-masuk-method-value">Cash</span>
+        <span class="manual-uang-masuk-method-chevron">⌄</span>
       </button>
+      <div class="manual-uang-masuk-method-menu hidden" id="manual-uang-masuk-method-menu" role="listbox">
+        <button type="button" class="manual-uang-masuk-method-option selected" data-value="Cash"><span>💵</span><span>Cash</span></button>
+        <button type="button" class="manual-uang-masuk-method-option" data-value="QRIS"><span>▣</span><span>QRIS</span></button>
+        <button type="button" class="manual-uang-masuk-method-option" data-value="Transfer"><span>🏦</span><span>Transfer</span></button>
+      </div>
+      <input type="hidden" id="manual-uang-masuk-method" value="Cash">
     </div>
-  <p class="text-xs text-amber-950 font-extrabold mt-2" id="info-saldo-sumber">SISA CASH TANGGAL TERPILIH: MENGHITUNG...</p>
-</div>
-<div class="flex justify-end gap-2">
-<button class="bg-rose-700 hover:bg-rose-800 text-white px-4 py-2 rounded text-sm font-bold border border-rose-500/50 shadow" type="submit">Simpan</button>
-</div>
+  </section>
+
+  <section class="fx-card">
+    <div class="fx-card-title"><span class="fx-chip">📅</span><b>Tanggal Pemasukan</b></div>
+    <div id="manual-uang-masuk-date-wrap">
+      <input id="manual-uang-masuk-date-native" type="date" required tabindex="-1" aria-hidden="true">
+      <button type="button" id="manual-uang-masuk-date-btn"><span>📅</span><span id="manual-uang-masuk-date-text">Pilih tanggal</span><span>⌄</span></button>
+    </div>
+  </section>
+
+  <section class="fx-card">
+    <div class="fx-card-title"><span class="fx-chip">👛</span><b>Masuk ke Uang</b></div>
+    <div class="fx-choices masuk-tujuan-uang-options" role="radiogroup" aria-label="Uang masuk dimasukkan ke">
+      <label class="fx-choice masuk-tujuan-uang-option">
+        <input type="radio" name="manual-uang-masuk-tujuan" value="lapangan" checked/>
+        <span><i>🏟️</i><b>Uang Lapangan</b><small>Dicatat sebagai pemasukan lapangan</small></span>
+      </label>
+      <label class="fx-choice masuk-tujuan-uang-option">
+        <input type="radio" name="manual-uang-masuk-tujuan" value="minuman"/>
+        <span><i>🥤</i><b>Uang Minuman</b><small>Dicatat sebagai pemasukan minuman</small></span>
+      </label>
+    </div>
+  </section>
+
+  <div class="fx-actions">
+    <button id="manual-uang-masuk-save" class="fx-save" type="submit">💾 Simpan</button>
+  </div>
 </form>
 </div>
 
@@ -12876,19 +12943,19 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
       <h2 class="text-base sm:text-lg font-black text-slate-900 text-center uppercase w-full">MENU LAINNYA</h2>
     </div>
     <div class="more-page-grid">
-      <button type="button" onclick="quickMoreOpen('pelunasan-member')"><span>🧾</span><b>Pelunasan Member</b><small>Tagihan member</small></button>
-      <button type="button" onclick="quickMoreOpen('booking')"><span>⚽</span><b>Booking</b><small>Input booking</small></button>
-      <button type="button" onclick="openSparingChooser()"><span>🤝</span><b>Sparing</b><small>Catat sparing</small></button>
-      <button type="button" onclick="quickMoreOpen('admin-jaga')"><span>🧑‍💼</span><b>Admin Jaga</b><small>Jadwal admin</small></button>
-      <button type="button" onclick="openAturMemberChooser()"><span>⚙️</span><b>Atur Member</b><small>Data member</small></button>
-      <button type="button" onclick="quickMoreOpen('booking-schedule')"><span>🗓️</span><b>Booking Schedule</b><small>Jadwal booking</small></button>
-      <button type="button" onclick="quickMoreOpen('booking-history')"><span>📋</span><b>Booking History</b><small>Riwayat booking</small></button>
-      <button type="button" onclick="quickMoreOpen('monthly-recap')"><span>📈</span><b>Monthly Recap</b><small>Rekap bulanan</small></button>
-      <button type="button" onclick="quickMoreOpen('laporan')"><span>📊</span><b>Laporan</b><small>Pusat laporan transaksi</small></button>
-      <button type="button" onclick="quickMoreOpen('team-list')"><span>👥</span><b>List Tim Main</b><small>Semua tim yang pernah main</small></button>
-      <button type="button" onclick="quickMoreOpen('team-tanpa-logo')"><span>🖼️</span><b>Tim Tanpa Logo</b><small>Tambah logo tim</small></button>
-      <button type="button" onclick="quickMoreOpen('setor-tunai')"><span>💵</span><b>Setor Tunai</b><small>Rekap cash per tanggal</small></button>
-      <button type="button" onclick="quickMoreOpen('gaji-admin')"><span>💰</span><b>Gaji Admin</b><small>Gaji shift + bonus tim</small></button>
+      <button type="button" onclick="quickMoreOpen('pelunasan-member')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg></span><b>Pelunasan Member</b><small>Tagihan member</small></button>
+      <button type="button" onclick="quickMoreOpen('booking')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M12 13v4M10 15h4M8 2.8v3.4M16 2.8v3.4M3 10h18"/></svg></span><b>Booking</b><small>Input booking</small></button>
+      <button type="button" onclick="openSparingChooser()"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 13h6l-1 8 8-10h-6l1-8z"/></svg></span><b>Sparing</b><small>Catat sparing</small></button>
+      <button type="button" onclick="quickMoreOpen('admin-jaga')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></span><b>Admin Jaga</b><small>Jadwal admin</small></button>
+      <button type="button" onclick="openAturMemberChooser()"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span><b>Atur Member</b><small>Data member</small></button>
+      <button type="button" onclick="quickMoreOpen('booking-schedule')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M8 2.8v3.4M16 2.8v3.4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span><b>Booking Schedule</b><small>Jadwal booking</small></button>
+      <button type="button" onclick="quickMoreOpen('booking-history')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4.5H8"/><path d="M12 8v4l3 2"/></svg></span><b>Booking History</b><small>Riwayat booking</small></button>
+      <button type="button" onclick="quickMoreOpen('monthly-recap')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><b>Monthly Recap</b><small>Rekap bulanan</small></button>
+      <button type="button" onclick="quickMoreOpen('laporan')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l5 5v13H6V3z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg></span><b>Laporan</b><small>Pusat laporan transaksi</small></button>
+      <button type="button" onclick="quickMoreOpen('team-list')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.5a3 3 0 0 1 0 5.5M18 14.5c2 .8 3 2.6 3 5.5"/></svg></span><b>List Tim Main</b><small>Semua tim yang pernah main</small></button>
+      <button type="button" onclick="quickMoreOpen('team-tanpa-logo')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-5 4 4 3-3 4 4"/></svg></span><b>Tim Tanpa Logo</b><small>Tambah logo tim</small></button>
+      <button type="button" onclick="quickMoreOpen('setor-tunai')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="18" height="11" rx="2.5"/><circle cx="12" cy="12" r="2.5"/></svg></span><b>Setor Tunai</b><small>Rekap cash per tanggal</small></button>
+      <button type="button" onclick="quickMoreOpen('gaji-admin')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M16 13.5h.01"/></svg></span><b>Gaji Admin</b><small>Gaji shift + bonus tim</small></button>
     </div>
   </div>
 </div>
@@ -27782,28 +27849,28 @@ window.downloadRincianMinumanJPG = async function() {
 
 <!-- QUICK BOTTOM NAV — 5 MENU UTAMA -->
 <nav id="quick-bottom-nav" class="quick-bottom-nav" aria-label="Menu cepat admin">
-  <button type="button" class="quick-nav-item" data-quick="schedule" onclick="quickOpenSchedule()">
-    <span class="quick-nav-icon">📅</span>
+  <button type="button" class="quick-nav-item" data-quick="schedule" onclick="quickOpenSchedule()" aria-label="Jadwal" title="Jadwal">
+    <span class="quick-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M8 2.8v3.4M16 2.8v3.4M3 10h18"/></svg></span>
     <span class="quick-nav-label">Jadwal</span>
   </button>
-  <button type="button" class="quick-nav-item" data-quick="minuman" onclick="quickOpenPage('minuman')">
-    <span class="quick-nav-icon">🥤</span>
+  <button type="button" class="quick-nav-item" data-quick="minuman" onclick="quickOpenPage('minuman')" aria-label="Minuman" title="Minuman">
+    <span class="quick-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l-1.4 16.2A2 2 0 0 1 14.6 21H9.4a2 2 0 0 1-2-1.8L6 3z"/><path d="M6.6 9.5h10.8"/></svg></span>
     <span class="quick-nav-label">Minuman</span>
   </button>
-  <button type="button" class="quick-nav-item quick-nav-main" data-quick="daily-recap" onclick="quickOpenPage('daily-recap')">
-    <span class="quick-nav-icon">📊</span>
+  <button type="button" class="quick-nav-item quick-nav-main" data-quick="daily-recap" onclick="quickOpenPage('daily-recap')" aria-label="Daily Recap" title="Daily Recap">
+    <span class="quick-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-9M10 20V4M16 20v-6M3 20h18"/></svg></span>
     <span class="quick-nav-label">Daily Recap</span>
   </button>
-  <button type="button" class="quick-nav-item" data-quick="keluar" onclick="quickOpenPage('keluar')">
-    <span class="quick-nav-icon">💸</span>
+  <button type="button" class="quick-nav-item" data-quick="keluar" onclick="quickOpenPage('keluar')" aria-label="Uang Keluar" title="Uang Keluar">
+    <span class="quick-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 15l6-6M10 9h5v5"/></svg></span>
     <span class="quick-nav-label">Uang Keluar</span>
   </button>
-  <button type="button" class="quick-nav-item" data-quick="masuk-manual" onclick="openManualUangMasukModal()">
-    <span class="quick-nav-icon">💰</span>
+  <button type="button" class="quick-nav-item" data-quick="masuk-manual" onclick="openManualUangMasukModal()" aria-label="Uang Masuk" title="Uang Masuk">
+    <span class="quick-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M14 15H9v-5"/></svg></span>
     <span class="quick-nav-label">Uang Masuk</span>
   </button>
-  <button type="button" class="quick-nav-item" data-quick="more" onclick="toggleQuickMore()" aria-expanded="false">
-    <span class="quick-nav-icon">☰</span>
+  <button type="button" class="quick-nav-item" data-quick="more" onclick="toggleQuickMore()" aria-expanded="false" aria-label="Lainnya" title="Lainnya">
+    <span class="quick-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/></svg></span>
     <span class="quick-nav-label">Lainnya</span>
   </button>
 </nav>
@@ -36290,6 +36357,265 @@ body > main > #page-jadwal #today-schedule-list .today-schedule-loading-sub{colo
     if(p && !p.classList.contains('hidden')) syncWidth();
   }, 600);
   syncWidth();
+})();
+</script>
+
+<style id="dock-more-minimal-navy-v1">
+/* DOCK minimalis (ikon monokrom biru navy #132a5e) + MENU LAINNYA selaras dengan Jadwal Hari Ini & Minuman. Hanya tampilan. */
+html body nav#quick-bottom-nav.quick-bottom-nav{display:grid !important;grid-template-columns:repeat(6,minmax(0,1fr)) !important;gap:2px !important;min-height:56px !important;padding:5px !important;overflow:hidden !important;
+ background:linear-gradient(145deg,rgba(255,255,255,.90),rgba(255,255,255,.66)) !important;border:1px solid rgba(255,255,255,.88) !important;border-radius:22px !important;
+ box-shadow:0 10px 28px rgba(15,23,42,.14),inset 0 1px 0 rgba(255,255,255,.92) !important;backdrop-filter:blur(14px) saturate(130%) !important;-webkit-backdrop-filter:blur(14px) saturate(130%) !important}
+html body nav#quick-bottom-nav .quick-nav-item.quick-nav-item{display:flex !important;align-items:center !important;justify-content:center !important;width:auto !important;height:46px !important;min-height:46px !important;margin:0 !important;padding:0 !important;
+ background:transparent !important;border:0 !important;border-radius:16px !important;box-shadow:none !important;transform:none !important;color:#132a5e !important;opacity:.5;transition:opacity .15s,background .15s}
+html body nav#quick-bottom-nav .quick-nav-item.quick-nav-item::before,html body nav#quick-bottom-nav .quick-nav-item.quick-nav-item::after{display:none !important}
+html body nav#quick-bottom-nav .quick-nav-item.active,html body nav#quick-bottom-nav .quick-nav-item[aria-expanded="true"]{opacity:1;background:rgba(19,42,94,.09) !important;box-shadow:inset 0 0 0 1px rgba(19,42,94,.10) !important}
+html body nav#quick-bottom-nav .quick-nav-item:active{transform:scale(.94) !important}
+html body nav#quick-bottom-nav .quick-nav-label{display:none !important}
+html body nav#quick-bottom-nav .quick-nav-icon{display:inline-flex !important;align-items:center;justify-content:center;width:24px !important;height:24px !important;margin:0 !important;font-size:0 !important;background:none !important;box-shadow:none !important;filter:none !important;color:inherit !important}
+html body nav#quick-bottom-nav .quick-nav-icon svg{width:24px;height:24px;display:block}
+html body #page-more .more-menu-page .more-page-grid{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+html body #page-more .more-menu-page .more-page-grid>button{display:grid !important;grid-template-columns:42px minmax(0,1fr) !important;grid-template-rows:auto auto !important;align-content:center !important;align-items:center !important;column-gap:10px !important;row-gap:2px !important;
+ min-height:64px !important;height:auto !important;padding:10px !important;text-align:left !important;background:linear-gradient(145deg,rgba(255,255,255,.90),rgba(255,255,255,.66)) !important;
+ border:1px solid rgba(255,255,255,.88) !important;border-radius:18px !important;box-shadow:0 8px 22px rgba(15,23,42,.12),inset 0 1px 0 rgba(255,255,255,.92) !important;backdrop-filter:blur(14px) saturate(130%) !important;-webkit-backdrop-filter:blur(14px) saturate(130%) !important;transform:none !important}
+html body #page-more .more-menu-page .more-page-grid>button:active{transform:scale(.97) !important}
+html body #page-more .more-menu-page .more-page-grid>button:last-child{grid-column:1 / -1 !important}
+html body #page-more .more-menu-page .more-page-grid>button .more-ic{grid-row:1 / span 2;display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:13px;font-size:0 !important;color:#fff;background:linear-gradient(145deg,#2563a8,#0f3d75);box-shadow:0 4px 10px rgba(15,61,117,.28)}
+html body #page-more .more-menu-page .more-page-grid>button .more-ic svg{width:21px;height:21px;display:block}
+html body #page-more .more-menu-page .more-page-grid>button b{align-self:end;text-align:left !important;font-size:12px !important;line-height:1.15 !important;font-weight:900 !important;color:#132a5e !important}
+html body #page-more .more-menu-page .more-page-grid>button small{align-self:start;text-align:left !important;font-size:9.5px !important;line-height:1.2 !important;font-weight:800 !important;color:#475569 !important}
+</style>
+
+<!-- =========================================================================
+     REVISI: UANG MASUK & UANG KELUAR — dari popup menjadi halaman biasa
+     (setara Minuman / Daily Recap). Blok ini sengaja diletakkan paling akhir.
+     ========================================================================= -->
+<style id="uang-masuk-keluar-halaman-biasa-v1">
+/* ---------- UANG MASUK (halaman biasa) ---------- */
+#page-masuk-manual.sub-menu-modern{
+  position:relative !important;
+  isolation:isolate !important;
+  overflow:visible !important;
+  background:linear-gradient(145deg,rgba(16,185,129,.20),rgba(4,120,87,.10)) !important;
+  border:1px solid rgba(16,185,129,.30) !important;
+  border-radius:24px !important;
+  box-shadow:0 18px 45px rgba(8,20,45,.14), inset 0 1px 0 rgba(255,255,255,.55) !important;
+  backdrop-filter:blur(18px) saturate(150%) !important;
+  -webkit-backdrop-filter:blur(18px) saturate(150%) !important;
+  padding:18px !important;
+  color:#0f172a !important;
+}
+#page-masuk-manual.sub-menu-modern::before,
+#page-masuk-manual.sub-menu-modern::after{display:none !important;content:none !important}
+#page-masuk-manual > h2{
+  color:#047857 !important;
+  text-align:center !important;
+  text-transform:uppercase !important;
+  width:100% !important;
+  letter-spacing:.02em;
+  line-height:1.2;
+  margin:0 auto 18px !important;
+}
+#page-masuk-manual #manual-uang-masuk-form{margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important}
+#page-masuk-manual .manual-uang-masuk-field label{color:#172033 !important}
+/* Dropdown metode berada di dalam halaman (tidak lagi melayang di atas popup). */
+#page-masuk-manual .manual-uang-masuk-method-menu.hidden{display:none !important}
+#page-masuk-manual #manual-uang-masuk-method-menu.is-open{
+  position:absolute !important;
+  left:0 !important;right:0 !important;top:calc(100% + 6px) !important;
+  width:auto !important;min-width:0 !important;max-width:none !important;
+  z-index:60 !important;display:block !important;
+}
+/* Jarak & label antar field dirapikan (urutan field berbeda dari CSS popup lama). */
+#page-masuk-manual #manual-uang-masuk-form .manual-uang-masuk-field{margin:0 0 12px !important}
+#page-masuk-manual #manual-uang-masuk-form .manual-uang-masuk-field > label{
+  display:block !important;margin:0 0 6px !important;font-size:12px !important;line-height:1.2 !important;
+  font-weight:950 !important;text-transform:uppercase !important;color:#172033 !important;
+}
+#page-masuk-manual #manual-uang-masuk-form .manual-uang-masuk-field:nth-child(1) > label,
+#page-masuk-manual #manual-uang-masuk-form .manual-uang-masuk-field:nth-child(2) > label{display:none !important}
+#page-masuk-manual #manual-uang-masuk-method-btn{
+  min-height:52px !important;
+  background:rgba(255,255,255,.30) !important;
+  border:1px solid rgba(255,255,255,.62) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.48),0 4px 14px rgba(15,23,42,.05) !important;
+  backdrop-filter:blur(12px) saturate(130%) !important;
+  -webkit-backdrop-filter:blur(12px) saturate(130%) !important;
+}
+#page-masuk-manual .manual-masuk-page-actions{margin:16px 0 0 !important;display:flex !important}
+#page-masuk-manual #manual-uang-masuk-save:disabled{opacity:.7;cursor:wait}
+@media(max-width:640px){
+  #page-masuk-manual.sub-menu-modern{padding:14px !important;border-radius:20px !important}
+}
+
+/* ---------- UANG KELUAR: pastikan tidak ada sisa gaya popup ---------- */
+#jadwal-uang-keluar-modal-backdrop,
+#manual-uang-masuk-backdrop,
+#uang-masuk-manual-backdrop{display:none !important}
+</style>
+
+<script id="uang-masuk-keluar-halaman-biasa-v1-script">
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const META = {
+    Cash:{icon:'💵',label:'Cash'},
+    QRIS:{icon:'▣',label:'QRIS'},
+    Transfer:{icon:'🏦',label:'Transfer'}
+  };
+  let ready = false;
+
+  function today(){
+    if(typeof getLocalDateString === 'function') return getLocalDateString();
+    return new Date().toISOString().slice(0,10);
+  }
+  function fmtDate(v){
+    if(!v) return 'Pilih tanggal';
+    return typeof formatTanggalFull === 'function' ? formatTanggalFull(v) : v.split('-').reverse().join('/');
+  }
+  function goHome(){
+    if(typeof window.quickOpenSchedule === 'function') window.quickOpenSchedule();
+    else if(typeof window.showPage === 'function') window.showPage('jadwal');
+  }
+  function setNavActive(key){
+    document.querySelectorAll('#quick-bottom-nav .quick-nav-item')
+      .forEach(b => b.classList.toggle('active', b.dataset.quick === key));
+  }
+
+  function syncDate(){
+    const d = $('manual-uang-masuk-date-native');
+    const t = $('manual-uang-masuk-date-text');
+    if(d && t) t.textContent = fmtDate(d.value);
+  }
+  function closeMethod(){
+    const menu = $('manual-uang-masuk-method-menu');
+    const wrap = $('manual-uang-masuk-method-wrap');
+    const btn  = $('manual-uang-masuk-method-btn');
+    if(menu){ menu.classList.remove('is-open'); menu.classList.add('hidden'); }
+    if(wrap) wrap.classList.remove('open');
+    if(btn) btn.setAttribute('aria-expanded','false');
+  }
+  function openMethod(){
+    const menu = $('manual-uang-masuk-method-menu');
+    const wrap = $('manual-uang-masuk-method-wrap');
+    const btn  = $('manual-uang-masuk-method-btn');
+    if(menu){ menu.classList.remove('hidden'); menu.classList.add('is-open'); }
+    if(wrap) wrap.classList.add('open');
+    if(btn) btn.setAttribute('aria-expanded','true');
+  }
+  function setMethod(value){
+    if(!META[value]) value = 'Cash';
+    const hidden = $('manual-uang-masuk-method');
+    if(hidden) hidden.value = value;
+    const v = $('manual-uang-masuk-method-value'); if(v) v.textContent = META[value].label;
+    const i = $('manual-uang-masuk-method-icon');  if(i) i.textContent = META[value].icon;
+    document.querySelectorAll('#manual-uang-masuk-method-menu .manual-uang-masuk-method-option')
+      .forEach(b => b.classList.toggle('selected', b.dataset.value === value));
+    closeMethod();
+  }
+  function resetForm(){
+    const form = $('manual-uang-masuk-form');
+    if(form) form.reset();
+    const d = $('manual-uang-masuk-date-native'); if(d) d.value = today();
+    syncDate();
+    setMethod('Cash');
+    const first = document.querySelector('input[name="manual-uang-masuk-tujuan"][value="lapangan"]');
+    if(first) first.checked = true;
+    const save = $('manual-uang-masuk-save');
+    if(save){ save.disabled = false; save.textContent = '💾 Simpan'; }
+  }
+
+  function init(){
+    if(ready) return;
+    const form = $('manual-uang-masuk-form');
+    if(!form) return;
+    ready = true;
+
+    const date = $('manual-uang-masuk-date-native');
+    const nominal = $('manual-uang-masuk-jumlah');
+    const mBtn = $('manual-uang-masuk-method-btn');
+    const mMenu = $('manual-uang-masuk-method-menu');
+    const mWrap = $('manual-uang-masuk-method-wrap');
+
+    $('manual-uang-masuk-date-btn').addEventListener('click', () => {
+      try{ date.showPicker(); }catch(_){ date.click(); }
+    });
+    date.addEventListener('change', syncDate);
+
+    mBtn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      if(mMenu.classList.contains('is-open')) closeMethod(); else openMethod();
+    });
+    mMenu.querySelectorAll('.manual-uang-masuk-method-option').forEach(b => {
+      b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); setMethod(b.dataset.value); });
+    });
+    document.addEventListener('click', e => {
+      if(!mMenu.classList.contains('is-open')) return;
+      if(mWrap.contains(e.target)) return;
+      closeMethod();
+    });
+
+    nominal.addEventListener('input', () => {
+      const raw = String(nominal.value || '').replace(/\D/g,'');
+      nominal.value = raw ? Number(raw).toLocaleString('id-ID') : '';
+    });
+
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      const ket = $('manual-uang-masuk-ket').value.trim();
+      const jumlah = Number(String(nominal.value || '').replace(/\D/g,''));
+      const tgl = date.value;
+      if(!ket || !jumlah || jumlah < 0 || !tgl){ alert('Mohon lengkapi keterangan, nominal, dan tanggal.'); return; }
+      const db = window.__APP_FIREBASE_DB__, pushFn = window.__APP_FIREBASE_PUSH__, refFn = window.__APP_FIREBASE_REF__;
+      if(!db || !pushFn || !refFn){ alert('Koneksi database belum siap.'); return; }
+      const save = $('manual-uang-masuk-save');
+      save.disabled = true; save.textContent = '⏳ Menyimpan...';
+      const metode = $('manual-uang-masuk-method').value || 'Cash';
+      const tujuan = (document.querySelector('input[name="manual-uang-masuk-tujuan"]:checked') || {}).value === 'minuman' ? 'minuman' : 'lapangan';
+      try{
+        let acked = false;
+        const savePromise = Promise.resolve(pushFn(refFn(db,'pemasukan'),{
+          ket, jumlah, jumlah1:jumlah, jumlah2:0,
+          metode, metode1:metode, metode2:'Cash',
+          tgl, sumber:'manual-uang-masuk', manual:true,
+          masukKe:tujuan,
+          timestamp:Date.now()
+        })).then(() => { acked = true; });
+        savePromise.catch(() => {});
+        await Promise.race([savePromise, new Promise(r => setTimeout(r, 3000))]);
+        if(!acked && typeof window.trackPendingSync === 'function') window.trackPendingSync(savePromise, 'Uang masuk ' + ket);
+        if(typeof window.showSuccessPopup === 'function'){
+          window.showSuccessPopup(acked ? 'Uang masuk berhasil disimpan.' : 'Uang masuk tersimpan dan sedang dikirim ke server. Jangan tutup halaman sampai terkirim.');
+        }
+        if(typeof window.renderRekapHarian === 'function') window.renderRekapHarian();
+        if(typeof window.renderTabelKeuangan === 'function') window.renderTabelKeuangan();
+        setTimeout(() => { resetForm(); goHome(); }, 250);
+      }catch(err){
+        console.error(err);
+        alert('Gagal menyimpan uang masuk: ' + err.message);
+        save.disabled = false; save.textContent = '💾 Simpan';
+      }
+    });
+  }
+
+  /* Tombol dock "Uang Masuk": buka halaman biasa, bukan popup. */
+  window.openManualUangMasukModal = function(){
+    init();
+    if(typeof window.showPage === 'function') window.showPage('masuk-manual');
+    resetForm();
+    setTimeout(() => setNavActive('masuk-manual'), 80);
+    setTimeout(() => { const k = $('manual-uang-masuk-ket'); if(k && !('ontouchstart' in window)) k.focus(); }, 120);
+  };
+  window.closeManualUangMasukModal = goHome;
+
+  /* Uang Keluar: pemanggil lama ke popup kini diarahkan ke halaman biasa. */
+  window.__openJadwalUangKeluarModal = function(){
+    if(typeof window.quickOpenPage === 'function') window.quickOpenPage('keluar');
+    else if(typeof window.showPage === 'function') window.showPage('keluar');
+  };
+  window.__closeJadwalUangKeluarModal = goHome;
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>
 
@@ -45109,8 +45435,7 @@ body.jadwal-uang-keluar-modal-active #page-keluar > form > .flex.justify-end but
 
     const original=window.quickOpenPage;
     const wrapped=function(id){
-      if(id==='keluar'){
-        /* Modal dibuka lebih dulu sehingga tidak ada frame halaman normal. */
+      if(false && id==='keluar'){ /* dinonaktifkan: Uang Keluar kini halaman biasa */
         openModal();
         return;
       }
@@ -45501,7 +45826,7 @@ body.jadwal-uang-keluar-modal-active #jadwal-uang-keluar-modal-shell #page-kelua
     if(typeof window.quickOpenPage!=='function')return false;
     if(window.quickOpenPage.__ukShellWrapped)return true;
     const orig=window.quickOpenPage;
-    const w=function(id){if(id==='keluar'){openModal();return}return orig.apply(this,arguments)};
+    const w=function(id){if(false&&id==='keluar'){openModal();return}return orig.apply(this,arguments)};
     w.__ukShellWrapped=true;w.__original=orig;window.quickOpenPage=w;return true;
   }
   if(!wrap()){let n=0,t=setInterval(()=>{if(wrap()||++n>100)clearInterval(t)},100)}
@@ -47625,6 +47950,7 @@ body > header .admin-global-header-brand-title{
     'pelunasan-member':'PELUNASAN MEMBER',
     'booking':'BOOKING',
     'masuk':'UANG MASUK',
+    'masuk-manual':'UANG MASUK',
     'keluar':'UANG KELUAR',
     'team-list':'LIST TIM MAIN',
     'team-tanpa-logo':'TIM TANPA LOGO'
@@ -51913,4 +52239,210 @@ html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-
 html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(4) .daily-mini-text::after{content:"Total keuangan" !important}
 html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-arrow{display:none !important}
 html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n):active{transform:scale(.96) !important}
+</style>
+<style id="uang-masuk-keluar-cards-v1">
+html body #page-keluar.fx-page{--ac:#e11d48;--ac2:#be123c;--tint:#fff1f2;--bd:#fecdd3;--tx:#881337;--sh:rgba(225,29,72,.28)}
+html body #page-masuk-manual.fx-page{--ac:#059669;--ac2:#047857;--tint:#ecfdf5;--bd:#a7f3d0;--tx:#064e3b;--sh:rgba(5,150,105,.28)}
+html body #page-keluar.fx-page,
+html body #page-masuk-manual.fx-page{background:transparent !important;background-image:none !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;padding:0 !important;border-radius:0 !important;overflow:visible !important;display:flex !important;flex-direction:column !important;gap:12px !important;color:#0f172a !important}
+html body #page-keluar.fx-page:not(.hidden),
+html body #page-masuk-manual.fx-page:not(.hidden){display:flex !important}
+html body #page-keluar.fx-page.hidden,html body #page-masuk-manual.fx-page.hidden{display:none !important}
+html body #page-keluar.fx-page::before,
+html body #page-keluar.fx-page::after,
+html body #page-masuk-manual.fx-page::before,
+html body #page-masuk-manual.fx-page::after{display:none !important;content:none !important}
+html body #page-keluar.fx-page > h2.fx-title,
+html body #page-masuk-manual.fx-page > h2.fx-title{display:flex !important;align-items:center !important;gap:12px !important;margin:0 !important;padding:12px 14px !important;width:100% !important;box-sizing:border-box !important;text-align:left !important;background:linear-gradient(135deg,#ffffff 0%,var(--tint) 100%) !important;border:1px solid var(--bd) !important;border-radius:20px !important;box-shadow:0 10px 28px rgba(15,23,42,.14),inset 0 1px 0 #fff !important;color:var(--tx) !important;text-transform:uppercase !important;position:relative !important}
+html body #page-keluar.fx-page > h2.fx-title::before,
+html body #page-keluar.fx-page > h2.fx-title::after,
+html body #page-masuk-manual.fx-page > h2.fx-title::before,
+html body #page-masuk-manual.fx-page > h2.fx-title::after{display:none !important;content:none !important}
+html body #page-keluar.fx-page .fx-title-ico,
+html body #page-masuk-manual.fx-page .fx-title-ico{width:44px !important;height:44px !important;flex:0 0 44px !important;display:grid !important;place-items:center !important;border-radius:14px !important;font-size:22px !important;background:linear-gradient(135deg,var(--ac),var(--ac2)) !important;box-shadow:0 6px 16px var(--sh) !important;filter:none !important}
+html body #page-keluar.fx-page .fx-title-txt,
+html body #page-masuk-manual.fx-page .fx-title-txt{display:flex !important;flex-direction:column !important;gap:2px !important;font-size:16px !important;font-weight:900 !important;letter-spacing:.03em !important;line-height:1.15 !important;color:var(--tx) !important}
+html body #page-keluar.fx-page .fx-title-txt small,
+html body #page-masuk-manual.fx-page .fx-title-txt small{font-size:11px !important;font-weight:700 !important;letter-spacing:0 !important;text-transform:none !important;color:#64748b !important}
+html body #page-keluar.fx-page .fx-form,
+html body #page-masuk-manual.fx-page .fx-form{display:flex !important;flex-direction:column !important;gap:12px !important;margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-radius:0 !important}
+html body #page-keluar.fx-page .fx-card,
+html body #page-masuk-manual.fx-page .fx-card{position:relative !important;display:flex !important;flex-direction:column !important;gap:10px !important;margin:0 !important;padding:14px !important;box-sizing:border-box !important;width:100% !important;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%) !important;border:1px solid rgba(255,255,255,.85) !important;border-radius:20px !important;box-shadow:0 8px 24px rgba(15,23,42,.13),0 1px 0 #fff inset !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;overflow:visible !important}
+html body #page-keluar.fx-page .fx-card::before,
+html body #page-masuk-manual.fx-page .fx-card::before{content:"" !important;display:block !important;position:absolute !important;left:14px !important;right:14px !important;top:0 !important;height:3px !important;border-radius:0 0 4px 4px !important;background:linear-gradient(90deg,var(--ac),var(--ac2)) !important;opacity:.9 !important}
+html body #page-keluar.fx-page .fx-card-title,
+html body #page-masuk-manual.fx-page .fx-card-title{display:flex !important;align-items:center !important;gap:9px !important;margin:0 !important;color:#334155 !important}
+html body #page-keluar.fx-page .fx-card-title b,
+html body #page-masuk-manual.fx-page .fx-card-title b{font-size:12px !important;font-weight:900 !important;letter-spacing:.06em !important;text-transform:uppercase !important;color:#334155 !important}
+html body #page-keluar.fx-page .fx-chip,
+html body #page-masuk-manual.fx-page .fx-chip{width:28px !important;height:28px !important;flex:0 0 28px !important;display:grid !important;place-items:center !important;border-radius:9px !important;font-size:14px !important;background:var(--tint) !important;border:1px solid var(--bd) !important}
+html body #page-keluar.fx-page .fx-input,
+html body #page-masuk-manual.fx-page .fx-input{width:100% !important;box-sizing:border-box !important;min-height:52px !important;margin:0 !important;padding:12px 14px !important;border-radius:14px !important;background:#fff !important;border:1.5px solid #e2e8f0 !important;color:#0f172a !important;font-size:15px !important;font-weight:800 !important;box-shadow:inset 0 1px 2px rgba(15,23,42,.04) !important;outline:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;transition:border-color .15s,box-shadow .15s !important}
+html body #page-keluar.fx-page .fx-input::placeholder,
+html body #page-masuk-manual.fx-page .fx-input::placeholder{color:#94a3b8 !important;font-weight:700 !important;opacity:1 !important}
+html body #page-keluar.fx-page .fx-input:focus,
+html body #page-masuk-manual.fx-page .fx-input:focus{border-color:var(--ac) !important;box-shadow:0 0 0 4px var(--sh) !important}
+html body #page-keluar.fx-page .fx-money,
+html body #page-masuk-manual.fx-page .fx-money{position:relative !important;display:block !important;width:100% !important}
+html body #page-keluar.fx-page .fx-rp,
+html body #page-masuk-manual.fx-page .fx-rp{position:absolute !important;left:12px !important;top:50% !important;transform:translateY(-50%) !important;z-index:2 !important;pointer-events:none !important;padding:5px 9px !important;border-radius:9px !important;font-size:13px !important;font-weight:900 !important;color:var(--tx) !important;background:var(--tint) !important;border:1px solid var(--bd) !important}
+html body #page-keluar.fx-page .fx-input-money,
+html body #page-masuk-manual.fx-page .fx-input-money{padding-left:58px !important;font-size:20px !important;font-weight:900 !important;letter-spacing:.01em !important;min-height:56px !important}
+html body #page-keluar.fx-page .uang-keluar-date-button,
+html body #page-keluar.fx-page .uang-keluar-source-date-button,
+html body #page-keluar.fx-page #manual-uang-masuk-date-btn,
+html body #page-keluar.fx-page #manual-uang-masuk-method-btn,
+html body #page-masuk-manual.fx-page .uang-keluar-date-button,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-button,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-btn,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-method-btn{width:100% !important;box-sizing:border-box !important;min-height:52px !important;display:flex !important;align-items:center !important;justify-content:flex-start !important;gap:10px !important;padding:10px 14px !important;background:#fff !important;border:1.5px solid #e2e8f0 !important;border-radius:14px !important;color:#0f172a !important;font-size:14px !important;font-weight:800 !important;text-align:left !important;box-shadow:inset 0 1px 2px rgba(15,23,42,.04) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;cursor:pointer !important}
+html body #page-keluar.fx-page .uang-keluar-date-button:active,
+html body #page-keluar.fx-page .uang-keluar-source-date-button:active,
+html body #page-keluar.fx-page #manual-uang-masuk-date-btn:active,
+html body #page-keluar.fx-page #manual-uang-masuk-method-btn:active,
+html body #page-masuk-manual.fx-page .uang-keluar-date-button:active,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-button:active,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-btn:active,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-method-btn:active{border-color:var(--ac) !important;background:var(--tint) !important}
+html body #page-keluar.fx-page .uang-keluar-date-icon,
+html body #page-keluar.fx-page .uang-keluar-source-date-icon,
+html body #page-keluar.fx-page #manual-uang-masuk-date-btn > span:first-child,
+html body #page-keluar.fx-page .manual-uang-masuk-method-icon,
+html body #page-masuk-manual.fx-page .uang-keluar-date-icon,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-icon,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-btn > span:first-child,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-icon{width:32px !important;height:32px !important;flex:0 0 32px !important;display:grid !important;place-items:center !important;border-radius:10px !important;font-size:16px !important;background:var(--tint) !important;border:1px solid var(--bd) !important;box-shadow:none !important}
+html body #page-keluar.fx-page .uang-keluar-date-button-text,
+html body #page-keluar.fx-page .uang-keluar-source-date-text,
+html body #page-keluar.fx-page #manual-uang-masuk-date-text,
+html body #page-keluar.fx-page .manual-uang-masuk-method-value,
+html body #page-masuk-manual.fx-page .uang-keluar-date-button-text,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-text,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-text,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-value{flex:1 !important;min-width:0 !important;font-size:14px !important;font-weight:800 !important;color:#0f172a !important;text-align:left !important}
+html body #page-keluar.fx-page .uang-keluar-date-chevron,
+html body #page-keluar.fx-page .uang-keluar-source-date-chevron,
+html body #page-keluar.fx-page #manual-uang-masuk-date-btn > span:last-child,
+html body #page-keluar.fx-page .manual-uang-masuk-method-chevron,
+html body #page-masuk-manual.fx-page .uang-keluar-date-chevron,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-chevron,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-btn > span:last-child,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-chevron{margin-left:auto !important;font-size:18px !important;line-height:1 !important;color:#64748b !important}
+html body #page-keluar.fx-page .uang-keluar-date-picker-wrap,
+html body #page-keluar.fx-page .uang-keluar-source-date-wrap,
+html body #page-keluar.fx-page #manual-uang-masuk-date-wrap,
+html body #page-keluar.fx-page .manual-uang-masuk-method-wrap,
+html body #page-masuk-manual.fx-page .uang-keluar-date-picker-wrap,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-wrap,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-wrap,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-wrap{position:relative !important;width:100% !important;margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important}
+html body #page-keluar.fx-page .fx-card-method,
+html body #page-masuk-manual.fx-page .fx-card-method{z-index:5 !important}
+html body #page-keluar.fx-page #manual-uang-masuk-method-menu.is-open,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-method-menu.is-open{position:absolute !important;left:0 !important;right:0 !important;top:calc(100% + 6px) !important;z-index:80 !important;padding:6px !important;background:#fff !important;border:1px solid var(--bd) !important;border-radius:16px !important;box-shadow:0 18px 40px rgba(15,23,42,.22) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+html body #page-keluar.fx-page .manual-uang-masuk-method-option,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-option{display:flex !important;align-items:center !important;gap:10px !important;width:100% !important;min-height:46px !important;padding:8px 10px !important;border:0 !important;border-radius:11px !important;background:transparent !important;color:#0f172a !important;font-size:14px !important;font-weight:800 !important;text-align:left !important}
+html body #page-keluar.fx-page .manual-uang-masuk-method-option.selected,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-option.selected{background:var(--tint) !important;color:var(--tx) !important}
+html body #page-keluar.fx-page .fx-choices,
+html body #page-masuk-manual.fx-page .fx-choices{display:grid !important;grid-template-columns:1fr 1fr !important;gap:10px !important;margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important}
+html body #page-keluar.fx-page .fx-choice,
+html body #page-masuk-manual.fx-page .fx-choice{position:relative !important;display:block !important;margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important;cursor:pointer !important;min-width:0 !important;text-transform:none !important;letter-spacing:0 !important}
+html body #page-keluar.fx-page .fx-choice input,
+html body #page-masuk-manual.fx-page .fx-choice input{position:absolute !important;opacity:0 !important;pointer-events:none !important;width:1px !important;height:1px !important}
+html body #page-keluar.fx-page .fx-choice > span,
+html body #page-masuk-manual.fx-page .fx-choice > span{position:relative !important;display:flex !important;flex-direction:column !important;align-items:flex-start !important;gap:3px !important;height:100% !important;box-sizing:border-box !important;min-height:96px !important;padding:12px !important;border-radius:16px !important;background:#f8fafc !important;border:2px solid #e2e8f0 !important;box-shadow:none !important;transition:all .15s !important}
+html body #page-keluar.fx-page .fx-choice i,
+html body #page-masuk-manual.fx-page .fx-choice i{font-style:normal !important;font-size:20px !important;line-height:1 !important;width:36px !important;height:36px !important;display:grid !important;place-items:center !important;border-radius:11px !important;background:#fff !important;border:1px solid #e2e8f0 !important;margin-bottom:3px !important}
+html body #page-keluar.fx-page .fx-choice b,
+html body #page-masuk-manual.fx-page .fx-choice b{font-size:13px !important;font-weight:900 !important;color:#334155 !important;line-height:1.15 !important}
+html body #page-keluar.fx-page .fx-choice small,
+html body #page-masuk-manual.fx-page .fx-choice small{font-size:10.5px !important;font-weight:700 !important;color:#64748b !important;line-height:1.25 !important}
+html body #page-keluar.fx-page .fx-choice input:checked + span,
+html body #page-masuk-manual.fx-page .fx-choice input:checked + span{background:linear-gradient(160deg,#fff,var(--tint)) !important;border-color:var(--ac) !important;box-shadow:0 6px 16px var(--sh) !important}
+html body #page-keluar.fx-page .fx-choice input:checked + span b,
+html body #page-masuk-manual.fx-page .fx-choice input:checked + span b{color:var(--tx) !important}
+html body #page-keluar.fx-page .fx-choice input:checked + span i,
+html body #page-masuk-manual.fx-page .fx-choice input:checked + span i{background:var(--ac) !important;border-color:var(--ac) !important}
+html body #page-keluar.fx-page .fx-choice input:checked + span::after,
+html body #page-masuk-manual.fx-page .fx-choice input:checked + span::after{content:"✓" !important;display:grid !important;place-items:center !important;position:absolute !important;top:8px !important;right:8px !important;width:22px !important;height:22px !important;border-radius:50% !important;background:var(--ac) !important;color:#fff !important;font-size:13px !important;font-weight:900 !important}
+html body #page-keluar.fx-page .fx-choice input:focus-visible + span,
+html body #page-masuk-manual.fx-page .fx-choice input:focus-visible + span{box-shadow:0 0 0 4px var(--sh) !important}
+html body #page-keluar.fx-page .fx-saldo,
+html body #page-masuk-manual.fx-page .fx-saldo{margin:0 !important;padding:10px 12px !important;border-radius:14px !important;background:#fffbeb !important;border:1px solid #fcd34d !important;color:#78350f !important;font-size:12.5px !important;font-weight:900 !important;line-height:1.35 !important;text-align:left !important;box-shadow:none !important}
+html body #page-keluar.fx-page .fx-saldo:empty,
+html body #page-masuk-manual.fx-page .fx-saldo:empty{display:none !important}
+html body #page-keluar.fx-page .fx-actions,
+html body #page-masuk-manual.fx-page .fx-actions{display:flex !important;width:100% !important;margin:2px 0 0 !important;padding:0 !important;justify-content:stretch !important}
+html body #page-keluar.fx-page .fx-save,
+html body #page-masuk-manual.fx-page .fx-save{width:100% !important;min-height:56px !important;display:flex !important;align-items:center !important;justify-content:center !important;gap:8px !important;padding:12px 18px !important;border-radius:18px !important;border:1px solid rgba(255,255,255,.55) !important;background:linear-gradient(135deg,var(--ac),var(--ac2)) !important;color:#fff !important;font-size:16px !important;font-weight:900 !important;letter-spacing:.02em !important;box-shadow:0 12px 26px var(--sh),inset 0 1px 0 rgba(255,255,255,.35) !important;cursor:pointer !important;text-shadow:0 1px 2px rgba(0,0,0,.22) !important}
+html body #page-keluar.fx-page .fx-save:active,
+html body #page-masuk-manual.fx-page .fx-save:active{transform:scale(.98) !important}
+html body #page-keluar.fx-page .fx-save:disabled,
+html body #page-masuk-manual.fx-page .fx-save:disabled{opacity:.7 !important;cursor:wait !important}
+@media (max-width:380px){
+html body #page-keluar.fx-page .fx-choices,html body #page-masuk-manual.fx-page .fx-choices{grid-template-columns:1fr !important}
+}
+html body:not(.jadwal-uang-keluar-modal-active) #page-keluar.fx-page,html body #page-masuk-manual.fx-page{margin-left:0 !important;margin-right:0 !important;width:100% !important;max-width:none !important;box-sizing:border-box !important;gap:10px !important}
+html body:not(.jadwal-uang-keluar-modal-active) #page-keluar.fx-page > h2.fx-title,html body #page-masuk-manual.fx-page > h2.fx-title{display:none !important}
+html body #page-keluar.fx-page .fx-form,
+html body #page-masuk-manual.fx-page .fx-form{gap:10px !important;width:100% !important}
+html body #page-keluar.fx-page .fx-card,
+html body #page-masuk-manual.fx-page .fx-card{padding:10px 12px 12px !important;gap:6px !important;border-radius:18px !important;width:100% !important;margin:0 !important;box-shadow:0 6px 18px rgba(15,23,42,.12),0 1px 0 #fff inset !important}
+html body #page-keluar.fx-page .fx-card::before,
+html body #page-masuk-manual.fx-page .fx-card::before{left:16px !important;right:16px !important;height:2px !important}
+html body #page-keluar.fx-page .fx-chip,
+html body #page-masuk-manual.fx-page .fx-chip{display:none !important}
+html body #page-keluar.fx-page .fx-card-title,
+html body #page-masuk-manual.fx-page .fx-card-title{gap:0 !important;margin:0 !important}
+html body #page-keluar.fx-page .fx-card-title b,
+html body #page-masuk-manual.fx-page .fx-card-title b{font-size:10px !important;letter-spacing:.09em !important;color:#64748b !important}
+html body #page-keluar.fx-page .fx-input,
+html body #page-masuk-manual.fx-page .fx-input{min-height:44px !important;padding:8px 12px !important;font-size:14px !important;border-radius:12px !important}
+html body #page-keluar.fx-page .fx-input-money,
+html body #page-masuk-manual.fx-page .fx-input-money{min-height:48px !important;padding-left:52px !important;font-size:18px !important}
+html body #page-keluar.fx-page .fx-rp,
+html body #page-masuk-manual.fx-page .fx-rp{left:10px !important;padding:4px 8px !important;font-size:12px !important;border-radius:8px !important}
+html body #page-keluar.fx-page .uang-keluar-date-button,
+html body #page-keluar.fx-page .uang-keluar-source-date-button,
+html body #page-keluar.fx-page #manual-uang-masuk-date-btn,
+html body #page-keluar.fx-page #manual-uang-masuk-method-btn,
+html body #page-masuk-manual.fx-page .uang-keluar-date-button,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-button,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-btn,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-method-btn{min-height:44px !important;padding:6px 10px !important;border-radius:12px !important;font-size:13px !important}
+html body #page-keluar.fx-page .uang-keluar-date-icon,
+html body #page-keluar.fx-page .uang-keluar-source-date-icon,
+html body #page-keluar.fx-page #manual-uang-masuk-date-btn > span:first-child,
+html body #page-keluar.fx-page .manual-uang-masuk-method-icon,
+html body #page-masuk-manual.fx-page .uang-keluar-date-icon,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-icon,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-btn > span:first-child,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-icon{width:28px !important;height:28px !important;flex:0 0 28px !important;font-size:14px !important;border-radius:9px !important}
+html body #page-keluar.fx-page .uang-keluar-date-button-text,
+html body #page-keluar.fx-page .uang-keluar-source-date-text,
+html body #page-keluar.fx-page #manual-uang-masuk-date-text,
+html body #page-keluar.fx-page .manual-uang-masuk-method-value,
+html body #page-masuk-manual.fx-page .uang-keluar-date-button-text,
+html body #page-masuk-manual.fx-page .uang-keluar-source-date-text,
+html body #page-masuk-manual.fx-page #manual-uang-masuk-date-text,
+html body #page-masuk-manual.fx-page .manual-uang-masuk-method-value{font-size:13px !important}
+html body #page-keluar.fx-page .fx-choices,
+html body #page-masuk-manual.fx-page .fx-choices{gap:8px !important}
+html body #page-keluar.fx-page .fx-choice > span,
+html body #page-masuk-manual.fx-page .fx-choice > span{display:grid !important;grid-template-columns:34px 1fr !important;column-gap:9px !important;row-gap:0 !important;align-items:center !important;min-height:52px !important;padding:8px 10px !important;border-radius:14px !important;border-width:1.5px !important}
+html body #page-keluar.fx-page .fx-choice i,
+html body #page-masuk-manual.fx-page .fx-choice i{grid-row:1 !important;grid-column:1 !important;width:34px !important;height:34px !important;font-size:18px !important;margin:0 !important;border-radius:10px !important}
+html body #page-keluar.fx-page .fx-choice b,
+html body #page-masuk-manual.fx-page .fx-choice b{grid-row:1 !important;grid-column:2 !important;font-size:12.5px !important;line-height:1.15 !important;padding-right:14px !important}
+html body #page-keluar.fx-page .fx-choice small,
+html body #page-masuk-manual.fx-page .fx-choice small{display:none !important}
+html body #page-keluar.fx-page .fx-choice input:checked + span::after,
+html body #page-masuk-manual.fx-page .fx-choice input:checked + span::after{top:5px !important;right:5px !important;width:17px !important;height:17px !important;font-size:11px !important}
+html body #page-keluar.fx-page .fx-saldo,
+html body #page-masuk-manual.fx-page .fx-saldo{padding:7px 10px !important;font-size:11.5px !important;border-radius:12px !important;margin-top:2px !important}
+html body #page-keluar.fx-page .fx-actions,
+html body #page-masuk-manual.fx-page .fx-actions{margin:0 !important}
+html body #page-keluar.fx-page .fx-save,
+html body #page-masuk-manual.fx-page .fx-save{min-height:48px !important;padding:8px 16px !important;font-size:15px !important;border-radius:16px !important}
 </style>
