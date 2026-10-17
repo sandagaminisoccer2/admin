@@ -10893,6 +10893,27 @@ body > header {
 <h2 class="font-black text-base sm:text-lg text-slate-900 drop-shadow-sm w-full text-center">📊 REKAP KEUANGAN HARIAN</h2>
 
 </div>
+<!-- HEADER TANGGAL + DOWNLOAD (disamakan dengan Minuman) -->
+<div class="today-schedule-head" id="daily-recap-head">
+<button type="button" class="today-date-picker-btn" id="daily-recap-date-picker-btn" onclick="dailyRecapOpenDate()" title="Pilih tanggal rekap" aria-label="Pilih tanggal rekap"><span class="today-date-picker-icon"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M8 2.8v3.4M16 2.8v3.4M3 10h18"/></svg></span><span class="tdp-text"><span class="tdp-cap" id="daily-recap-selected-cap">Hari ini</span><span id="daily-recap-selected-date">--/--/----</span></span><svg class="tdp-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<div class="today-title-wrap"></div>
+<div class="today-schedule-head-actions">
+<button type="button" class="today-history-btn today-history-btn-keuangan" onclick="dailyRecapDownload()" title="Download laporan keuangan JPG" aria-label="Download laporan keuangan JPG">
+  <svg class="today-history-icon" viewBox="0 0 48 48" aria-hidden="true">
+    <path d="M24 8v25m0 0-10-10m10 10 10-10" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9 40h30" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/>
+  </svg>
+<span class="tdh-label">Keuangan</span>
+</button>
+<button type="button" class="today-history-btn today-history-btn-minuman" onclick="downloadRincianMinumanJPG()" title="Download rincian minuman per transaksi" aria-label="Download rincian minuman per transaksi">
+  <svg class="today-history-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M6 3h12l-1.4 16.2A2 2 0 0 1 14.6 21H9.4a2 2 0 0 1-2-1.8L6 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6.6 9.5h10.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+<span class="tdh-label">Minuman</span>
+</button>
+</div>
+</div>
 <!-- DASHBOARD KAS HARIAN -->
 <div id="daily-cash-dashboard" class="space-y-4 mb-5">
     <div class="daily-recap-date-control p-3 sm:p-4 rounded-2xl border border-blue-500/30 bg-white/40 shadow-sm">
@@ -25543,7 +25564,35 @@ return;
 #daily-report-jpg-canvas .report-minuman-full-table td{padding:8px 9px;border:1px solid #cbd5e1;font-weight:800;text-align:center}
 #daily-report-jpg-canvas .report-minuman-full-table td:first-child{text-align:left}
 #daily-report-jpg-canvas .report-empty-state{margin-top:10px;padding:12px 14px;border:1px dashed #94a3b8;border-radius:12px;background:#f8fafc;color:#64748b;text-align:center;font-size:11px;font-weight:800}
-</style><script id="daily-report-admin-jpg-script">
+</style><script id="daily-report-text-lift">
+/* PERBAIKAN TEKS MEPET BAWAH PADA HASIL JPG (Daily Recap + Rincian Minuman)
+   html2canvas menggambar teks sedikit lebih turun dari posisi aslinya (sekitar 0,4 x ukuran huruf),
+   sehingga teks terlihat menempel ke garis bawah kotak/tabel/badge.
+   Setiap teks di kanvas laporan dibungkus <span> yang digeser naik sebesar nilai di bawah.
+   Kalau hasil JPG masih terlalu turun -> naikkan angkanya (mis. 0.5); kalau jadi terlalu naik -> kecilkan (mis. 0.35).
+   Hanya memengaruhi kanvas hasil download, bukan tampilan aplikasi. */
+window.DAILY_REPORT_TEXT_LIFT_EM = 0.42;
+window.__dailyReportLiftText = function(rootEl){
+    try {
+        var em = Number(window.DAILY_REPORT_TEXT_LIFT_EM) || 0;
+        if (!rootEl || !em) return;
+        var walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, null);
+        var list = [], n;
+        while ((n = walker.nextNode())) { if (n.nodeValue && n.nodeValue.trim()) list.push(n); }
+        list.forEach(function(t){
+            var p = t.parentNode; if (!p) return;
+            var tag = (p.tagName || '').toLowerCase();
+            if (tag === 'script' || tag === 'style') return;
+            var fs = parseFloat(getComputedStyle(p).fontSize) || 14;
+            var s = document.createElement('span');
+            s.style.cssText = 'position:relative;top:' + (-(fs * em)).toFixed(2) + 'px;';
+            p.insertBefore(s, t);
+            s.appendChild(t);
+        });
+    } catch (e) { console.warn('Gagal merapikan posisi teks laporan:', e); }
+};
+</script>
+<script id="daily-report-admin-jpg-script">
 window.downloadDailyRecapJPGFull = async function() {
     const downloadButton = document.querySelector('.daily-report-jpg-button');
     if (downloadButton?.dataset.downloadBusy === '1') return;
@@ -25609,285 +25658,298 @@ window.downloadDailyRecapJPGFull = async function() {
     ]);
     setProgress(28, 'Mengambil data...', 'Data admin dan rekap sedang disiapkan.');
 
-    const root = document.createElement('div');
-    root.id = 'daily-report-jpg-canvas';
+    // ====== DESAIN DAILY REPORT v3 (ringkas, huruf besar, enak dibaca di WhatsApp) ======
+    // Tampilan dibangun dari data Daily Recap yang sedang tampil. Hanya tampilan hasil JPG yang berubah;
+    // cara download/simpan (Android & iPhone) tidak diubah.
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const brandName = String((document.querySelector('body > header .admin-global-header-brand-title') || document.querySelector('.admin-global-header-brand-title'))?.textContent || 'SANDAGA MINISOCCER').replace(/\s+/g, ' ').trim();
+    const logoEl = document.querySelector('body > header img') || document.querySelector('header img');
+    const logoSrc = (logoEl && (logoEl.currentSrc || logoEl.src)) || '';
+    const logoH = 84;
+    let logoW = 0;
+    if (logoSrc) {
+        await new Promise(r => {
+            const im = new Image();
+            im.onload = () => { if (im.naturalWidth && im.naturalHeight) logoW = Math.round(logoH * im.naturalWidth / im.naturalHeight); r(); };
+            im.onerror = r;
+            im.src = logoSrc;
+            setTimeout(r, 2500);
+        });
+        if (!logoW) logoW = logoH;
+    }
+    const val = id => (document.getElementById(id)?.textContent || '').trim() || 'Rp 0';
+    const numOf = v => Number(String(v == null ? '' : v).replace(/[^0-9-]/g, '')) || 0;
+    const rpf = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+    const txt = el => (el ? (el.textContent || '') : '').replace(/\s+/g, ' ').trim();
+    const fmtTgl = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || ''); };
+    const FONT = "'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
-    root.innerHTML = `
-        <div class="report-admin-header">
-            <h2>DAILY REPORT</h2>
-            <div class="report-date">${tanggal}</div>
-            <div class="report-made-by">Dibuat oleh Admin Shift Malam: ${String(adminName).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}</div>
-        </div>
-    `;
-
-    const sections = [
-        { key:'lapangan', ids:['sub-page-lapangan','daily-recap-lapangan','rekap-lapangan'], title:'⚽ LAPANGAN' },
-        { key:'minuman', ids:['sub-page-minuman','daily-recap-minuman','rekap-minuman'], title:'🥤 MINUMAN' },
-        { key:'pengeluaran', ids:['sub-page-pengeluaran','daily-recap-pengeluaran','rekap-pengeluaran'], title:'💸 PENGELUARAN' },
-        { key:'ringkasan', ids:['sub-page-ringkasan','daily-recap-ringkasan','rekap-ringkasan'], title:'📊 RINGKASAN' }
+    // --- Penerjemah isi sel -> HTML bersih dengan style inline (tidak bergantung CSS halaman) ---
+    const COLOR_MAP = [
+        ['text-emerald-', '#047857'], ['text-violet-9', '#5b21b6'], ['text-violet-', '#6d28d9'],
+        ['text-blue-9', '#1e3a8a'], ['text-blue-', '#1d4ed8'], ['text-indigo-', '#4338ca'],
+        ['text-amber-', '#92400e'], ['text-rose-', '#be123c'], ['text-red-', '#b91c1c'],
+        ['text-slate-600', '#64748b'], ['text-slate-9', '#0f172a'], ['text-sky-', '#0369a1'],
+        ['text-purple-', '#6b21a8'], ['text-teal-', '#0f766e']
     ];
+    const styleOf = el => {
+        const c = ' ' + (el.getAttribute('class') || '') + ' ';
+        let st = '';
+        for (const [k, v] of COLOR_MAP) { if (c.indexOf(' ' + k) > -1) { st += 'color:' + v + ';'; break; } }
+        if (/ font-(black|extrabold) /.test(c)) st += 'font-weight:800;';
+        else if (/ font-bold /.test(c)) st += 'font-weight:700;';
+        if (c.indexOf('text-[9px]') > -1) st += 'font-size:12.5px;';
+        else if (c.indexOf('text-[10px]') > -1) st += 'font-size:13px;';
+        return st;
+    };
+    const badge = (t, bg, fg) => '<span style="display:inline-block;vertical-align:middle;padding:4px 10px;border-radius:999px;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:800;line-height:1.1;">' + esc(t) + '</span>';
+    const walk = node => {
+        let out = '';
+        node.childNodes.forEach(n => {
+            if (n.nodeType === 3) { out += esc(n.nodeValue.replace(/\s+/g, ' ')); return; }
+            if (n.nodeType !== 1) return;
+            const tag = n.tagName.toLowerCase();
+            if (['button', 'svg', 'input', 'select', 'textarea', 'script', 'style'].indexOf(tag) > -1) return;
+            if (tag === 'br') { out += '<br>'; return; }
+            const cls = n.getAttribute('class') || '';
+            if (/status-badge-inline/.test(cls)) {
+                const isMember = /status-member-inline/.test(cls);
+                const isNon = /status-nonmember-inline/.test(cls);
+                out += badge(txt(n), isMember ? '#dbeafe' : (isNon ? '#fef3c7' : '#e2e8f0'), isMember ? '#1d4ed8' : (isNon ? '#b45309' : '#334155'));
+                return;
+            }
+            const inner = walk(n);
+            if (!inner.replace(/<br>|\s/g, '')) return;
+            if (tag === 'div' || tag === 'p') out += '<div style="margin-top:3px;' + styleOf(n) + '">' + inner + '</div>';
+            else out += '<span style="' + styleOf(n) + '">' + inner + '</span>';
+        });
+        return out;
+    };
+    const cellHtml = td => walk(td).replace(/^(\s|<br>)+|(\s|<br>)+$/g, '');
 
-    setProgress(42, 'Menyusun laporan...', 'Menata bagian lapangan, minuman, pengeluaran, dan ringkasan.');
+    const readRows = tbodyId => {
+        const tb = document.getElementById(tbodyId);
+        if (!tb) return [];
+        return Array.from(tb.children).filter(tr => tr.tagName === 'TR').map(tr => ({
+            tr: tr,
+            cells: Array.from(tr.children).filter(x => x.tagName === 'TD'),
+            masuk: tr.getAttribute('data-masuk-minuman') === '1'
+        })).filter(r => r.cells.length >= 3);
+    };
+    const chipsOf = id => Array.from(document.getElementById(id)?.children || []).map(el => {
+        const t = txt(el);
+        const k = t.indexOf(': Rp');
+        return k > -1 ? { label: t.slice(0, k), value: t.slice(k + 2) } : { label: t, value: '' };
+    }).filter(x => x.label);
 
-    function reportValue(id) {
-        return document.getElementById(id)?.textContent?.trim() || 'Rp 0';
-    }
-
-    function addSummaryCard(parent, label, value, tone='blue', extraClass='') {
-        const card = document.createElement('div');
-        card.className = `report-summary-card report-summary-${tone} ${extraClass}`.trim();
-        card.innerHTML = `<div class="report-summary-label">${label}</div><div class="report-summary-value">${value}</div>`;
-        parent.appendChild(card);
-    }
-
-    sections.forEach(item => {
-        const section = document.createElement('div');
-        section.className = 'report-section';
-
-        const heading = document.createElement('h3');
-        heading.textContent = item.title;
-        section.appendChild(heading);
-
-        // Ringkasan dibuat khusus untuk hasil download agar lebih sederhana.
-        // Urutan: pemasukan -> pengeluaran -> saldo cash paling akhir.
-        if (item.key === 'ringkasan') {
-            const note = document.createElement('div');
-            note.className = 'report-summary-note';
-            note.textContent = 'Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapangan atau Uang Minuman). Data lama tanpa pilihan: Cash Lapangan dulu, jika kurang diambil dari Cash Minuman.';
-            section.appendChild(note);
-
-            const grid = document.createElement('div');
-            grid.className = 'report-summary-grid';
-
-            addSummaryCard(grid, 'Total Lapangan Cash', reportValue('rekap-lapangan-cash'), 'blue');
-            addSummaryCard(grid, 'Total Lapangan QRIS/Transfer', reportValue('rekap-lapangan-qrif'), 'sky');
-            addSummaryCard(grid, 'Total Minuman Cash', reportValue('rekap-minuman-cash'), 'amber');
-            addSummaryCard(grid, 'Total Minuman QRIS/Transfer', reportValue('rekap-minuman-qrif'), 'teal');
-            addSummaryCard(grid, 'Total Pengeluaran', reportValue('rekap-keluar'), 'rose');
-            addSummaryCard(grid, 'Pengeluaran dari Cash Lapangan', reportValue('rekap-pengeluaran-dari-lapangan'), 'blue');
-            addSummaryCard(grid, 'Pengeluaran dari Cash Minuman', reportValue('rekap-pengeluaran-dari-minuman'), 'purple');
-            addSummaryCard(grid, 'Cash Tidak Tercover', reportValue('rekap-kekurangan-cash'), 'red');
-
-            // Tiga saldo cash sengaja ditempatkan paling akhir.
-            addSummaryCard(grid, 'Sisa Cash Lapangan Setelah Pengeluaran', reportValue('rekap-sisa-cash-lapangan'), 'indigo', 'report-summary-final');
-            addSummaryCard(grid, 'Sisa Cash Minuman Setelah Pengeluaran', reportValue('rekap-sisa-cash-minuman'), 'purple', 'report-summary-final');
-            addSummaryCard(grid, 'Total Cash Tersisa', reportValue('rekap-total-sisa-cash'), 'emerald', 'report-summary-total');
-
-            section.appendChild(grid);
-            root.appendChild(section);
-            return;
-        }
-
-        let source = null;
-        for (const id of item.ids) {
-            const el = document.getElementById(id);
-            if (el) { source = el; break; }
-        }
-        if (!source) return;
-
-        const clone = source.cloneNode(true);
-        clone.removeAttribute('id');
-        clone.classList.remove('hidden');
-        clone.classList.add('report-source');
-
-        clone.querySelectorAll('input, button, select, textarea').forEach(el => el.remove());
-        clone.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(el => el.remove());
-
-        // Versi lengkap tetap mempertahankan detail transaksi, tetapi juga
-        // memastikan 9 pilihan minuman selalu terlihat dalam rekap produk.
-        if (item.key === 'minuman') {
-            const daftarMinuman = [
-                'Air Mineral',
-                'Air Mineral + 3 Permen',
-                'Pocari Sweat',
-                'Pocari Sweat Kecil',
-                'Fanta',
-                'Sprite',
-                'Coca Cola',
-                'Teh Pucuk Harum',
-                'Milo'
-            ];
-            const qtyProduk = Object.fromEntries(daftarMinuman.map(nama => [nama, 0]));
-            const totalProduk = Object.fromEntries(daftarMinuman.map(nama => [nama, 0]));
-
-            // Gunakan tabel riwayat transaksi yang sudah dirender oleh Daily Recap
-            // sebagai sumber utama. Tabel ini memakai filter tanggal yang sama
-            // dengan laporan, sehingga jumlah per produk pasti sinkron dengan
-            // baris transaksi yang terlihat di bawahnya.
-            const tabelSumber = clone.querySelector('#tabel-minuman');
-            const barisTransaksi = tabelSumber ? Array.from(tabelSumber.querySelectorAll('tr')) : [];
-            barisTransaksi.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length < 3) return;
-                const nama = String(cells[0].textContent || '').trim();
-                if (!Object.prototype.hasOwnProperty.call(qtyProduk, nama)) return;
-
-                const pcsText = String(cells[1].textContent || '');
-                const totalText = String(cells[2].textContent || '');
-                const pcsMatch = pcsText.match(/-?\d+(?:[.,]\d+)?/);
-                const totalMatch = totalText.replace(/[^0-9-]/g, '');
-                const pcs = pcsMatch ? Number(String(pcsMatch[0]).replace(',', '.')) : 0;
-                const total = totalMatch ? Number(totalMatch) : 0;
-
-                qtyProduk[nama] += Number.isFinite(pcs) ? pcs : 0;
-                totalProduk[nama] += Number.isFinite(total) ? total : 0;
+    // Tabel sederhana: kolom kiri = keterangan/detail, kolom kanan = nominal
+    const listTable = (headL, headR, rows, emptyMsg, leftW) => {
+        let h = '<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-family:' + FONT + ';">'
+            + '<thead><tr><th style="width:' + leftW + '%;padding:12px 14px;background:#0f172a;color:#ffffff;font-size:12.5px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:left;">' + esc(headL) + '</th>'
+            + '<th style="padding:12px 14px;background:#0f172a;color:#ffffff;font-size:12.5px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:right;">' + esc(headR) + '</th></tr></thead><tbody>';
+        if (!rows.length) {
+            h += '<tr><td colspan="2" style="padding:22px 14px;text-align:center;color:#64748b;font-size:15px;font-weight:700;background:#f8fafc;">' + esc(emptyMsg) + '</td></tr>';
+        } else {
+            rows.forEach((r, i) => {
+                const bg = r.tint ? '#f5f3ff' : (i % 2 ? '#f8fafc' : '#ffffff');
+                const base = 'padding:14px 14px;border-bottom:1px solid #e8edf3;background:' + bg + ';vertical-align:middle;word-wrap:break-word;';
+                h += '<tr><td style="' + base + 'text-align:left;font-size:14.5px;line-height:1.3;font-weight:600;color:#1e293b;">' + r.left + '</td>'
+                   + '<td style="' + base + 'text-align:right;font-size:17px;font-weight:900;color:' + r.color + ';">' + r.right + '</td></tr>';
             });
-
-            // Fallback untuk kondisi tabel belum sempat dirender. Tanggal
-            // dinormalisasi agar data lama dengan timestamp tetap terbaca.
-            if (barisTransaksi.length === 0) {
-                const dataMinuman = (window.globalCache && window.globalCache.minuman) || {};
-                Object.values(dataMinuman).forEach(data => {
-                    if (!data) return;
-                    const dataDate = String(data.tgl || '').split('T')[0];
-                    if (dataDate !== rawDate) return;
-                    const nama = String(data.produk || '').trim();
-                    if (!Object.prototype.hasOwnProperty.call(qtyProduk, nama)) return;
-                    qtyProduk[nama] += Number(data.jumlahPcs || 0) || 0;
-                    totalProduk[nama] += Number(data.total || 0) || 0;
-                });
-            }
-
-            // Tambahkan ringkasan jumlah pcs khusus untuk Versi Lengkap.
-            // Sumber angka berasal dari tabel transaksi yang sama, sehingga
-            // ringkasan pasti sinkron dengan detail yang ikut di-download.
-            const totalPcsMinuman = Object.values(qtyProduk).reduce(
-                (sum, qty) => sum + (Number.isFinite(Number(qty)) ? Number(qty) : 0), 0
-            );
-
-            const summaryBox = document.createElement('div');
-            summaryBox.className = 'report-minuman-full-rekap';
-            summaryBox.style.cssText = [
-                'margin:0 0 14px',
-                'padding:14px 16px',
-                'border:1px solid #bfdbfe',
-                'border-radius:14px',
-                'background:#eff6ff',
-                'box-sizing:border-box'
-            ].join(';');
-
-            const summaryTitle = document.createElement('div');
-            summaryTitle.textContent = 'RINGKASAN JUMLAH PCS MINUMAN';
-            summaryTitle.style.cssText = 'font-size:12px;font-weight:900;color:#1e3a8a;margin-bottom:10px;text-align:center;letter-spacing:.03em';
-            summaryBox.appendChild(summaryTitle);
-
-            const summaryTotal = document.createElement('div');
-            summaryTotal.textContent = `${totalPcsMinuman.toLocaleString('id-ID')} PCS`;
-            summaryTotal.style.cssText = 'font-size:24px;font-weight:900;color:#0f172a;text-align:center;margin-bottom:10px';
-            summaryBox.appendChild(summaryTotal);
-
-            const summaryGrid = document.createElement('div');
-            summaryGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px';
-
-            daftarMinuman.forEach(nama => {
-                const card = document.createElement('div');
-                card.style.cssText = 'padding:8px 10px;border:1px solid #dbeafe;border-radius:10px;background:#fff;text-align:center;box-sizing:border-box';
-                card.innerHTML = `<div style="font-size:10px;font-weight:800;color:#475569;line-height:1.2">${nama.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}</div><div style="font-size:14px;font-weight:900;color:#1e3a8a;margin-top:3px">${(Number(qtyProduk[nama])||0).toLocaleString('id-ID')} Pcs</div>`;
-                summaryGrid.appendChild(card);
-            });
-
-            summaryBox.appendChild(summaryGrid);
-
-            // Hilangkan ringkasan lama dari halaman sumber agar tidak terjadi
-            // duplikasi, lalu pasang ringkasan baru tepat sebelum tabel transaksi.
-            const ringkasanMinumanBox = clone.querySelector('#ringkasan-minuman-box');
-            if (ringkasanMinumanBox) ringkasanMinumanBox.remove();
-            clone.querySelectorAll('.report-minuman-full-rekap').forEach(el => el.remove());
-
-            const tabelMinuman = clone.querySelector('#tabel-minuman');
-            const tabelWrapper = tabelMinuman?.closest('.overflow-x-auto, .overflow-hidden, .shadow, table')?.parentElement
-                || tabelMinuman?.parentElement
-                || clone;
-            if (tabelWrapper && tabelWrapper !== clone) {
-                tabelWrapper.parentNode.insertBefore(summaryBox, tabelWrapper);
-            } else {
-                clone.insertBefore(summaryBox, clone.firstChild);
-            }
         }
+        return h + '</tbody></table>';
+    };
 
-        // Jika tidak ada transaksi, tampilkan keterangan yang jelas agar
-        // tabel kosong tidak terlihat seperti data gagal dimuat.
-        if (item.key === 'lapangan') {
-            const table = clone.querySelector('table');
-            if (table) {
-                table.querySelectorAll('tbody tr').forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (!cells.length) return;
-                    const detailCell = cells[1];
-                    if (!detailCell) return;
-                    const text = detailCell.textContent || '';
-                    // Data DP yang sudah dirender di Daily Recap dipertahankan;
-                    // tambahkan penanda visual supaya mudah dibaca di hasil download.
-                    if (/DP\s*:/i.test(text) || /💰\s*DP/i.test(text)) {
-                        detailCell.style.fontWeight = '900';
-                    }
-                });
-            }
-        }
+    const statStrip = (chips, accent) => {
+        if (!chips.length) return '';
+        const w = (100 / chips.length).toFixed(3);
+        return '<div style="display:flex;gap:10px;padding:14px 16px 2px;">' + chips.map(c =>
+            '<div style="flex:1 1 ' + w + '%;min-width:0;box-sizing:border-box;padding:10px 14px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;border-left:5px solid ' + accent + ';">'
+            + '<div style="font-size:13px;font-weight:700;color:#64748b;">' + esc(c.label) + '</div>'
+            + '<div style="margin-top:2px;font-size:19px;font-weight:900;color:#0f172a;">' + esc(c.value) + '</div></div>'
+        ).join('') + '</div>';
+    };
 
-        if (item.key === 'lapangan' || item.key === 'pengeluaran') {
-            const table = clone.querySelector('table');
-            const tbody = table?.querySelector('tbody');
-            if (tbody && !tbody.children.length) {
-                const empty = document.createElement('div');
-                empty.className = 'report-empty-state';
-                empty.textContent = item.key === 'lapangan'
-                    ? 'Tidak ada transaksi lapangan hari ini'
-                    : 'Tidak ada pengeluaran hari ini';
-                const wrapper = table.closest('.shadow, .overflow-hidden') || table.parentElement;
-                wrapper?.appendChild(empty);
-            }
-        }
+    const sectionHtml = (icon, title, c1, c2, totalLabel, totalValue, bodyHtml) =>
+        '<div style="margin-bottom:18px;border-radius:18px;overflow:hidden;background:#ffffff;border:1px solid #dbe3ec;box-shadow:0 6px 18px rgba(15,23,42,.07);">'
+        + '<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(90deg,' + c1 + ',' + c2 + ');">'
+        + '<div style="flex:0 0 auto;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;line-height:1.2;font-size:20px;">' + icon + '</div>'
+        + '<div style="flex:1 1 auto;min-width:0;font-size:19px;font-weight:900;line-height:1.2;color:#ffffff;letter-spacing:.02em;">' + esc(title) + '</div>'
+        + (totalValue ? '<div style="flex:0 0 auto;text-align:right;"><div style="font-size:11px;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.82);">' + esc(totalLabel) + '</div><div style="font-size:21px;font-weight:900;color:#ffffff;">' + esc(totalValue) + '</div></div>' : '')
+        + '</div>' + bodyHtml + '</div>';
 
-        // Laporan JPG dibuat ringkas: tanggal dan kontrol admin tidak ikut.
-        clone.querySelectorAll('#label-tanggal-lapangan, #label-tanggal-minuman, #label-tanggal-keluar, #label-tanggal-ringkasan').forEach(el => {
-            el.remove();
-        });
+    setProgress(42, 'Menyusun laporan...', 'Menata kas hari ini, pengeluaran, lapangan, dan minuman.');
 
-        clone.querySelectorAll('*').forEach(el => {
-            const textValue = (el.textContent || '').replace(/\s+/g, ' ').trim();
-            if (textValue === 'Pilih Tanggal Rekap:') {
-                const wrapper = el.closest('.flex.flex-col, .flex');
-                if (wrapper && wrapper !== clone) wrapper.remove();
-                else el.remove();
-            }
-        });
+    // ====== 1. KAS HARI INI (ringkasan paling atas) ======
+    const lapCash = numOf(val('rekap-lapangan-cash')), lapQris = numOf(val('rekap-lapangan-qrif'));
+    const minCash = numOf(val('rekap-minuman-cash')), minQris = numOf(val('rekap-minuman-qrif'));
+    const keluarLap = numOf(val('rekap-pengeluaran-dari-lapangan')), keluarMin = numOf(val('rekap-pengeluaran-dari-minuman'));
+    const sisaLap = numOf(val('rekap-sisa-cash-lapangan')), sisaMin = numOf(val('rekap-sisa-cash-minuman'));
+    const kurang = numOf(val('rekap-kekurangan-cash'));
+    const totalKeluarAll = val('rekap-keluar');
+    const totalCashTersisa = val('rekap-total-sisa-cash');
+    const mCell = (v, extra) => '<td style="padding:12px 10px;border-bottom:1px solid #e8edf3;text-align:right;font-size:16px;font-weight:800;color:#0f172a;' + (extra || '') + '">' + esc(rpf(v)) + '</td>';
+    const mRow = (label, a, b, c, labelColor, bg) =>
+        '<tr style="background:' + (bg || '#ffffff') + ';"><td style="padding:12px 14px;border-bottom:1px solid #e8edf3;font-size:14px;font-weight:800;color:' + (labelColor || '#334155') + ';line-height:1.25;">' + label + '</td>'
+        + mCell(a) + mCell(b) + mCell(c, 'font-weight:900;') + '</tr>';
+    const th = (t, color) => '<th style="padding:13px 10px;background:#0f172a;color:' + (color || '#ffffff') + ';font-size:13px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:right;">' + t + '</th>';
+    const kasBody =
+        '<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-family:' + FONT + ';">'
+        + '<thead><tr><th style="width:37%;padding:13px 14px;background:#0f172a;color:#94a3b8;font-size:13px;font-weight:800;line-height:1.2;text-align:left;"></th>'
+        + th('LAPANGAN', '#93c5fd') + th('MINUMAN', '#fcd34d') + th('TOTAL') + '</tr></thead><tbody>'
+        + mRow('Pemasukan Cash', lapCash, minCash, lapCash + minCash)
+        + mRow('Pemasukan QRIS / Transfer', lapQris, minQris, lapQris + minQris, '#334155', '#f8fafc')
+        + mRow('Total Pemasukan', lapCash + lapQris, minCash + minQris, lapCash + lapQris + minCash + minQris, '#1d4ed8', '#eff6ff')
+        + mRow('Pengeluaran (dari cash)', keluarLap, keluarMin, keluarLap + keluarMin, '#be123c', '#fff1f2')
+        + '</tbody></table>'
+        + '<div style="margin:14px 16px 4px;padding:6px 0 0;">'
+        + '<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        + '<div style="flex:1 1 50%;min-width:0;box-sizing:border-box;padding:10px 14px;border-radius:12px;background:#eef2ff;border:1px solid #c7d2fe;"><div style="font-size:13px;font-weight:700;color:#4338ca;">Sisa Cash Lapangan</div><div style="margin-top:2px;font-size:19px;font-weight:900;color:#3730a3;">' + esc(rpf(sisaLap)) + '</div></div>'
+        + '<div style="flex:1 1 50%;min-width:0;box-sizing:border-box;padding:10px 14px;border-radius:12px;background:#faf5ff;border:1px solid #e9d5ff;"><div style="font-size:13px;font-weight:700;color:#7e22ce;">Sisa Cash Minuman</div><div style="margin-top:2px;font-size:19px;font-weight:900;color:#6b21a8;">' + esc(rpf(sisaMin)) + '</div></div>'
+        + '</div>'
+        + '<div style="padding:16px 20px;border-radius:14px;background:linear-gradient(90deg,#047857,#10b981);display:flex;align-items:center;justify-content:space-between;">'
+        + '<div style="font-size:15px;font-weight:900;letter-spacing:.08em;color:#ecfdf5;">TOTAL CASH TERSISA</div>'
+        + '<div style="font-size:28px;font-weight:900;color:#ffffff;">' + esc(totalCashTersisa) + '</div></div>'
+        + (kurang > 0 ? '<div style="margin-top:10px;padding:12px 16px;border-radius:12px;background:#fee2e2;border:1px solid #fca5a5;display:flex;align-items:center;justify-content:space-between;"><div style="font-size:14px;font-weight:900;color:#991b1b;">⚠ CASH TIDAK TERCOVER</div><div style="font-size:18px;font-weight:900;color:#b91c1c;">' + esc(rpf(kurang)) + '</div></div>' : '')
+        + '</div><div style="height:12px;"></div>';
 
-        // Hilangkan judul bagian yang terduplikasi di dalam submenu.
-        clone.querySelectorAll('h1, h2, h3').forEach(el => el.remove());
-
-        clone.querySelectorAll('.mb-4, .mb-3, .pb-3').forEach(el => {
-            if (!el.textContent.trim() && !el.querySelector('table')) el.remove();
-        });
-
-        // Kolom Aksi hanya untuk kontrol admin di aplikasi.
-        clone.querySelectorAll('table').forEach(table => {
-            const headerRow = table.querySelector('thead tr');
-            if (!headerRow) return;
-
-            const headerCells = Array.from(headerRow.children);
-            const aksiIndex = headerCells.findIndex(cell =>
-                /aksi/i.test((cell.textContent || '').trim())
-            );
-
-            if (aksiIndex >= 0) {
-                table.querySelectorAll('tr').forEach(row => {
-                    const cells = Array.from(row.children);
-                    if (cells[aksiIndex]) cells[aksiIndex].remove();
-                });
-            }
-        });
-
-        section.appendChild(clone);
-        root.appendChild(section);
+    // ====== 2. PENGELUARAN ======
+    const kelRows = readRows('tabel-keluar').map(r => {
+        const ketRaw = txt(r.cells[0]);
+        const mk = ketRaw.match(/^(.*?)\s*\(Catat:\s*([^)]*)\)\s*$/);
+        const ket = mk ? mk[1] : ketRaw;
+        const catat = mk ? mk[2].trim() : '';
+        const sTxt = txt(r.cells[1]);
+        const sDate = (sTxt.match(/Dari Cash:\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+        const sumber = /Uang Minuman/.test(sTxt) ? ['Uang Minuman', '#f3e8ff', '#7e22ce'] : (/Uang Lapangan/.test(sTxt) ? ['Uang Lapangan', '#dbeafe', '#1d4ed8'] : ['Otomatis', '#e2e8f0', '#334155']);
+        let left = '<div style="font-weight:800;color:#0f172a;">' + esc(ket) + '</div><div style="margin-top:5px;">' + badge(sumber[0], sumber[1], sumber[2]);
+        if (sDate && sDate !== rawDate) left += ' ' + badge('dari cash tgl ' + fmtTgl(sDate), '#fef3c7', '#b45309');
+        if (catat && catat !== rawDate) left += ' ' + badge('dicatat ' + fmtTgl(catat), '#e2e8f0', '#475569');
+        left += '</div>';
+        return { left: left, right: esc(txt(r.cells[2])), color: '#be123c' };
     });
+    const kelBody = '<div style="padding:14px 16px 16px;"><div style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">'
+        + listTable('KETERANGAN', 'NOMINAL', kelRows, 'Tidak ada pengeluaran hari ini', 64)
+        + '</div></div>';
 
-    const footer = document.createElement('div');
-    footer.className = 'report-footer';
-    footer.textContent = 'Laporan Operasional Harian';
-    root.appendChild(footer);
+    // ====== 3. LAPANGAN ======
+    const lapChips = chipsOf('subtotal-lapangan');
+    const lapRows = readRows('tabel-lapangan').map(r => ({
+        left: '<div style="font-weight:800;color:#0f172a;">' + cellHtml(r.cells[0]) + '</div><div style="margin-top:7px;font-size:13.5px;line-height:1.35;color:#475569;font-weight:600;">' + cellHtml(r.cells[1]) + '</div>',
+        right: esc(txt(r.cells[2])),
+        color: (styleOf(r.cells[2]).match(/color:([^;]+);/) || [])[1] || '#047857',
+        tint: /bg-violet/.test(r.tr.getAttribute('class') || '')
+    }));
+    const lapBody = statStrip(lapChips.slice(1, 3), '#2563eb')
+        + '<div style="padding:14px 16px 16px;"><div style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">'
+        + listTable('TIM / KETERANGAN', 'JUMLAH', lapRows, 'Tidak ada transaksi lapangan hari ini', 62)
+        + '</div></div>';
+
+    // ====== 4. MINUMAN ======
+    const minChips = chipsOf('subtotal-minuman');
+    const daftarMinuman = ['Air Mineral', 'Air Mineral + 3 Permen', 'Pocari Sweat', 'Pocari Sweat Kecil', 'Fanta', 'Sprite', 'Coca Cola', 'Teh Pucuk Harum', 'Milo'];
+    const qtyProduk = {}, totalProduk = {};
+    daftarMinuman.forEach(n => { qtyProduk[n] = 0; totalProduk[n] = 0; });
+    const addProduk = (nama, pcs, total) => {
+        if (!nama) return;
+        if (!Object.prototype.hasOwnProperty.call(qtyProduk, nama)) { qtyProduk[nama] = 0; totalProduk[nama] = 0; daftarMinuman.push(nama); }
+        qtyProduk[nama] += Number.isFinite(pcs) ? pcs : 0;
+        totalProduk[nama] += Number.isFinite(total) ? total : 0;
+    };
+    const minRowsRaw = readRows('tabel-minuman');
+    const grp = {}, grpOrder = [], masukList = [];
+    minRowsRaw.forEach(r => {
+        if (r.masuk) { masukList.push(r); return; }
+        const nama = txt(r.cells[0]);
+        const pcsMatch = txt(r.cells[1]).match(/-?\d+(?:[.,]\d+)?/);
+        if (!pcsMatch) return;
+        const pcs = Number(String(pcsMatch[0]).replace(',', '.'));
+        const amt = txt(r.cells[2]);
+        const m = amt.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+        const total = numOf(m ? m[1] : amt);
+        const met = m ? m[2] : '-';
+        addProduk(nama, pcs, total);
+        const key = nama + '|' + met;
+        if (!grp[key]) { grp[key] = { nama: nama, met: met, pcs: 0, total: 0 }; grpOrder.push(key); }
+        grp[key].pcs += Number.isFinite(pcs) ? pcs : 0;
+        grp[key].total += total;
+    });
+    if (!minRowsRaw.length) {
+        const dataMinuman = (window.globalCache && window.globalCache.minuman) || {};
+        Object.values(dataMinuman).forEach(d => {
+            if (!d || String(d.tgl || '').split('T')[0] !== rawDate) return;
+            const nama = String(d.produk || '').trim();
+            if (Object.prototype.hasOwnProperty.call(qtyProduk, nama)) addProduk(nama, Number(d.jumlahPcs || 0) || 0, Number(d.total || 0) || 0);
+        });
+    }
+    const totalPcs = daftarMinuman.reduce((s, n) => s + (qtyProduk[n] || 0), 0);
+    const produkCards = daftarMinuman.map(n => {
+        const q = qtyProduk[n] || 0;
+        const on = q > 0;
+        return '<div style="width:calc(33.333% - 7px);box-sizing:border-box;padding:10px 8px;border-radius:12px;background:' + (on ? '#fffbeb' : '#f8fafc') + ';border:1px solid ' + (on ? '#fcd34d' : '#e2e8f0') + ';text-align:center;">'
+            + '<div style="font-size:12.5px;font-weight:700;color:#475569;line-height:1.3;">' + esc(n) + '</div>'
+            + '<div style="margin-top:4px;font-size:22px;font-weight:900;color:' + (on ? '#92400e' : '#94a3b8') + ';">' + q.toLocaleString('id-ID') + '<span style="font-size:12px;font-weight:800;"> pcs</span></div>'
+            + '<div style="margin-top:1px;font-size:12.5px;font-weight:700;color:#64748b;">' + rpf(totalProduk[n] || 0) + '</div></div>';
+    }).join('');
+    const metBadge = met => badge(met, met === 'Cash' ? '#d1fae5' : (met === 'Free' ? '#fce7f3' : '#e0f2fe'), met === 'Cash' ? '#047857' : (met === 'Free' ? '#be185d' : '#0369a1'));
+    const minList = grpOrder.map(k => {
+        const g = grp[k];
+        return { left: '<span style="font-weight:800;color:#0f172a;">' + esc(g.nama) + '</span> ' + metBadge(g.met), right: esc(rpf(g.total)), color: '#92400e', pcs: g.pcs.toLocaleString('id-ID') + ' pcs' };
+    }).concat(masukList.map(r => {
+        const am = txt(r.cells[2]).match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+        return { left: '<span style="font-weight:800;color:#0f172a;">' + esc(txt(r.cells[0])) + '</span> ' + (am ? metBadge(am[2]) : ''), right: esc(am ? am[1] : txt(r.cells[2])), color: '#92400e', pcs: 'Uang Masuk' };
+    }));
+    let minTable = '<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-family:' + FONT + ';"><thead><tr>'
+        + '<th style="width:52%;padding:12px 14px;background:#0f172a;color:#fff;font-size:12.5px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:left;">PRODUK</th>'
+        + '<th style="width:18%;padding:12px 6px;background:#0f172a;color:#fff;font-size:12.5px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:center;">PCS</th>'
+        + '<th style="padding:12px 14px;background:#0f172a;color:#fff;font-size:12.5px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:right;">TOTAL</th></tr></thead><tbody>';
+    if (!minList.length) {
+        minTable += '<tr><td colspan="3" style="padding:22px 14px;text-align:center;color:#64748b;font-size:15px;font-weight:700;background:#f8fafc;">Belum ada penjualan minuman hari ini</td></tr>';
+    } else {
+        minList.forEach((r, i) => {
+            const bg = i % 2 ? '#f8fafc' : '#ffffff';
+            const b = 'padding:11px 14px;border-bottom:1px solid #e8edf3;background:' + bg + ';vertical-align:middle;';
+            minTable += '<tr><td style="' + b + 'text-align:left;font-size:14.5px;line-height:1.3;">' + r.left + '</td>'
+                + '<td style="padding:11px 6px;border-bottom:1px solid #e8edf3;background:' + bg + ';text-align:center;font-size:14.5px;font-weight:800;color:#334155;">' + esc(r.pcs) + '</td>'
+                + '<td style="' + b + 'text-align:right;font-size:16px;font-weight:900;color:' + r.color + ';">' + r.right + '</td></tr>';
+        });
+    }
+    minTable += '</tbody></table>';
+    const minBody = statStrip(minChips.slice(1, 3), '#d97706')
+        + '<div style="padding:14px 16px 16px;"><div style="margin:0 2px 8px;font-size:13px;font-weight:900;letter-spacing:.1em;color:#92400e;">RINCIAN PENJUALAN</div>'
+        + '<div style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">' + minTable + '</div></div>';
+
+    // ====== HEADER + SUSUNAN AKHIR ======
+    const printed = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const root = document.createElement('div');
+    root.id = 'daily-report-v4-canvas';
+    root.style.cssText = 'position:fixed;left:-100000px;top:0;width:640px;box-sizing:border-box;background:#eef2f7;color:#0f172a;line-height:1.25;font-family:' + FONT + ';';
+    root.innerHTML =
+        '<div style="position:relative;overflow:hidden;background:linear-gradient(135deg,#061633 0%,#0f3a8a 55%,#1d6fd6 100%);padding:26px 26px 24px;">'
+        + '<div style="position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.07);"></div>'
+        + '<div style="position:absolute;left:0;bottom:0;width:100%;height:5px;background:linear-gradient(90deg,#f59e0b,#fde68a,#f59e0b);"></div>'
+        + '<div style="position:relative;display:flex;align-items:center;gap:18px;">'
+        + (logoSrc && logoW > 0 ? '<div style="flex:0 0 auto;"><img src="' + esc(logoSrc) + '" style="display:block;width:' + logoW + 'px;height:' + logoH + 'px;"></div>' : '')
+        + '<div style="flex:1 1 auto;min-width:0;">'
+        + '<div style="font-size:13px;font-weight:800;letter-spacing:.3em;color:#fcd34d;">DAILY REPORT</div>'
+        + '<div style="margin-top:4px;font-size:25px;line-height:1.15;font-weight:900;color:#ffffff;">' + esc(brandName) + '</div>'
+        + '<div style="margin-top:7px;font-size:16px;font-weight:700;color:#dbeafe;">' + esc(tanggal) + '</div></div></div>'
+        + '<div style="position:relative;margin-top:18px;display:inline-block;padding:9px 16px;border-radius:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);">'
+        + '<div style="font-size:11px;font-weight:800;letter-spacing:.16em;color:#bfdbfe;">DIBUAT OLEH ADMIN SHIFT MALAM</div>'
+        + '<div style="margin-top:2px;font-size:17px;font-weight:900;color:#ffffff;">' + esc(adminName) + '</div></div>'
+        + '</div>'
+        + '<div style="padding:18px 16px 20px;">'
+        + sectionHtml('💰', 'KAS HARI INI', '#064e3b', '#059669', '', '', kasBody)
+        + sectionHtml('💸', 'PENGELUARAN', '#9f1239', '#e11d48', 'TOTAL', totalKeluarAll, kelBody)
+        + sectionHtml('⚽', 'UANG LAPANGAN', '#1e3a8a', '#2563eb', 'TOTAL', (lapChips[0] || {}).value, lapBody)
+        + sectionHtml('🥤', 'PENJUALAN MINUMAN', '#92400e', '#d97706', 'TOTAL', (minChips[0] || {}).value, minBody)
+        + '<div style="padding:6px 10px 0;text-align:center;">'
+        + '<div style="font-size:13px;font-weight:900;letter-spacing:.14em;color:#0f172a;">LAPORAN OPERASIONAL HARIAN</div>'
+        + '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#64748b;">' + esc(brandName) + ' • Dicetak ' + esc(printed) + '</div></div>'
+        + '</div>';
 
     document.body.appendChild(root);
+    if (typeof window.__dailyReportLiftText === 'function') window.__dailyReportLiftText(root);
     setProgress(62, 'Membuat gambar...', 'Laporan sudah tersusun. Menyiapkan gambar JPG.');
 
     try {
@@ -25897,10 +25959,12 @@ window.downloadDailyRecapJPGFull = async function() {
         const exportHeight = Math.ceil(root.scrollHeight);
 
         setProgress(74, 'Merender laporan...', 'Sedang mengubah laporan menjadi gambar. Ini bisa membutuhkan beberapa detik.');
+        await Promise.all(Array.from(root.querySelectorAll('img')).map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; setTimeout(r, 2500); })));
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
         const canvas = await html2canvas(root, {
             scale: 2,
-            backgroundColor: '#f1f5f9',
+            backgroundColor: '#eef2f7',
             useCORS: true,
             logging: false,
             width: exportWidth,
@@ -25930,6 +25994,236 @@ window.downloadDailyRecapJPGFull = async function() {
     }
 };
 </script>
+
+<style id="daily-recap-minuman-btn-style">
+/* Dua tombol download di header Daily Recap: "Keuangan" dan "Minuman".
+   Di HP: ikon di atas, label kecil di bawah, supaya tanggal tetap lega. */
+html body #page-daily-recap .today-schedule-head-actions { gap: 7px !important; }
+@media (max-width: 480px) {
+    html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn.today-history-btn {
+        flex-direction: column !important; gap: 3px !important;
+        width: 58px !important; min-width: 58px !important; padding: 0 !important;
+    }
+    html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn.today-history-btn .today-history-icon {
+        width: 18px !important; height: 18px !important;
+    }
+    html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn.today-history-btn .tdh-label {
+        display: block !important; font-size: 10px !important; line-height: 1 !important; font-weight: 800 !important; letter-spacing: 0 !important;
+    }
+}
+</style>
+<script id="daily-report-minuman-detail-script">
+/* DOWNLOAD JPG: RINCIAN MINUMAN PER TRANSAKSI
+   Satu baris = satu transaksi minuman (mis. 1 pcs, 2 pcs) sesuai riwayat transaksi pada tanggal Daily Recap. */
+window.downloadRincianMinumanJPG = async function() {
+    const downloadButton = document.querySelector('.today-history-btn-minuman');
+    if (downloadButton?.dataset.downloadBusy === '1') return;
+    if (downloadButton) { downloadButton.dataset.downloadBusy = '1'; downloadButton.disabled = true; downloadButton.style.opacity = '.7'; }
+    const restoreButton = () => { if (downloadButton) { delete downloadButton.dataset.downloadBusy; downloadButton.disabled = false; downloadButton.style.opacity = ''; } };
+
+    const progressOverlay = document.createElement('div'); progressOverlay.className = 'daily-download-progress-overlay';
+    progressOverlay.innerHTML = `<div class="daily-download-progress-modal" role="dialog" aria-modal="true"><div class="daily-download-progress-icon" data-download-icon>↓</div><h3 class="daily-download-progress-title" data-download-title>Menyiapkan rincian minuman...</h3><p class="daily-download-progress-text" data-download-text>Mohon tunggu, laporan sedang diproses.</p><div class="daily-download-progress-track"><div class="daily-download-progress-bar" data-download-bar></div></div><div class="daily-download-progress-percent" data-download-percent>0%</div></div>`;
+    document.body.appendChild(progressOverlay);
+    const progressModal = progressOverlay.querySelector('.daily-download-progress-modal'), progressBar = progressOverlay.querySelector('[data-download-bar]'), progressPercent = progressOverlay.querySelector('[data-download-percent]'), progressTitle = progressOverlay.querySelector('[data-download-title]'), progressText = progressOverlay.querySelector('[data-download-text]'), progressIcon = progressOverlay.querySelector('[data-download-icon]');
+    const setProgress = (n, t, m) => { n = Math.max(0, Math.min(100, Number(n) || 0)); progressBar.style.width = n + '%'; progressPercent.textContent = Math.round(n) + '%'; if (t) progressTitle.textContent = t; if (m) progressText.textContent = m; };
+    const showResult = (ok, m) => { progressModal.classList.toggle('is-success', ok); progressModal.classList.toggle('is-error', !ok); progressIcon.textContent = ok ? '✓' : '!'; setProgress(ok ? 100 : 0, ok ? 'Download berhasil!' : 'Download gagal', m); };
+
+    if (typeof html2canvas === 'undefined') {
+        showResult(false, 'Fitur laporan JPG membutuhkan koneksi internet.');
+        setTimeout(() => progressOverlay.remove(), 1800);
+        restoreButton();
+        return;
+    }
+    setProgress(10, 'Menyiapkan rincian minuman...', 'Mengumpulkan transaksi minuman.');
+
+    let root = null;
+    try {
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        const FONT = "'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+        const txt = el => (el ? (el.textContent || '') : '').replace(/\s+/g, ' ').trim();
+        const numOf = v => Number(String(v == null ? '' : v).replace(/[^0-9-]/g, '')) || 0;
+        const rpf = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+        const pad2 = n => String(n).padStart(2, '0');
+
+        // Tanggal laporan = tanggal Daily Recap yang sedang dipilih
+        const dateInput = document.getElementById('daily-dashboard-date-input');
+        const fallbackIds = ['filter-tanggal-lapangan', 'filter-tanggal-minuman', 'filter-tanggal-keluar', 'filter-tanggal-ringkasan'];
+        let rawDate = dateInput?.value || '';
+        if (!rawDate) { for (const id of fallbackIds) { const v = document.getElementById(id)?.value; if (v) { rawDate = v; break; } } }
+        if (!rawDate) rawDate = new Date().toISOString().slice(0, 10);
+        const d = new Date(rawDate + 'T00:00:00');
+        const tanggal = isNaN(d.getTime()) ? rawDate : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
+        const fileDate = isNaN(d.getTime()) ? rawDate : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        // Admin shift malam (sama seperti Daily Report utama)
+        let adminName = '-';
+        try {
+            if (typeof window.getAdminShiftMalamForReport === 'function') {
+                adminName = await Promise.race([
+                    window.getAdminShiftMalamForReport(rawDate),
+                    new Promise(resolve => setTimeout(() => resolve('-'), 3000))
+                ]);
+            }
+        } catch (e) { console.error('Gagal mengambil admin shift malam:', e); }
+        setProgress(28, 'Mengambil data...', 'Menyusun daftar transaksi minuman.');
+
+        const brandName = String((document.querySelector('body > header .admin-global-header-brand-title') || document.querySelector('.admin-global-header-brand-title'))?.textContent || 'SANDAGA MINISOCCER').replace(/\s+/g, ' ').trim();
+        const logoEl = document.querySelector('body > header img') || document.querySelector('header img');
+        const logoSrc = (logoEl && (logoEl.currentSrc || logoEl.src)) || '';
+        const logoH = 84;
+        let logoW = 0;
+        if (logoSrc) {
+            await new Promise(r => {
+                const im = new Image();
+                im.onload = () => { if (im.naturalWidth && im.naturalHeight) logoW = Math.round(logoH * im.naturalWidth / im.naturalHeight); r(); };
+                im.onerror = r;
+                im.src = logoSrc;
+                setTimeout(r, 2500);
+            });
+            if (!logoW) logoW = logoH;
+        }
+
+        // --- Ambil transaksi dari tabel rincian minuman Daily Recap (satu baris = satu transaksi) ---
+        const cacheMinuman = (window.__sandagaGlobalCache && window.__sandagaGlobalCache.minuman) || {};
+        const tbody = document.getElementById('tabel-minuman');
+        const trs = tbody ? Array.from(tbody.children).filter(tr => tr.tagName === 'TR') : [];
+        let trx = [];
+        trs.forEach((tr, idx) => {
+            const tds = Array.from(tr.children).filter(x => x.tagName === 'TD');
+            if (tds.length < 3) return;
+            const masuk = tr.getAttribute('data-masuk-minuman') === '1';
+            const amt = txt(tds[2]);
+            const am = amt.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+            const total = numOf(am ? am[1] : amt);
+            const met = am ? am[2] : '-';
+            let pcs = 0, ts = 0;
+            if (!masuk) {
+                const pm = txt(tds[1]).match(/-?\d+(?:[.,]\d+)?/);
+                if (!pm) return;
+                pcs = Number(String(pm[0]).replace(',', '.')) || 0;
+                const btn = tds[3] ? tds[3].querySelector('button') : null;
+                const oc = btn ? (btn.getAttribute('onclick') || '') : '';
+                const km = oc.match(/hapusDataKeuangan\(\s*'minuman'\s*,\s*'([^']+)'/);
+                if (km && cacheMinuman[km[1]]) ts = Number(cacheMinuman[km[1]].timestamp || 0) || 0;
+            }
+            trx.push({ idx: idx, nama: txt(tds[0]), masuk: masuk, pcs: pcs, total: total, met: met, ts: ts });
+        });
+        // Urut kronologis (lama -> baru) bila semua transaksi punya waktu; jika tidak, ikuti urutan tabel.
+        if (trx.length && trx.every(t => t.masuk || t.ts)) {
+            trx.sort((a, b) => (a.masuk ? Infinity : a.ts) - (b.masuk ? Infinity : b.ts) || a.idx - b.idx);
+        }
+
+        const jamOf = t => { if (!t.ts) return '-'; const dt = new Date(t.ts); return pad2(dt.getHours()) + ':' + pad2(dt.getMinutes()); };
+        const sales = trx.filter(t => !t.masuk);
+        const totalPcs = sales.reduce((s, t) => s + t.pcs, 0);
+        const totalAll = trx.reduce((s, t) => s + t.total, 0);
+        const totalCash = trx.filter(t => t.met === 'Cash').reduce((s, t) => s + t.total, 0);
+        const totalNon = trx.filter(t => t.met !== 'Cash' && t.met !== 'Free' && t.met !== '-').reduce((s, t) => s + t.total, 0);
+
+        const badge = (t, bg, fg) => '<span style="display:inline-block;vertical-align:middle;padding:4px 10px;border-radius:999px;background:' + bg + ';color:' + fg + ';font-size:12px;font-weight:800;line-height:1.1;">' + esc(t) + '</span>';
+        const metBadge = met => badge(met, met === 'Cash' ? '#d1fae5' : (met === 'Free' ? '#fce7f3' : '#e0f2fe'), met === 'Cash' ? '#047857' : (met === 'Free' ? '#be185d' : '#0369a1'));
+        const chip = (label, value, accent) => '<div style="flex:1 1 25%;min-width:0;box-sizing:border-box;padding:10px 12px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;border-left:5px solid ' + accent + ';">'
+            + '<div style="font-size:12.5px;font-weight:700;color:#64748b;">' + esc(label) + '</div>'
+            + '<div style="margin-top:2px;font-size:17px;font-weight:900;color:#0f172a;">' + esc(value) + '</div></div>';
+
+        const thS = (w, align, t) => '<th style="' + (w ? 'width:' + w + '%;' : '') + 'padding:12px 8px;background:#0f172a;color:#ffffff;font-size:12.5px;font-weight:800;line-height:1.2;letter-spacing:.08em;text-align:' + align + ';">' + t + '</th>';
+        let table = '<table style="width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-family:' + FONT + ';"><thead><tr>'
+            + thS(8, 'center', 'NO') + thS(14, 'center', 'JAM') + thS(36, 'left', 'PRODUK') + thS(14, 'center', 'PCS') + thS('', 'right', 'TOTAL')
+            + '</tr></thead><tbody>';
+        if (!trx.length) {
+            table += '<tr><td colspan="5" style="padding:22px 14px;text-align:center;color:#64748b;font-size:15px;font-weight:700;background:#f8fafc;">Belum ada transaksi minuman hari ini</td></tr>';
+        } else {
+            let no = 0;
+            trx.forEach((t, i) => {
+                const bg = i % 2 ? '#f8fafc' : '#ffffff';
+                const base = 'padding:13px 8px;border-bottom:1px solid #e8edf3;background:' + bg + ';vertical-align:middle;';
+                const nomor = t.masuk ? '' : String(++no);
+                table += '<tr>'
+                    + '<td style="' + base + 'text-align:center;font-size:14px;font-weight:800;color:#64748b;">' + esc(nomor) + '</td>'
+                    + '<td style="' + base + 'text-align:center;font-size:14px;font-weight:800;color:#334155;">' + esc(t.masuk ? '' : jamOf(t)) + '</td>'
+                    + '<td style="' + base + 'text-align:left;font-size:14.5px;line-height:1.3;"><span style="font-weight:800;color:#0f172a;">' + esc(t.nama) + '</span> ' + metBadge(t.met) + '</td>'
+                    + '<td style="' + base + 'text-align:center;font-size:15px;font-weight:900;color:#334155;">' + (t.masuk ? '<span style="font-size:12px;font-weight:800;">Uang Masuk</span>' : esc(t.pcs.toLocaleString('id-ID')) + '<span style="font-size:12px;font-weight:800;"> pcs</span>') + '</td>'
+                    + '<td style="' + base + 'text-align:right;font-size:16px;font-weight:900;color:#92400e;">' + esc(rpf(t.total)) + '</td></tr>';
+            });
+        }
+        table += '</tbody></table>';
+
+        const body = '<div style="display:flex;gap:10px;padding:14px 16px 2px;">'
+            + chip('Transaksi', sales.length.toLocaleString('id-ID') + ' trx', '#d97706')
+            + chip('Total Pcs', totalPcs.toLocaleString('id-ID') + ' pcs', '#2563eb')
+            + chip('Cash', rpf(totalCash), '#059669')
+            + chip('QRIS/TF', rpf(totalNon), '#0284c7') + '</div>'
+            + '<div style="padding:14px 16px 16px;"><div style="border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">' + table + '</div></div>';
+
+        const section = '<div style="border-radius:18px;overflow:hidden;background:#ffffff;border:1px solid #dbe3ec;box-shadow:0 6px 18px rgba(15,23,42,.07);">'
+            + '<div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(90deg,#92400e,#d97706);">'
+            + '<div style="flex:0 0 auto;width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;line-height:1.2;font-size:20px;">🥤</div>'
+            + '<div style="flex:1 1 auto;min-width:0;font-size:19px;font-weight:900;line-height:1.2;color:#ffffff;letter-spacing:.02em;">RINCIAN TRANSAKSI MINUMAN</div>'
+            + '<div style="flex:0 0 auto;text-align:right;"><div style="font-size:11px;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.82);">TOTAL</div><div style="font-size:21px;font-weight:900;color:#ffffff;">' + esc(rpf(totalAll)) + '</div></div>'
+            + '</div>' + body + '</div>';
+
+        const printed = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        root = document.createElement('div');
+        root.id = 'daily-report-minuman-canvas';
+        root.style.cssText = 'position:fixed;left:-100000px;top:0;width:640px;box-sizing:border-box;background:#eef2f7;color:#0f172a;line-height:1.25;font-family:' + FONT + ';';
+        root.innerHTML =
+            '<div style="position:relative;overflow:hidden;background:linear-gradient(135deg,#061633 0%,#0f3a8a 55%,#1d6fd6 100%);padding:26px 26px 24px;">'
+            + '<div style="position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,.07);"></div>'
+            + '<div style="position:absolute;left:0;bottom:0;width:100%;height:5px;background:linear-gradient(90deg,#f59e0b,#fde68a,#f59e0b);"></div>'
+            + '<div style="position:relative;display:flex;align-items:center;gap:18px;">'
+            + (logoSrc && logoW > 0 ? '<div style="flex:0 0 auto;"><img src="' + esc(logoSrc) + '" style="display:block;width:' + logoW + 'px;height:' + logoH + 'px;"></div>' : '')
+            + '<div style="flex:1 1 auto;min-width:0;">'
+            + '<div style="font-size:13px;font-weight:800;letter-spacing:.3em;color:#fcd34d;">RINCIAN MINUMAN</div>'
+            + '<div style="margin-top:4px;font-size:25px;line-height:1.15;font-weight:900;color:#ffffff;">' + esc(brandName) + '</div>'
+            + '<div style="margin-top:7px;font-size:16px;font-weight:700;color:#dbeafe;">' + esc(tanggal) + '</div></div></div>'
+            + '<div style="position:relative;margin-top:18px;display:inline-block;padding:9px 16px;border-radius:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);">'
+            + '<div style="font-size:11px;font-weight:800;letter-spacing:.16em;color:#bfdbfe;">DIBUAT OLEH ADMIN SHIFT MALAM</div>'
+            + '<div style="margin-top:2px;font-size:17px;font-weight:900;color:#ffffff;">' + esc(adminName) + '</div></div>'
+            + '</div>'
+            + '<div style="padding:18px 16px 20px;">' + section
+            + '<div style="padding:18px 10px 0;text-align:center;">'
+            + '<div style="font-size:13px;font-weight:900;letter-spacing:.14em;color:#0f172a;">RINCIAN TRANSAKSI MINUMAN</div>'
+            + '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#64748b;">' + esc(brandName) + ' • Dicetak ' + esc(printed) + '</div></div>'
+            + '</div>';
+
+        document.body.appendChild(root);
+        if (typeof window.__dailyReportLiftText === 'function') window.__dailyReportLiftText(root);
+        setProgress(62, 'Membuat gambar...', 'Rincian sudah tersusun. Menyiapkan gambar JPG.');
+
+        await Promise.all(Array.from(root.querySelectorAll('img')).map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; setTimeout(r, 2500); })));
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const exportWidth = Math.ceil(root.getBoundingClientRect().width);
+        const exportHeight = Math.ceil(root.scrollHeight);
+        // Daftar transaksi yang sangat panjang: turunkan skala agar tidak melewati batas kanvas HP.
+        let scale = 2;
+        if (exportHeight * scale > 14000) scale = 1.5;
+        if (exportHeight * scale > 14000) scale = 1;
+
+        setProgress(74, 'Merender laporan...', 'Sedang mengubah laporan menjadi gambar. Ini bisa membutuhkan beberapa detik.');
+        const canvas = await html2canvas(root, {
+            scale: scale, backgroundColor: '#eef2f7', useCORS: true, logging: false,
+            width: exportWidth, height: exportHeight, windowWidth: exportWidth, scrollX: 0, scrollY: 0
+        });
+
+        setProgress(92, 'Menyiapkan file...', 'JPG hampir selesai dibuat.');
+        const fileName = 'Rincian Minuman ' + fileDate + '.jpg';
+        const dataUrl = canvas.toDataURL('image/jpeg', .95);
+        const saveResult = window.dailyReportSaveFile(dataUrl, fileName);
+        showResult(true, saveResult.ios
+            ? 'Laporan siap disimpan. Tekan lama gambar lalu pilih “Simpan ke Foto”.'
+            : 'Rincian minuman JPG berhasil disimpan ke perangkat.');
+        setTimeout(() => progressOverlay.remove(), saveResult.ios ? 900 : 1800);
+    } catch (error) {
+        console.error('Gagal membuat Rincian Minuman JPG:', error);
+        showResult(false, 'Terjadi kesalahan saat membuat atau mengunduh laporan.');
+        setTimeout(() => progressOverlay.remove(), 2200);
+    } finally {
+        if (root) root.remove();
+        restoreButton();
+    }
+};
+</script>
+
 
 
 <script id="monthly-recap-export-v5">
@@ -30619,179 +30913,9 @@ window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=docum
   function showProgress(){
     const o=document.createElement('div');o.className='daily-download-progress-overlay';o.innerHTML='<div class="daily-download-progress-modal" role="dialog" aria-modal="true"><div class="daily-download-progress-icon" data-download-icon>↓</div><h3 class="daily-download-progress-title" data-download-title>Menyiapkan laporan...</h3><p class="daily-download-progress-text" data-download-text>Mohon tunggu, laporan sedang diproses.</p><div class="daily-download-progress-track"><div class="daily-download-progress-bar" data-download-bar></div></div><div class="daily-download-progress-percent" data-download-percent>0%</div></div>';document.body.appendChild(o);const m=o.querySelector('.daily-download-progress-modal'),b=o.querySelector('[data-download-bar]'),pc=o.querySelector('[data-download-percent]'),tt=o.querySelector('[data-download-title]'),tx=o.querySelector('[data-download-text]'),ic=o.querySelector('[data-download-icon]');return {o,set(n,t,x){b.style.width=n+'%';pc.textContent=Math.round(n)+'%';if(t)tt.textContent=t;if(x)tx.textContent=x},ok(msg){m.classList.add('is-success');ic.textContent='✓';this.set(100,'Download berhasil!',msg||'Laporan JPG berhasil disimpan ke perangkat.')},err(msg){m.classList.add('is-error');ic.textContent='!';this.set(0,'Download gagal',msg)}}
   }
-  function showChoice(){document.getElementById('daily-report-download-choice')?.remove();const o=document.createElement('div');o.id='daily-report-download-choice';o.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px';o.innerHTML='<div class="daily-glass-modal"><div class="daily-glass-icon">📊</div><div class="daily-glass-title">Download Daily Report</div><button class="daily-glass-btn primary" data-choice="ringkas">Versi Singkat</button><button class="daily-glass-btn secondary" data-choice="lengkap">Versi Lengkap</button><button class="daily-glass-cancel" data-choice="batal">Batal</button></div>';document.body.appendChild(o);o.addEventListener('click',async e=>{const b=e.target.closest('[data-choice]');if(!b)return;const c=b.dataset.choice;if(c==='batal'){o.remove();return}o.remove();if(c==='lengkap')return window.downloadDailyRecapJPGFull();return window.downloadDailyRecapJPG('ringkas')});o.addEventListener('click',e=>{if(e.target===o)o.remove()})}
-  window.downloadDailyRecapJPG=async function(mode){
-    if(mode!=='ringkas')return window.downloadDailyRecapJPGFull();
-    const btn=document.querySelector('.daily-report-jpg-button');if(btn?.dataset.downloadBusy==='1')return;if(btn){btn.dataset.downloadBusy='1';btn.disabled=true}
-    const pr=showProgress();pr.set(8,'Menyiapkan laporan...','Mengumpulkan data Daily Recap.');
-    try{
-      if(typeof html2canvas==='undefined')throw new Error('Fitur laporan JPG membutuhkan koneksi internet.');
-      const raw=reportDate(),d=new Date(raw+'T00:00:00'),tanggal=isNaN(d)?raw:d.toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
-      let admin='-';try{
-        if(typeof window.getAdminShiftMalamForReport==='function'){
-          admin=await Promise.race([
-            window.getAdminShiftMalamForReport(raw),
-            new Promise(resolve=>setTimeout(()=>resolve('-'),3000))
-          ])||'-';
-        }
-      }catch(e){}
-      pr.set(30,'Mengambil data...','Data laporan sedang disiapkan.');
-      const root=document.createElement('div');root.style.cssText='position:fixed;left:-100000px;top:0;width:900px;box-sizing:border-box;padding:46px;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif';
-      const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-      // Daily Report versi singkat harus mengambil angka dari hasil Daily Recap
-      // yang benar-benar tampil, bukan dari elemen yang mungkin tidak ada /
-      // belum diisi (contoh: #rekap-total-pemasukan).
-      const moneyNumber=value=>{
-        const n=Number(String(value??'').replace(/[^0-9-]/g,''));
-        return Number.isFinite(n)?n:0;
-      };
-      const moneyValue=id=>money(id);
-      const lapanganCash=moneyValue('rekap-lapangan-cash');
-      const lapanganQris=moneyValue('rekap-lapangan-qrif');
-      const minumanCashEl=moneyValue('rekap-minuman-cash');
-      const minumanQrisEl=moneyValue('rekap-minuman-qrif');
-      const totalKeluar=moneyValue('rekap-keluar');
-      const cashLap=moneyValue('rekap-sisa-cash-lapangan');
-      const cashMin=moneyValue('rekap-sisa-cash-minuman');
-      const cashTotal=moneyValue('rekap-total-sisa-cash');
-
-      // Seluruh 9 pilihan minuman selalu ditampilkan, termasuk yang terjual 0 pcs.
-      const daftarMinuman=[
-        'Air Mineral',
-        'Air Mineral + 3 Permen',
-        'Pocari Sweat',
-        'Pocari Sweat Kecil',
-        'Fanta',
-        'Sprite',
-        'Coca Cola',
-        'Teh Pucuk Harum',
-        'Milo'
-      ];
-      const qtyMinuman={};
-      daftarMinuman.forEach(nama=>qtyMinuman[nama]=0);
-
-      let minumanCashNumber=0;
-      let minumanQrisNumber=0;
-      let adaBarisMinuman=false;
-
-      // Sumber utama adalah tabel transaksi Daily Recap yang sudah dirender.
-      // Dengan cara ini tanggal, pcs, nominal, dan metode pasti sama dengan
-      // data yang sedang terlihat pada halaman.
-      const tabelMinuman=document.getElementById('tabel-minuman');
-      if(tabelMinuman){
-        Array.from(tabelMinuman.querySelectorAll('tr')).forEach(row=>{
-          const cells=row.querySelectorAll('td');
-          if(cells.length<3) return;
-          const nama=String(cells[0].textContent||'').trim();
-          const __masukMinuman=row.getAttribute('data-masuk-minuman')==='1';
-          if(!__masukMinuman && !Object.prototype.hasOwnProperty.call(qtyMinuman,nama)) return;
-
-          const pcsText=String(cells[1].textContent||'');
-          const transaksiText=String(cells[2].textContent||'');
-          const pcsMatch=pcsText.match(/-?\d+(?:[.,]\d+)?/);
-          const pcs=pcsMatch ? Number(String(pcsMatch[0]).replace(',','.')) : 0;
-          const total=moneyNumber(transaksiText);
-          const metode=(transaksiText.match(/\(([^)]+)\)\s*$/)?.[1]||'Cash').trim();
-
-          if(!__masukMinuman) qtyMinuman[nama]+=Number.isFinite(pcs)?Math.max(0,pcs):0;
-          if(metode==='Cash') minumanCashNumber+=total;
-          else minumanQrisNumber+=total;
-          adaBarisMinuman=true;
-        });
-      }
-
-      // Fallback: jika tabel belum sempat dirender, baca globalCache.
-      if(!adaBarisMinuman){
-        const dataMinuman=(window.globalCache&&window.globalCache.minuman)||{};
-        const normalizeReportDate=v=>String(v||'').split('T')[0].trim();
-
-        Object.values(dataMinuman).forEach(item=>{
-          if(!item || normalizeReportDate(item.tgl)!==raw) return;
-          const nama=String(item.produk||'').trim();
-          if(!Object.prototype.hasOwnProperty.call(qtyMinuman,nama)) return;
-
-          const pcsRaw=item.jumlahPcs ?? item.quantity ?? item.qty ?? item.pcs ?? 0;
-          const pcs=Number(pcsRaw);
-          const total=Number(item.total||0);
-          const metode=String(item.metode||'Cash');
-
-          qtyMinuman[nama]+=Number.isFinite(pcs)?Math.max(0,pcs):0;
-          if(metode==='Cash') minumanCashNumber+=Number.isFinite(total)?total:0;
-          else minumanQrisNumber+=Number.isFinite(total)?total:0;
-        });
-      }
-
-      // Angka cash/QRIS minuman dari tabel dipakai untuk memastikan hasil
-      // download tetap benar walaupun kartu dashboard stale.
-      const minumanCash=`Rp ${minumanCashNumber.toLocaleString('id-ID')}`;
-      const minumanQris=`Rp ${minumanQrisNumber.toLocaleString('id-ID')}`;
-
-      const totalPcsMinuman=Object.values(qtyMinuman).reduce((sum,n)=>sum+(Number(n)||0),0);
-      const formatPcs=n=>`${Number(n)||0} pcs`;
-      const minumanRows=daftarMinuman.map(nama=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 15px">
-          <div style="font-size:16px;font-weight:800;color:#0f172a">${safe(nama)}</div>
-          <div style="font-size:17px;font-weight:900;color:#1e3a8a;white-space:nowrap">${formatPcs(qtyMinuman[nama])}</div>
-        </div>
-      `).join('');
-
-      root.innerHTML=`<div style="text-align:center;border-bottom:2px solid #e2e8f0;padding-bottom:24px;margin-bottom:22px">
-        <div style="font-size:40px;font-weight:900;letter-spacing:1px">DAILY REPORT</div>
-        <div style="font-size:22px;font-weight:800;margin-top:6px">${tanggal}</div>
-        <div style="font-size:15px;color:#64748b;margin-top:5px">ADMIN SHIFT: ${safe(admin)}</div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">⚽ LAPANGAN CASH</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${lapanganCash}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">🥤 MINUMAN CASH</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${minumanCash}</div>
-        </div>
-
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">💳 LAPANGAN TF/QRIS</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${lapanganQris}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">💳 MINUMAN TF/QRIS</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${minumanQris}</div>
-        </div>
-
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">💸 TOTAL KELUAR</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${totalKeluar}</div>
-        </div>
-
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">💵 SISA CASH LAPANGAN</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${cashLap}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px">
-          <div style="font-size:14px;font-weight:900;color:#475569">💵 SISA CASH MINUMAN</div>
-          <div style="font-size:27px;font-weight:900;margin-top:7px">${cashMin}</div>
-        </div>
-
-        <div style="grid-column:1/-1;background:#0f172a;color:#fff;border-radius:20px;padding:22px;text-align:center">
-          <div style="font-size:15px;color:#cbd5e1;font-weight:900;letter-spacing:.02em">TOTAL CASH AKTUAL TERSISA</div>
-          <div style="font-size:39px;font-weight:900;margin-top:5px">${cashTotal}</div>
-        </div>
-      </div>
-
-      <div style="margin:28px 0 12px;text-align:center;font-size:22px;font-weight:900">🥤 DETAIL MINUMAN</div>
-      <div style="margin-bottom:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;padding:13px;text-align:center">
-        <div style="font-size:12px;font-weight:900;color:#1e3a8a;letter-spacing:.03em">TOTAL PCS MINUMAN</div>
-        <div style="font-size:24px;font-weight:900;color:#0f172a;margin-top:3px">${totalPcsMinuman.toLocaleString('id-ID')} PCS</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${minumanRows}</div>`;
-
-      document.body.appendChild(root);await new Promise(r=>setTimeout(r,100));pr.set(62,'Membuat gambar...','Menyiapkan JPG versi singkat.');const canvas=await html2canvas(root,{scale:2,backgroundColor:'#f8fafc',useCORS:true,logging:false,width:900,windowWidth:900});pr.set(92,'Menyiapkan file...','JPG hampir selesai dibuat.');const fileName=`Daily Report ${dateLabel(raw)} - Versi Singkat.jpg`;const dataUrl=canvas.toDataURL('image/jpeg',.95);const saveResult=window.dailyReportSaveFile(dataUrl,fileName);pr.ok(saveResult.ios?'Laporan siap disimpan. Tekan lama gambar lalu pilih “Simpan ke Foto”.':'Laporan JPG berhasil disimpan ke perangkat.');setTimeout(()=>pr.o.remove(),saveResult.ios?900:1800);root.remove();
-    }catch(e){console.error(e);pr.err(e.message||'Terjadi kesalahan saat membuat laporan.');setTimeout(()=>pr.o.remove(),2200)}finally{if(btn){delete btn.dataset.downloadBusy;btn.disabled=false}}
-  };
-  window.showDailyReportDownloadChoice=showChoice;
-  document.addEventListener('click',function(e){const b=e.target.closest('.daily-report-jpg-button');if(!b)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();showChoice()},true);
+  window.downloadDailyRecapJPG=function(){return window.downloadDailyRecapJPGFull();};
+  window.showDailyReportDownloadChoice=window.downloadDailyRecapJPG;
+  document.addEventListener('click',function(e){const b=e.target.closest('.daily-report-jpg-button');if(!b)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();window.downloadDailyRecapJPG()},true);
 })();
 </script>
 
@@ -51470,4 +51594,323 @@ html body #page-jadwal #today-schedule-panel .today-schedule-head.today-schedule
   html body #page-jadwal #today-schedule-panel .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn{width:46px !important;padding:0 !important;}
   html body #page-jadwal #today-schedule-panel .today-schedule-head.today-schedule-head.today-schedule-head #today-schedule-selected-date{font-size:13px !important;}
 }
+</style>
+
+<style id="daily-recap-clean-redesign-v2">
+/* ===== DAILY RECAP — CLEAN REDESIGN (hanya tampilan, tidak menyentuh data/Firebase) ===== */
+html body #page-daily-recap #daily-cash-dashboard > section{background:transparent !important;border:0 !important;box-shadow:none !important;padding:0 !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div{background:#fff !important;border:1px solid #e2e8f0 !important;border-radius:16px !important;padding:12px 14px !important;box-shadow:0 1px 2px rgba(15,23,42,.05) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;text-align:left !important;min-height:0 !important;display:block !important;grid-column:auto !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div::before,
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div::after{display:none !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div > p:first-child{font-size:11px !important;font-weight:700 !important;color:#64748b !important;margin:0 !important;text-align:left !important;letter-spacing:.01em !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div > p:last-child{font-size:17px !important;font-weight:800 !important;color:#0f172a !important;margin:4px 0 0 !important;text-align:left !important;line-height:1.2 !important}
+html body #page-daily-recap #daily-cash-dashboard #daily-total-cash{color:#047857 !important}
+html body #page-daily-recap #daily-cash-dashboard #daily-total-keluar{color:#be123c !important}
+/* Total Sisa Cash jadi kartu utama di paling atas */
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:last-child{order:-1 !important;grid-column:1 / -1 !important;background:linear-gradient(135deg,#1e40af,#2563eb) !important;border-color:rgba(255,255,255,.25) !important;padding:16px 18px !important;box-shadow:0 8px 20px rgba(30,64,175,.28) !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:last-child > p:first-child{color:rgba(255,255,255,.82) !important;font-size:12px !important}
+html body #page-daily-recap #daily-cash-dashboard #daily-cash-seharusnya{color:#fff !important;font-size:28px !important;margin-top:6px !important}
+/* Tombol menu: putih, ikon + label */
+html body #page-daily-recap #daily-menu-grid{display:grid !important;grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:8px !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n){display:flex !important;flex-direction:column !important;align-items:center !important;justify-content:center !important;gap:5px !important;height:auto !important;min-height:68px !important;padding:9px 4px !important;background:#fff !important;border:1px solid #e2e8f0 !important;border-radius:16px !important;box-shadow:0 1px 2px rgba(15,23,42,.05) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;color:#0f172a !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n)::before,
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n)::after{display:none !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:active{transform:scale(.96) !important;background:#f1f5f9 !important}
+html body #page-daily-recap #daily-menu-grid .daily-mini-icon{font-size:22px !important;line-height:1 !important;display:block !important;filter:none !important}
+html body #page-daily-recap #daily-menu-grid .daily-mini-text{display:block !important;font-size:9.5px !important;font-weight:800 !important;line-height:1.15 !important;color:#475569 !important;text-align:center !important;letter-spacing:.02em !important;white-space:normal !important}
+html body #page-daily-recap #daily-menu-grid .daily-mini-arrow{display:none !important}
+
+html body #daily-sub-modal-glass-v6 *,html body #daily-sub-modal-glass-v6 *::before,html body #daily-sub-modal-glass-v6 *::after{box-sizing:border-box !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > section{min-width:0 !important;max-width:100% !important;width:100% !important}
+/* ===== POPUP (Lapangan / Minuman / Pengeluaran / Ringkasan) ===== */
+html body #daily-sub-modal-glass-v6{background:rgba(15,23,42,.5) !important;backdrop-filter:blur(6px) !important;-webkit-backdrop-filter:blur(6px) !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-shell{background:#f8fafc !important;border:1px solid rgba(255,255,255,.7) !important;border-radius:24px !important;box-shadow:0 24px 60px rgba(15,23,42,.38) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;overflow:hidden !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-head{background:#fff !important;border-bottom:1px solid #e2e8f0 !important;box-shadow:none !important;padding:14px 16px !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-title{color:#0f172a !important;font-size:15px !important;font-weight:800 !important;letter-spacing:.02em !important;text-shadow:none !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-close{width:36px !important;height:36px !important;border-radius:50% !important;background:#f1f5f9 !important;border:1px solid #e2e8f0 !important;color:#475569 !important;box-shadow:none !important;font-size:15px !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body{background:transparent !important;padding:14px !important;color:#0f172a !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div{display:flex !important;flex-direction:column !important;gap:12px !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > *{margin:0 !important}
+/* baris tanggal */
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > div:first-child{display:flex !important;flex-direction:row !important;flex-wrap:wrap !important;align-items:center !important;justify-content:space-between !important;gap:8px !important;background:#fff !important;border:1px solid #e2e8f0 !important;border-radius:16px !important;padding:10px 12px !important;box-shadow:none !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > div:first-child > span{font-size:11px !important;font-weight:800 !important;color:#64748b !important;letter-spacing:.05em !important;text-align:left !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > div:first-child > input{width:150px !important;flex:0 0 auto !important;height:38px !important;border-radius:12px !important;background:#f8fafc !important;border:1px solid #dbe3ee !important;color:#0f172a !important;text-align:center !important;font-weight:700 !important;box-shadow:none !important}
+/* kartu isi */
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > section{display:flex !important;flex-direction:column !important;gap:12px !important;background:#fff !important;border:1px solid #e2e8f0 !important;border-radius:18px !important;box-shadow:none !important;padding:14px !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > section > * {margin:0 !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body > div > section > div:first-child{align-items:flex-start !important;text-align:left !important;border-bottom:1px solid #eef2f7 !important;padding-bottom:12px !important;gap:4px !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body section h3{color:#0f172a !important;font-size:15px !important;font-weight:800 !important;justify-content:flex-start !important;text-align:left !important;width:auto !important;text-shadow:none !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body section > div:first-child > p{color:#64748b !important;font-size:12px !important;font-weight:600 !important;text-align:left !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body [id^="subtotal-"]{justify-content:flex-start !important;color:#334155 !important;gap:6px !important;margin-top:6px !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body [id^="subtotal-"] > span{background:#f1f5f9 !important;border:1px solid #e2e8f0 !important;border-radius:999px !important;padding:5px 10px !important;font-size:11px !important;font-weight:700 !important;box-shadow:none !important}
+html body #daily-sub-modal-glass-v6 #rekap-alur-pengeluaran{background:#eff6ff !important;border:1px solid #dbeafe !important;color:#1e3a8a !important;font-size:11.5px !important;font-weight:600 !important;text-align:left !important;border-radius:12px !important;padding:10px 12px !important;margin-top:8px !important}
+/* tabel */
+html body #daily-sub-modal-glass-v6 .daily-v6-body section div:has(> table){background:#fff !important;border:1px solid #e2e8f0 !important;border-radius:14px !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;overflow:hidden !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body table{border-collapse:collapse !important;width:100% !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body thead tr{background:#f1f5f9 !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body th{background:#f1f5f9 !important;color:#475569 !important;border:0 !important;border-bottom:1px solid #e2e8f0 !important;font-size:10px !important;font-weight:800 !important;letter-spacing:.04em !important;text-transform:uppercase !important;padding:9px 6px !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body td{background:transparent !important;border:0 !important;border-bottom:1px solid #f1f5f9 !important;color:#0f172a !important;font-weight:600 !important;padding:10px 6px !important;font-size:11px !important;line-height:1.35 !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body tbody tr:last-child td{border-bottom:0 !important}
+html body #daily-sub-modal-glass-v6 .daily-v6-body td button{border-radius:10px !important;box-shadow:none !important}
+/* minuman */
+html body #daily-sub-modal-glass-v6 #ringkasan-minuman-box{display:grid !important;grid-template-columns:1fr !important;gap:8px !important}
+html body #daily-sub-modal-glass-v6 #ringkasan-minuman-box > *{background:#f8fafc !important;border:1px solid #e2e8f0 !important;border-radius:14px !important;box-shadow:none !important;padding:10px 12px !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+html body #daily-sub-modal-glass-v6 #ringkasan-minuman-box *{text-align:left !important}
+html body #daily-sub-modal-glass-v6 #btn-toggle-rincian{width:100% !important;height:42px !important;background:#1d4ed8 !important;color:#fff !important;border:0 !important;border-radius:12px !important;box-shadow:none !important;font-size:12px !important;font-weight:800 !important}
+/* ringkasan: daftar baris */
+html body #daily-sub-modal-glass-v6 #sub-page-ringkasan section > .grid{display:grid !important;grid-template-columns:1fr !important;gap:8px !important}
+html body #daily-sub-modal-glass-v6 #sub-page-ringkasan section > .grid > div{display:flex !important;align-items:center !important;justify-content:space-between !important;gap:10px !important;background:#f8fafc !important;border:1px solid #e2e8f0 !important;border-radius:14px !important;box-shadow:none !important;padding:11px 14px !important;text-align:left !important}
+html body #daily-sub-modal-glass-v6 #sub-page-ringkasan section > .grid > div > p{margin:0 !important}
+html body #daily-sub-modal-glass-v6 #sub-page-ringkasan section > .grid > div > p:first-child{font-size:12px !important;font-weight:700 !important;color:#475569 !important;text-align:left !important}
+html body #daily-sub-modal-glass-v6 #sub-page-ringkasan section > .grid > div > p:last-child{font-size:15px !important;font-weight:800 !important;text-align:right !important;white-space:nowrap !important}
+html body #daily-sub-modal-glass-v6 #sub-page-ringkasan section > .grid > div:last-child{background:#ecfdf5 !important;border-color:#a7f3d0 !important}
+</style>
+<style id="daily-recap-menu-buttons-v3">
+/* Tombol menu Daily Recap: ikon dalam wadah warna lembut + label satu baris */
+html body #page-daily-recap #daily-menu-grid{gap:10px !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n){position:relative !important;height:84px !important;min-height:84px !important;padding:10px 4px 9px !important;gap:7px !important;border-radius:18px !important;background:rgba(255,255,255,.94) !important;border:1px solid rgba(226,232,240,.95) !important;box-shadow:0 4px 12px rgba(15,23,42,.10) !important;justify-content:center !important;transition:transform .15s ease,box-shadow .15s ease !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n):active{transform:scale(.95) !important;box-shadow:0 1px 4px rgba(15,23,42,.12) !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-icon{width:40px !important;height:40px !important;min-width:40px !important;border-radius:13px !important;display:flex !important;align-items:center !important;justify-content:center !important;font-size:21px !important;line-height:1 !important;margin:0 !important;padding:0 !important;background:#eff6ff !important;border:0 !important;box-shadow:none !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(2) .daily-mini-icon{background:#fff1f2 !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(3) .daily-mini-icon{background:#ecfdf5 !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(4) .daily-mini-icon{background:#fff7ed !important}
+/* label: teks asli disembunyikan, diganti label pendek satu baris */
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text{font-size:0 !important;line-height:1 !important;height:13px !important;display:flex !important;align-items:center !important;justify-content:center !important;margin:0 !important;padding:0 !important;width:100% !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::after{font-size:11.5px !important;font-weight:800 !important;letter-spacing:0 !important;color:#1e293b !important;white-space:nowrap !important;display:block !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(1) .daily-mini-text::after{content:"Lapangan" !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(2) .daily-mini-text::after{content:"Minuman" !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(3) .daily-mini-text::after{content:"Keluar" !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(4) .daily-mini-text::after{content:"Ringkasan" !important}
+@media(max-width:360px){html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::after{font-size:10.5px !important}}
+</style>
+
+<style id="daily-recap-head-like-minuman-v4">
+/* Header tanggal + download: disalin dari header Minuman agar posisi & ukuran sama persis */
+
+/* =========================================================
+   JADWAL HARI INI — bar tanggal & riwayat dibuat satu card kaca bersih
+   (menggantikan strip hijau gelap + tombol biru yang menempel di tepi)
+   ========================================================= */
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head{
+  display:flex !important;flex-direction:row !important;align-items:center !important;justify-content:flex-start !important;gap:8px !important;
+  box-sizing:border-box !important;height:auto !important;min-height:0 !important;max-height:none !important;
+  padding:8px !important;margin:0 0 10px !important;
+  background:linear-gradient(145deg,rgba(255,255,255,.90),rgba(255,255,255,.66)) !important;
+  border:1px solid rgba(255,255,255,.88) !important;border-radius:22px !important;
+  box-shadow:0 10px 28px rgba(15,23,42,.14),inset 0 1px 0 rgba(255,255,255,.92) !important;
+  backdrop-filter:blur(14px) saturate(130%) !important;-webkit-backdrop-filter:blur(14px) saturate(130%) !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-title-wrap{display:none !important;}
+
+/* Tombol tanggal: ikon + keterangan + tanggal lengkap */
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head > .today-date-picker-btn.today-date-picker-btn{
+  flex:1 1 auto !important;min-width:0 !important;width:auto !important;max-width:none !important;
+  height:48px !important;min-height:48px !important;max-height:48px !important;margin:0 !important;padding:0 12px 0 6px !important;
+  display:flex !important;align-items:center !important;justify-content:flex-start !important;gap:10px !important;
+  box-sizing:border-box !important;text-align:left !important;cursor:pointer !important;
+  background:#fff !important;border:1px solid #e2e8f0 !important;border-radius:15px !important;
+  box-shadow:0 1px 2px rgba(15,23,42,.05) !important;color:#0f172a !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head > .today-date-picker-btn:active{transform:scale(.985) !important;}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-date-picker-icon{
+  flex:0 0 auto !important;width:36px !important;height:36px !important;border-radius:11px !important;
+  display:inline-flex !important;align-items:center !important;justify-content:center !important;
+  background:linear-gradient(145deg,#2563a8,#0f3d75) !important;color:#fff !important;
+  box-shadow:0 4px 10px rgba(15,61,117,.28) !important;font-size:0 !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .tdp-text{display:flex !important;flex-direction:column !important;gap:3px !important;min-width:0 !important;flex:1 1 auto !important;}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .tdp-cap{
+  display:block !important;font-size:9px !important;line-height:1 !important;font-weight:800 !important;
+  letter-spacing:.14em !important;text-transform:uppercase !important;color:#64748b !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head #daily-recap-selected-date{
+  display:block !important;font-size:14px !important;line-height:1.15 !important;font-weight:900 !important;
+  color:#0f172a !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .tdp-chevron{flex:0 0 auto !important;color:#94a3b8 !important;}
+
+/* Tombol riwayat: lembut, ikon + label */
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head > .today-schedule-head-actions{
+  position:static !important;flex:0 0 auto !important;display:flex !important;align-items:center !important;
+  width:auto !important;height:auto !important;min-height:0 !important;margin:0 !important;padding:0 !important;
+  pointer-events:auto !important;transform:none !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn{
+  display:inline-flex !important;align-items:center !important;justify-content:center !important;gap:6px !important;
+  width:auto !important;min-width:48px !important;max-width:none !important;height:48px !important;min-height:48px !important;max-height:48px !important;
+  margin:0 !important;padding:0 14px 0 12px !important;box-sizing:border-box !important;
+  background:#eff6ff !important;border:1px solid #bfdbfe !important;border-radius:15px !important;
+  color:#1d4ed8 !important;box-shadow:none !important;font-size:12px !important;font-weight:800 !important;
+}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn:hover{background:#dbeafe !important;filter:none !important;}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn:active{transform:scale(.96) !important;}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-icon{width:20px !important;height:20px !important;flex:0 0 auto !important;color:#1d4ed8 !important;stroke:none !important;fill:none !important;opacity:1 !important;filter:none !important;}
+html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .tdh-label{display:inline !important;line-height:1 !important;}
+
+@media(max-width:640px){
+  html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head{padding:7px !important;gap:7px !important;border-radius:20px !important;}
+  html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head > .today-date-picker-btn.today-date-picker-btn{height:46px !important;min-height:46px !important;max-height:46px !important;border-radius:14px !important;}
+  html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn{height:46px !important;min-height:46px !important;max-height:46px !important;border-radius:14px !important;padding:0 12px 0 10px !important;}
+}
+@media(max-width:360px){
+  html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .tdh-label{display:none !important;}
+  html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head .today-history-btn.today-history-btn{width:46px !important;padding:0 !important;}
+  html body #page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head #daily-recap-selected-date{font-size:13px !important;}
+}
+
+html body #page-daily-recap .daily-recap-date-control{display:none !important}
+html body #page-daily-recap,html body #page-daily-recap *,html body #page-daily-recap *::before,html body #page-daily-recap *::after{box-sizing:border-box}
+html body #page-daily-recap > .today-schedule-head{margin:0 0 12px !important}
+
+/* ===== Layout kartu uang: isi sampai atas dock bawah ===== */
+html body #page-daily-recap #daily-cash-dashboard{display:flex !important;flex-direction:column !important;gap:10px !important;margin:0 !important;min-height:var(--dr-fill,0px) !important}
+html body #page-daily-recap #daily-cash-dashboard > section{flex:1 1 auto !important;display:flex !important;flex-direction:column !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid{flex:1 1 auto !important;grid-template-rows:auto minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) !important;gap:10px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div{display:flex !important;flex-direction:column !important;justify-content:center !important}
+/* urutan: Total Sisa Cash, lalu Sisa Cash Lapangan & Minuman (disorot), lalu 4 kartu kecil */
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7){order:-3 !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5),
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6){order:-2 !important;padding:14px 16px !important;border:0 !important;border-radius:20px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5){background:linear-gradient(145deg,#047857,#10b981) !important;box-shadow:0 10px 22px rgba(5,150,105,.32) !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6){background:linear-gradient(145deg,#6d28d9,#8b5cf6) !important;box-shadow:0 10px 22px rgba(109,40,217,.32) !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5) > p:first-child,
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6) > p:first-child{color:rgba(255,255,255,.88) !important;font-size:12px !important}
+html body #page-daily-recap #daily-cash-dashboard #daily-sisa-cash-lapangan,
+html body #page-daily-recap #daily-cash-dashboard #daily-sisa-cash-minuman{color:#fff !important;font-size:22px !important;margin-top:8px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7){padding:16px 18px !important}
+html body #page-daily-recap #daily-cash-dashboard #daily-cash-seharusnya{font-size:26px !important}
+html body #page-daily-recap #daily-menu-grid{flex:0 0 auto !important}
+</style>
+<script id="daily-recap-head-like-minuman-v4-js">
+(function(){
+  var MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var DAY=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  function pad(n){return String(n).padStart(2,'0')}
+  function key(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+  function syncLabel(){
+    try{
+      var inp=document.getElementById('daily-dashboard-date-input');
+      var cap=document.getElementById('daily-recap-selected-cap');
+      var txt=document.getElementById('daily-recap-selected-date');
+      if(!txt||!cap) return;
+      var k=(inp&&inp.value)||key(new Date());
+      var p=k.split('-').map(Number); var d=new Date(p[0],p[1]-1,p[2]);
+      var s=DAY[d.getDay()]+', '+d.getDate()+' '+MON[d.getMonth()]+' '+d.getFullYear();
+      if(txt.textContent!==s) txt.textContent=s;
+      var c=(k===key(new Date()))?'Hari ini':'Tanggal rekap';
+      if(cap.textContent!==c) cap.textContent=c;
+    }catch(e){}
+  }
+  function fill(){
+    try{
+      var dash=document.getElementById('daily-cash-dashboard');
+      if(!dash||!dash.offsetParent) return;
+      var dock=document.getElementById('quick-bottom-nav');
+      var dockTop=(dock&&dock.getBoundingClientRect().height>0)?dock.getBoundingClientRect().top+window.scrollY*0:window.innerHeight;
+      var top=dash.getBoundingClientRect().top+window.scrollY;
+      var h=Math.max(420,Math.round(dockTop-top-12));
+      document.documentElement.style.setProperty('--dr-fill',h+'px');
+    }catch(e){}
+  }
+  window.dailyRecapOpenDate=function(){var t=document.querySelector('.daily-custom-date-trigger'); if(t) t.click();};
+  window.dailyRecapDownload=function(){var b=document.querySelector('.daily-report-jpg-button'); if(b) b.click(); else if(typeof window.downloadDailyRecapJPG==='function') window.downloadDailyRecapJPG();};
+  function tick(){syncLabel();fill();}
+  window.addEventListener('resize',tick); window.addEventListener('load',tick);
+  document.addEventListener('DOMContentLoaded',tick);
+  setInterval(tick,700); tick();
+})();
+</script>
+<style id="daily-recap-spacing-like-minuman-v5">
+/* Jarak disamakan dengan halaman Minuman */
+html body #page-daily-recap > div:first-child:not(.today-schedule-head){display:none !important;margin:0 !important;padding:0 !important;height:0 !important;min-height:0 !important;border:0 !important}
+html body #page-daily-recap > .today-schedule-head{margin:0 0 12px !important}
+html body #page-daily-recap #daily-cash-dashboard{gap:8px !important}
+html body #page-daily-recap #daily-cash-dashboard > *{margin:0 !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid{gap:8px !important}
+html body #page-daily-recap #daily-menu-grid{gap:8px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div{padding:11px 14px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7){padding:14px 16px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5),
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6){padding:12px 14px !important}
+html body #page-daily-recap #daily-cash-dashboard > section > .grid > div > p:last-child{margin-top:3px !important}
+html body #page-daily-recap #daily-cash-dashboard #daily-sisa-cash-lapangan,
+html body #page-daily-recap #daily-cash-dashboard #daily-sisa-cash-minuman{margin-top:6px !important}
+html body #page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n){height:78px !important;min-height:78px !important;gap:6px !important}
+</style>
+<style id="daily-recap-spacing-like-minuman-v6">
+/* Specificity dinaikkan agar mengalahkan aturan lama (judul lama masih memakan ruang ±28px) */
+html body #page-daily-recap#page-daily-recap > div:first-child:not(.today-schedule-head){display:none !important;margin:0 !important;padding:0 !important;height:0 !important;min-height:0 !important;border:0 !important;overflow:hidden !important}
+html body #page-daily-recap#page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head{margin:0 0 12px !important}
+html body #page-daily-recap#page-daily-recap .daily-recap-date-control{display:none !important;margin:0 !important;padding:0 !important;height:0 !important;border:0 !important}
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard{margin:0 !important;padding:0 !important;gap:8px !important}
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > *{margin-top:0 !important;margin-bottom:0 !important}
+</style>
+<style id="daily-recap-typography-v7">
+/* Tipografi lebih besar & proporsi kartu lebih seimbang */
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid{grid-template-rows:auto minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr) !important}
+/* label */
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div > p:first-child{font-size:13.5px !important;font-weight:700 !important;letter-spacing:0 !important}
+/* nilai kartu kecil */
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div > p:last-child{font-size:22px !important;font-weight:800 !important;margin-top:6px !important;white-space:nowrap !important;line-height:1.15 !important;letter-spacing:-.01em !important}
+/* Total Sisa Cash */
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7){padding:16px 18px !important}
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7) > p:first-child{font-size:14px !important}
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard #daily-cash-seharusnya{font-size:34px !important;margin-top:6px !important}
+/* Sisa Cash Lapangan & Minuman */
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5) > p:first-child,
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6) > p:first-child{font-size:14px !important;font-weight:800 !important}
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard #daily-sisa-cash-lapangan,
+html body #page-daily-recap#page-daily-recap #daily-cash-dashboard #daily-sisa-cash-minuman{font-size:26px !important;margin-top:8px !important}
+/* tombol menu */
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-icon{width:42px !important;height:42px !important;min-width:42px !important;font-size:23px !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text{height:15px !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::after{font-size:12px !important}
+</style>
+<script id="daily-recap-typography-v7-js">
+(function(){
+  /* Kecilkan font otomatis hanya jika nominal terlalu panjang (mis. jutaan) agar tidak terpotong */
+  var SEL='#daily-cash-dashboard > section > .grid > div > p:last-child';
+  function fit(){
+    try{
+      document.querySelectorAll('#page-daily-recap '+SEL).forEach(function(el){
+        if(!el.offsetParent) return;
+        var sig=el.textContent+'|'+el.parentElement.clientWidth;
+        if(el.dataset.fitSig===sig) return;
+        el.style.removeProperty('font-size');
+        var cs=parseFloat(getComputedStyle(el).fontSize), box=el.parentElement.clientWidth-parseFloat(getComputedStyle(el.parentElement).paddingLeft)-parseFloat(getComputedStyle(el.parentElement).paddingRight);
+        var size=cs; var guard=0;
+        while(el.scrollWidth>box+0.5 && size>13 && guard++<30){size-=1; el.style.setProperty('font-size',size+'px','important');}
+        el.dataset.fitSig=sig;
+      });
+    }catch(e){}
+  }
+  window.addEventListener('resize',function(){document.querySelectorAll('#page-daily-recap '+SEL).forEach(function(e){delete e.dataset.fitSig});fit()});
+  setInterval(fit,600); fit();
+})();
+</script>
+<style id="daily-recap-menu-redesign-v8">
+/* Menu Daily Recap: 2x2, tiap tombol punya warna + subjudul sendiri */
+html body #page-daily-recap#page-daily-recap #daily-menu-grid{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n){flex-direction:row !important;justify-content:flex-start !important;align-items:center !important;gap:10px !important;height:60px !important;min-height:60px !important;padding:9px 12px 9px 9px !important;border-radius:18px !important;text-align:left !important;--m-bg:#fff;--m-bd:#e2e8f0;--m-t:#0f172a;--m-s:#64748b;--m-sh:rgba(15,23,42,.12);background:linear-gradient(135deg,#fff 0%,var(--m-bg) 100%) !important;border:1px solid var(--m-bd) !important;box-shadow:0 6px 16px var(--m-sh) !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(1){--m-bg:#d1fae5;--m-bd:#a7f3d0;--m-t:#065f46;--m-s:#059669;--m-sh:rgba(5,150,105,.22)}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(2){--m-bg:#ede9fe;--m-bd:#ddd6fe;--m-t:#5b21b6;--m-s:#7c3aed;--m-sh:rgba(109,40,217,.22)}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(3){--m-bg:#ffe4e6;--m-bd:#fecdd3;--m-t:#9f1239;--m-s:#e11d48;--m-sh:rgba(225,29,72,.20)}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(4){--m-bg:#dbeafe;--m-bd:#bfdbfe;--m-t:#1e3a8a;--m-s:#2563eb;--m-sh:rgba(37,99,235,.22)}
+/* ikon: kotak putih */
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-icon{width:42px !important;height:42px !important;min-width:42px !important;border-radius:14px !important;background:#fff !important;box-shadow:0 3px 8px var(--m-sh) !important;font-size:22px !important;flex:0 0 auto !important}
+/* teks: judul (::before) + subjudul (::after) */
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text{font-size:0 !important;height:auto !important;display:flex !important;flex-direction:column !important;align-items:flex-start !important;justify-content:center !important;gap:3px !important;flex:1 1 auto !important;min-width:0 !important;width:auto !important;text-align:left !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::before{display:block !important;font-size:14px !important;font-weight:800 !important;line-height:1.1 !important;color:var(--m-t) !important;white-space:nowrap !important;text-transform:none !important;letter-spacing:0 !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::after{display:block !important;font-size:10.5px !important;font-weight:700 !important;line-height:1.1 !important;color:var(--m-s) !important;white-space:nowrap !important;text-transform:none !important;letter-spacing:0 !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(1) .daily-mini-text::before{content:"Lapangan" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(1) .daily-mini-text::after{content:"Uang lapangan" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(2) .daily-mini-text::before{content:"Minuman" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(2) .daily-mini-text::after{content:"Penjualan" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(3) .daily-mini-text::before{content:"Keluar" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(3) .daily-mini-text::after{content:"Pengeluaran" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(4) .daily-mini-text::before{content:"Ringkasan" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(4) .daily-mini-text::after{content:"Total keuangan" !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-arrow{display:none !important}
+html body #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n):active{transform:scale(.96) !important}
 </style>
