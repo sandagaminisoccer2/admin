@@ -36755,6 +36755,61 @@ html body #page-more .more-menu-page .more-page-grid>button small{align-self:sta
 })();
 </script>
 
+
+<style id="jadwal-desktop-2-kolom-final">
+/* =========================================================
+   JADWAL HARI INI — DESKTOP 2 KOLOM (FINAL, paling akhir)
+   Sebelumnya memakai flex-wrap 50% + gap, sehingga sering
+   turun jadi 1 kolom (lebar 2 kartu + gap melebihi lebar list).
+   Diganti CSS Grid supaya selalu pas 2 kolom.
+   Hanya layar >= 900px. HP/tablet kecil tidak diubah.
+   ========================================================= */
+@media (min-width: 900px) {
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    align-items: start !important;
+    justify-content: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern > .schedule-card {
+    flex: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  /* Kartu "semua lunas" / loading / kosong tetap selebar penuh */
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern > .today-all-paid-card,
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern > .today-schedule-loading,
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern > div.text-center {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* Jika jumlah kartu ganjil, kartu terakhir rata tengah (tidak melar) */
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern > .schedule-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+    justify-self: center !important;
+    width: calc(50% - 7px) !important;
+  }
+}
+/* Tablet kecil (641–899px): 1 kolom agar isi kartu tidak sempit */
+@media (min-width: 641px) and (max-width: 899px) {
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+  html body #page-jadwal #today-schedule-panel #today-schedule-list.today-schedule-list-modern > .schedule-card {
+    flex: none !important; width: 100% !important; max-width: none !important; margin: 0 !important;
+  }
+}
+</style>
 </body>
 
 <style id="FINAL_FIX_UANG_KELUAR_ONE_BIG_GLASS_CARD">
