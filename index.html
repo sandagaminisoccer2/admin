@@ -11166,62 +11166,58 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
 </div>
 </div>
 
-<!-- HALAMAN LAPORAN -->
-<div class="sub-menu-modern glass-panel p-4 sm:p-6 rounded-2xl hidden font-bold text-slate-900" id="page-laporan">
-  <div class="text-center mb-5">
-    <h2 class="font-black text-base sm:text-lg text-slate-900 uppercase w-full">📊 LAPORAN</h2>
-    <div class="report-title-line mx-auto"></div>
-    <p class="text-xs text-slate-600 font-bold mt-2">Pilih periode untuk melihat seluruh rincian transaksi dan ringkasan keuangan.</p>
-  </div>
+<!-- HALAMAN LAPORAN — card mandiri (lebar sama dengan header & dock) -->
+<div class="sub-menu-modern hidden font-bold text-slate-900 lp-page" id="page-laporan">
 
-  <div class="glass-panel rounded-2xl p-3 sm:p-4 mb-4">
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <div>
-        <label class="block text-xs font-black uppercase text-slate-700 mb-1">DARI TANGGAL</label>
-        <input id="laporan-tgl-mulai" type="date" class="w-full p-2.5 rounded-xl glass-input font-bold text-sm" onchange="renderLaporan()">
-      </div>
-      <div>
-        <label class="block text-xs font-black uppercase text-slate-700 mb-1">SAMPAI TANGGAL</label>
-        <input id="laporan-tgl-akhir" type="date" class="w-full p-2.5 rounded-xl glass-input font-bold text-sm" onchange="renderLaporan()">
-      </div>
-    </div>
-  </div>
+  <h2 class="lp-title">
+    <span class="lp-title-ico" aria-hidden="true">📊</span>
+    <span class="lp-title-txt">LAPORAN<small>Ringkasan dan rincian transaksi per periode</small></span>
+  </h2>
 
-  <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
-    <div class="report-stat-card">
-      <small>SEWA LAPANGAN</small><strong id="laporan-total-lapangan">Rp 0</strong>
+  <section class="lp-card">
+    <div class="lp-card-title"><span class="lp-chip" aria-hidden="true">📅</span><b>Periode</b></div>
+    <div class="lp-dates">
+      <label class="lp-field">
+        <span>Dari tanggal</span>
+        <input id="laporan-tgl-mulai" type="date" class="lp-input" onchange="renderLaporan()">
+      </label>
+      <label class="lp-field">
+        <span>Sampai tanggal</span>
+        <input id="laporan-tgl-akhir" type="date" class="lp-input" onchange="renderLaporan()">
+      </label>
     </div>
-    <div class="report-stat-card">
-      <small>PENJUALAN MINUMAN</small><strong id="laporan-total-minuman">Rp 0</strong>
-    </div>
-    <div class="report-stat-card">
-      <small>PENGELUARAN</small><strong id="laporan-total-pengeluaran">Rp 0</strong>
-    </div>
-    <div class="report-stat-card report-stat-net">
-      <small>HASIL BERSIH</small><strong id="laporan-total-bersih">Rp 0</strong>
-    </div>
-  </div>
+  </section>
 
-  <div class="glass-panel rounded-2xl overflow-hidden">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 border-b border-white/30">
-      <div>
-        <h3 class="font-black text-sm uppercase" id="laporan-detail-title">DETAIL SEWA LAPANGAN</h3>
-        <p class="text-[10px] text-slate-600 font-bold" id="laporan-detail-subtitle">Transaksi pada periode yang dipilih.</p>
-      </div>
-      <button type="button" onclick="downloadLaporanCSV()" class="laporan-download-btn">⬇ DOWNLOAD CSV</button>
+  <section class="lp-card">
+    <div class="lp-card-title"><span class="lp-chip" aria-hidden="true">💰</span><b>Ringkasan</b></div>
+    <div class="lp-sum">
+      <div class="lp-row"><span><i class="lp-dot lp-dot-lap" aria-hidden="true"></i>Sewa lapangan</span><strong id="laporan-total-lapangan">Rp 0</strong></div>
+      <div class="lp-row"><span><i class="lp-dot lp-dot-min" aria-hidden="true"></i>Penjualan minuman</span><strong id="laporan-total-minuman">Rp 0</strong></div>
+      <div class="lp-row"><span><i class="lp-dot lp-dot-out" aria-hidden="true"></i>Pengeluaran</span><strong id="laporan-total-pengeluaran">Rp 0</strong></div>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-xs min-w-[560px]">
-        <thead class="bg-slate-900/80 text-white">
-          <tr id="laporan-detail-head"></tr>
-        </thead>
-        <tbody id="laporan-detail-body" class="font-bold text-slate-800"></tbody>
+    <div class="lp-net"><span>Hasil bersih</span><strong id="laporan-total-bersih">Rp 0</strong></div>
+  </section>
+
+  <section class="lp-card">
+    <div class="lp-detail-head">
+      <h3 id="laporan-detail-title">DETAIL SEWA LAPANGAN</h3>
+      <p id="laporan-detail-subtitle">Transaksi pada periode yang dipilih.</p>
+    </div>
+    <button type="button" onclick="downloadLaporanCSV()" class="lp-download">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+      <span>Download CSV</span>
+    </button>
+    <div class="lp-table-wrap">
+      <table class="lp-table">
+        <thead><tr id="laporan-detail-head"></tr></thead>
+        <tbody id="laporan-detail-body"></tbody>
       </table>
     </div>
-    <div id="laporan-empty" class="hidden p-6 text-center text-sm text-slate-600 font-black">
-      Belum ada transaksi pada periode ini.
+    <div id="laporan-empty" class="hidden lp-empty">
+      <b>Belum ada transaksi</b>
+      <small>Ubah tanggal untuk melihat periode lain.</small>
     </div>
-  </div>
+  </section>
 </div>
 
 <!-- HALAMAN MONTHLY RECAP -->
@@ -53187,21 +53183,202 @@ html.fit-measuring *, html.fit-measuring *::before, html.fit-measuring *::after{
   html body main #page-minuman#page-minuman .minuman-summary-card:nth-child(2) strong{ color:#1d4ed8 !important; }
 }
 </style>
+<style id="laporan-card-mandiri-v1">
+/* =====================================================================
+   LAPORAN — desain minimalis, card berdiri sendiri (satu gaya dengan
+   Uang Keluar / Uang Masuk). Lebar kiri-kanan = header & dock.
+   Hanya tampilan — ID, onclick, dan fungsi renderLaporan tidak berubah.
+   ===================================================================== */
+html body #page-laporan.lp-page{
+  --ac:#2563eb;--ac2:#1d4ed8;--tint:#eff6ff;--bd:#bfdbfe;--tx:#1e3a8a;--sh:rgba(37,99,235,.22);
+  width:min(100%,780px) !important;max-width:780px !important;min-width:0 !important;
+  margin-left:auto !important;margin-right:auto !important;padding:0 !important;box-sizing:border-box !important;
+  background:transparent !important;background-image:none !important;border:0 !important;box-shadow:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-radius:0 !important;
+  overflow:visible !important;isolation:auto !important;color:#0f172a !important;
+  flex-direction:column !important;gap:12px !important;
+}
+html body #page-laporan.lp-page:not(.hidden){display:flex !important}
+html body #page-laporan.lp-page.hidden{display:none !important}
+html body #page-laporan.lp-page::before,
+html body #page-laporan.lp-page::after{display:none !important;content:none !important}
+
+/* ---- judul (kartu sendiri, sama seperti Uang Keluar/Masuk) ---- */
+html body #page-laporan.lp-page > h2.lp-title{
+  display:flex !important;align-items:center !important;gap:12px !important;margin:0 !important;
+  padding:12px 14px !important;width:100% !important;box-sizing:border-box !important;text-align:left !important;
+  background:linear-gradient(135deg,#ffffff 0%,var(--tint) 100%) !important;border:1px solid var(--bd) !important;
+  border-radius:20px !important;box-shadow:0 10px 28px rgba(15,23,42,.14),inset 0 1px 0 #fff !important;
+  color:var(--tx) !important;text-transform:uppercase !important;position:relative !important;
+}
+html body #page-laporan.lp-page > h2.lp-title::before,
+html body #page-laporan.lp-page > h2.lp-title::after{display:none !important;content:none !important}
+html body #page-laporan.lp-page .lp-title-ico{
+  width:44px !important;height:44px !important;flex:0 0 44px !important;display:grid !important;place-items:center !important;
+  border-radius:14px !important;font-size:22px !important;
+  background:linear-gradient(135deg,var(--ac),var(--ac2)) !important;box-shadow:0 6px 16px var(--sh) !important;
+}
+html body #page-laporan.lp-page .lp-title-txt{
+  display:flex !important;flex-direction:column !important;gap:2px !important;font-size:16px !important;font-weight:900 !important;
+  letter-spacing:.03em !important;line-height:1.15 !important;color:var(--tx) !important;
+}
+html body #page-laporan.lp-page .lp-title-txt small{
+  font-size:11px !important;font-weight:700 !important;letter-spacing:0 !important;text-transform:none !important;color:#64748b !important;
+}
+
+/* ---- card ---- */
+html body #page-laporan.lp-page .lp-card{
+  position:relative !important;display:flex !important;flex-direction:column !important;gap:10px !important;margin:0 !important;
+  padding:14px !important;width:100% !important;box-sizing:border-box !important;
+  background:linear-gradient(160deg,rgba(255,255,255,.62),rgba(248,250,252,.38)) !important;
+  border:1px solid rgba(255,255,255,.75) !important;border-radius:20px !important;
+  box-shadow:0 8px 22px rgba(15,23,42,.12),inset 0 1px 0 rgba(255,255,255,.8) !important;
+  -webkit-backdrop-filter:blur(14px) saturate(135%) !important;backdrop-filter:blur(14px) saturate(135%) !important;
+  overflow:hidden !important;
+}
+html body #page-laporan.lp-page .lp-card::before{
+  content:"" !important;display:block !important;position:absolute !important;left:14px !important;right:14px !important;top:0 !important;
+  height:3px !important;border-radius:0 0 4px 4px !important;background:linear-gradient(90deg,var(--ac),var(--ac2)) !important;opacity:.9 !important;
+}
+html body #page-laporan.lp-page .lp-card-title{display:flex !important;align-items:center !important;gap:9px !important;margin:0 !important}
+html body #page-laporan.lp-page .lp-card-title b{
+  font-size:12px !important;font-weight:900 !important;letter-spacing:.06em !important;text-transform:uppercase !important;color:#475569 !important;
+}
+html body #page-laporan.lp-page .lp-chip{
+  width:28px !important;height:28px !important;flex:0 0 28px !important;display:grid !important;place-items:center !important;
+  border-radius:9px !important;font-size:14px !important;background:var(--tint) !important;border:1px solid var(--bd) !important;
+}
+
+/* ---- periode ---- */
+html body #page-laporan.lp-page .lp-dates{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important}
+html body #page-laporan.lp-page .lp-field{display:flex !important;flex-direction:column !important;gap:5px !important;min-width:0 !important;margin:0 !important}
+html body #page-laporan.lp-page .lp-field > span{font-size:11px !important;font-weight:800 !important;color:#64748b !important;letter-spacing:0 !important;text-transform:none !important}
+html body #page-laporan.lp-page .lp-input{
+  display:block !important;width:100% !important;min-width:0 !important;box-sizing:border-box !important;height:46px !important;margin:0 !important;
+  padding:0 10px !important;border-radius:14px !important;background:rgba(255,255,255,.72) !important;border:1.5px solid #dbe3ee !important;
+  color:#0f172a !important;font-size:13.5px !important;font-weight:800 !important;text-align:left !important;
+  box-shadow:inset 0 1px 2px rgba(15,23,42,.04) !important;outline:none !important;-webkit-appearance:none !important;appearance:none !important;
+  transition:border-color .15s,box-shadow .15s !important;
+}
+html body #page-laporan.lp-page .lp-input:focus{border-color:var(--ac) !important;box-shadow:0 0 0 4px var(--sh) !important}
+
+/* ---- ringkasan ---- */
+html body #page-laporan.lp-page .lp-sum{display:flex !important;flex-direction:column !important}
+html body #page-laporan.lp-page .lp-row{
+  display:flex !important;align-items:center !important;justify-content:space-between !important;gap:12px !important;
+  padding:9px 0 !important;border-bottom:1px solid rgba(148,163,184,.28) !important;
+}
+html body #page-laporan.lp-page .lp-row:last-child{border-bottom:0 !important}
+html body #page-laporan.lp-page .lp-row > span{
+  display:flex !important;align-items:center !important;gap:9px !important;font-size:13px !important;font-weight:700 !important;color:#475569 !important;
+}
+html body #page-laporan.lp-page .lp-row > strong{
+  font-size:15px !important;font-weight:900 !important;color:#0f172a !important;white-space:nowrap !important;font-variant-numeric:tabular-nums !important;
+}
+html body #page-laporan.lp-page .lp-dot{display:block !important;width:8px !important;height:8px !important;border-radius:50% !important;flex:0 0 8px !important}
+html body #page-laporan.lp-page .lp-dot-lap{background:#2563eb !important}
+html body #page-laporan.lp-page .lp-dot-min{background:#f59e0b !important}
+html body #page-laporan.lp-page .lp-dot-out{background:#e11d48 !important}
+html body #page-laporan.lp-page .lp-net{
+  display:flex !important;align-items:center !important;justify-content:space-between !important;gap:12px !important;
+  padding:12px 14px !important;border-radius:14px !important;
+  background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(255,255,255,.45)) !important;border:1px solid rgba(16,185,129,.30) !important;
+}
+html body #page-laporan.lp-page .lp-net > span{font-size:12px !important;font-weight:900 !important;letter-spacing:.06em !important;text-transform:uppercase !important;color:#065f46 !important}
+html body #page-laporan.lp-page .lp-net > strong{font-size:20px !important;font-weight:900 !important;color:#047857 !important;white-space:nowrap !important;font-variant-numeric:tabular-nums !important}
+
+/* ---- detail ---- */
+html body #page-laporan.lp-page .lp-detail-head{display:flex !important;flex-direction:column !important;gap:2px !important}
+html body #page-laporan.lp-page .lp-detail-head h3{
+  margin:0 !important;font-size:13px !important;font-weight:900 !important;letter-spacing:.04em !important;color:#1e293b !important;text-transform:uppercase !important;
+}
+html body #page-laporan.lp-page .lp-detail-head p{margin:0 !important;font-size:11px !important;font-weight:700 !important;line-height:1.35 !important;color:#64748b !important}
+html body #page-laporan.lp-page .lp-download{
+  display:flex !important;align-items:center !important;justify-content:center !important;gap:8px !important;width:100% !important;
+  min-height:44px !important;margin:0 !important;padding:0 14px !important;box-sizing:border-box !important;border-radius:14px !important;
+  background:var(--tint) !important;border:1.5px solid var(--bd) !important;color:var(--ac2) !important;font-size:13px !important;font-weight:900 !important;
+  box-shadow:none !important;transition:background .15s,border-color .15s,transform .1s !important;
+}
+html body #page-laporan.lp-page .lp-download:active{transform:scale(.98) !important;border-color:var(--ac) !important;background:#dbeafe !important}
+html body #page-laporan.lp-page .lp-table-wrap{
+  width:100% !important;overflow-x:auto !important;-webkit-overflow-scrolling:touch !important;border-radius:14px !important;
+  border:1px solid rgba(203,213,225,.85) !important;background:rgba(255,255,255,.55) !important;
+}
+html body #page-laporan.lp-page .lp-table{
+  width:100% !important;min-width:0 !important;border-collapse:collapse !important;border:0 !important;background:transparent !important;box-shadow:none !important;
+  font-size:11.5px !important;
+}
+html body #page-laporan.lp-page .lp-table thead th{
+  padding:8px 7px !important;background:rgba(239,246,255,.85) !important;color:#1e3a8a !important;border:0 !important;
+  border-bottom:1.5px solid var(--bd) !important;font-size:10.5px !important;font-weight:900 !important;letter-spacing:.03em !important;white-space:nowrap !important;
+}
+html body #page-laporan.lp-page .lp-table tbody td{
+  padding:9px 7px !important;background:transparent !important;color:#1e293b !important;font-weight:700 !important;line-height:1.3 !important;
+  border:0 !important;border-bottom:1px solid rgba(148,163,184,.22) !important;vertical-align:top !important;
+}
+html body #page-laporan.lp-page .lp-table tbody tr:last-child td{border-bottom:0 !important}
+html body #page-laporan.lp-page .lp-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.35) !important}
+html body #page-laporan.lp-page .lp-table tbody tr:hover td{background:rgba(219,234,254,.45) !important}
+html body #page-laporan.lp-page .lp-table tbody td:first-child{white-space:nowrap !important}
+html body #page-laporan.lp-page .lp-table tbody td:last-child{white-space:nowrap !important;font-weight:900 !important;color:#0f172a !important}
+html body #page-laporan.lp-page .lp-empty:not(.hidden){
+  display:flex !important;flex-direction:column !important;align-items:center !important;gap:3px !important;padding:18px 10px 8px !important;text-align:center !important;
+}
+html body #page-laporan.lp-page .lp-empty b{font-size:13px !important;font-weight:900 !important;color:#334155 !important}
+html body #page-laporan.lp-page .lp-empty small{font-size:11px !important;font-weight:700 !important;color:#64748b !important}
+
+/* desktop: ikut lebar aplikasi global seperti Daily Recap */
+@media (min-width:768px){
+  html body #page-laporan.lp-page{
+    width:var(--desktop-app-width, min(1200px, calc(100vw - 32px))) !important;
+    max-width:var(--desktop-app-width, min(1200px, calc(100vw - 32px))) !important;
+    margin-left:0 !important;margin-right:0 !important;
+  }
+  html body #page-laporan.lp-page .lp-dates{grid-template-columns:repeat(2,minmax(0,260px)) !important}
+  html body #page-laporan.lp-page .lp-table{font-size:12.5px !important}
+}
+
+/* --fs ikut --fit milik masing-masing halaman (bukan milik :root), supaya
+   tiap menu membawa ukurannya sendiri sejak awal dan tidak "berubah" saat dibuka. */
+@media (max-width:640px){
+  html body main :is(#page-daily-recap,#page-minuman,#page-keluar,#page-masuk-manual,#page-more){
+    --fs: calc(.74 + .26 * min(var(--fit), 1.35));
+  }
+}
+</style>
+
 <script id="mobile-fit-screen-v1-js">
-/* Mengatur --fit otomatis agar halaman HP PAS memenuhi layar (tanpa scroll,
-   tanpa ruang kosong besar): layar pendek -> mengecil (min 0.5), layar tinggi ->
-   membesar (maks 1.8). Juga menyamakan jarak header -> card pertama dengan
-   jarak antar card di Uang Keluar, Uang Masuk dan Menu Lainnya.
-   Hanya aktif di lebar <= 640px. Tidak mengubah data/fungsi apa pun. */
+/* Penyesuaian tinggi layar (HP, lebar <= 640px) — versi "tanpa proses terlihat".
+
+   Cara kerja:
+   1) Setiap menu (Daily Recap, Minuman, Uang Keluar, Uang Masuk, Menu Lainnya)
+      menyimpan ukuran --fit miliknya sendiri langsung di elemen halamannya,
+      bukan di :root. Jadi saat menu dibuka, ukurannya sudah menempel — tidak
+      "mewarisi" ukuran menu sebelumnya lalu melompat.
+   2) Semua menu dihitung SEKALI saat aplikasi pertama dibuka, selagi layar
+      "Memuat data..." masih menutupi aplikasi (menu yang tersembunyi dibuka
+      sebentar di dalam satu proses JS, tanpa pernah sempat digambar ke layar).
+   3) Saat pindah menu, ukuran tersimpan diperiksa langsung (microtask, sebelum
+      browser menggambar frame pertama). Kalau masih pas -> dipakai apa adanya;
+      kalau isi berubah -> dihitung ulang saat itu juga, tetap sebelum tampil.
+   4) Pengukuran memakai offsetTop/offsetHeight (kebal terhadap animasi
+      transform), jadi tidak ada lagi hasil ukur meleset yang harus dikoreksi
+      belakangan. Tidak ada lagi pengukuran ulang berulang tiap klik/animasi.
+   Hanya tampilan. Tidak mengubah data/Firebase/fungsi apa pun. */
 (function(){
   'use strict';
-  var IDS = ['page-daily-recap','page-minuman','page-keluar','page-masuk-manual','page-more'];
+
+  var FIT_IDS  = ['page-daily-recap','page-minuman','page-keluar','page-masuk-manual','page-more'];
+  var GAP_ONLY = ['page-laporan'];            /* hanya menyamakan jarak header -> card pertama */
+  var ALL_IDS  = FIT_IDS.concat(GAP_ONLY);
+
   var GAPCFG = {
     'page-keluar':       {first:'.fx-card', gapEl:'.fx-form'},
     'page-masuk-manual': {first:'.fx-card', gapEl:'.fx-form'},
     'page-more':         {first:'.more-page-grid > button', gapEl:'.more-page-grid'},
     'page-daily-recap':  {first:'.today-schedule-head', gapEl:'#daily-menu-grid',
-                          head:'.today-schedule-head', next:'#daily-cash-dashboard > section > .grid > div:nth-child(7)'}
+                          head:'.today-schedule-head', next:'#daily-cash-dashboard > section > .grid > div:nth-child(7)'},
+    'page-laporan':      {first:'.lp-title', gapEl:null}
   };
   var ENDSEL = {
     'page-minuman':'.minuman-sales-summary',
@@ -53211,111 +53388,243 @@ html.fit-measuring *, html.fit-measuring *::before, html.fit-measuring *::after{
     'page-more':'.more-page-grid'
   };
   var MIN = 0.5, MAX = 1.8;
-  var mq = window.matchMedia('(max-width:640px)');
-  var busy = false, timer = null;
-  var root = document.documentElement;
 
+  var mq   = window.matchMedia('(max-width:640px)');
+  var root = document.documentElement;
+  var busy = false, hTimer = null, lastW = window.innerWidth;
+  var dirty = {}, clsObs = [];
+
+  function el(id){ return document.getElementById(id); }
+
+  /* ---------- pengukuran kebal-transform ---------- */
+  function docTop(n){
+    if (!n.offsetParent) return n.getBoundingClientRect().top + (window.pageYOffset || 0);
+    var y = 0, c = n;
+    while (c){
+      y += c.offsetTop;
+      c = c.offsetParent;
+      if (c && c !== document.body && c !== document.documentElement) y += c.clientTop;
+    }
+    return y;
+  }
+  function docBottom(n){ return docTop(n) + n.offsetHeight; }
+
+  function isShown(p){
+    return !!p && !p.classList.contains('hidden') && p.getClientRects().length > 0 && !!p.closest('main');
+  }
   function activePage(){
-    for (var i = 0; i < IDS.length; i++){
-      var el = document.getElementById(IDS[i]);
-      if (el && !el.classList.contains('hidden') && el.getClientRects().length && el.closest('main')) return el;
+    for (var i = 0; i < ALL_IDS.length; i++){
+      var p = el(ALL_IDS[i]);
+      if (isShown(p)) return p;
     }
     return null;
   }
-  function setF(f){ root.style.setProperty('--fit', f.toFixed(3)); }
 
+  function setFit(pg, f){ pg.style.setProperty('--fit', f.toFixed(3)); }
+
+  /* jarak header -> card pertama dibuat sama dengan jarak antar card */
   function adjustGap(pg){
     var c = GAPCFG[pg.id];
     if (!c) return;
     pg.style.setProperty('margin-top','0px','important');
-    var hdr = document.querySelector('body > header');
+    var hdr   = document.querySelector('body > header');
     var first = pg.querySelector(c.first);
-    var ge = pg.querySelector(c.gapEl);
+    var ge    = c.gapEl ? pg.querySelector(c.gapEl) : pg;
     if (!hdr || !first || !ge) return;
-    var cs = getComputedStyle(ge);
+    var cs  = getComputedStyle(ge);
     var gap = parseFloat(cs.rowGap);
     if (isNaN(gap)) gap = parseFloat(cs.gap);
     if (isNaN(gap)) gap = 10;
-    var actual = first.getBoundingClientRect().top - hdr.getBoundingClientRect().bottom;
+    var actual = docTop(first) - hdr.getBoundingClientRect().bottom;
     pg.style.setProperty('margin-top', (gap - actual) + 'px', 'important');
     if (c.head && c.next){
       var head = pg.querySelector(c.head), nx = pg.querySelector(c.next);
       if (head && nx){
         head.style.setProperty('margin-bottom','0px','important');
-        var a2 = nx.getBoundingClientRect().top - head.getBoundingClientRect().bottom;
+        var a2 = docTop(nx) - docBottom(head);
         head.style.setProperty('margin-bottom', (gap - a2) + 'px', 'important');
       }
     }
   }
 
-  function fit(){
+  function limitY(){
+    var nav = el('quick-bottom-nav');
+    return nav ? nav.getBoundingClientRect().top - 14 : null;
+  }
+  function endOf(pg){ return (ENDSEL[pg.id] && pg.querySelector(ENDSEL[pg.id])) || pg; }
+  function bottomAt(pg, endEl, f){ setFit(pg, f); adjustGap(pg); return docBottom(endEl); }
+
+  /* cari --fit terbesar yang masih muat di atas dock. Mengembalikan null kalau belum bisa diukur. */
+  function solve(pg){
+    var limit = limitY();
+    if (limit === null) return null;
+    var endEl = endOf(pg), lo, hi, best;
+    if (bottomAt(pg, endEl, 1) <= limit){
+      if (bottomAt(pg, endEl, MAX) <= limit) best = MAX; else { lo = 1; hi = MAX; }
+    } else {
+      if (bottomAt(pg, endEl, MIN) > limit) best = MIN; else { lo = MIN; hi = 1; }
+    }
+    if (best === undefined){
+      for (var i = 0; i < 9; i++){
+        var mid = (lo + hi) / 2;
+        if (bottomAt(pg, endEl, mid) <= limit) lo = mid; else hi = mid;
+      }
+      best = lo;
+    }
+    for (var k = 0; k < 30 && best > MIN && bottomAt(pg, endEl, best) > limit + 0.5; k++){ best = Math.max(MIN, best - 0.01); }
+    bottomAt(pg, endEl, best);
+    return best;
+  }
+
+  /* halaman sedang tampil: pakai nilai tersimpan kalau masih pas (2-3 layout saja), kalau tidak hitung ulang */
+  function ensure(pg){
+    if (GAP_ONLY.indexOf(pg.id) > -1){ adjustGap(pg); return true; }
+    var limit = limitY();
+    if (limit === null) return false;
+    var endEl = endOf(pg);
+    var cur = parseFloat(pg.style.getPropertyValue('--fit'));
+    if (!isNaN(cur)){
+      var ok, b = bottomAt(pg, endEl, cur);
+      if (b > limit + 0.5) ok = cur <= MIN + 0.001;
+      else ok = cur >= MAX - 0.001 || bottomAt(pg, endEl, Math.min(MAX, cur + 0.025)) > limit;
+      if (ok){ bottomAt(pg, endEl, cur); return true; }
+    }
+    return solve(pg) !== null;
+  }
+
+  function withMeasure(fn){
     if (busy) return;
     busy = true;
     root.classList.add('fit-measuring');
-    try{
-      if (!mq.matches){
-        setF(1);
-        Object.keys(GAPCFG).forEach(function(id){ var e=document.getElementById(id); if(e){ e.style.removeProperty('margin-top'); var h=e.querySelector('.today-schedule-head'); if(h && id==='page-daily-recap') h.style.removeProperty('margin-bottom'); } });
-        return;
-      }
-      var pg  = activePage();
-      var nav = document.getElementById('quick-bottom-nav');
-      if (!pg || !nav){ setF(1); return; }
-
-      var limit = nav.getBoundingClientRect().top - 10;
-      var endEl = (ENDSEL[pg.id] && pg.querySelector(ENDSEL[pg.id])) || pg;
-      /* posisi bawah dihitung terhadap dokumen (scroll dianggap 0), karena halaman bisa sedang
-         tergulir saat diukur, lalu kembali ke atas setelah pindah menu -> hasil ukur meleset */
-      function bottomAt(f){ setF(f); adjustGap(pg); return endEl.getBoundingClientRect().bottom + (window.pageYOffset || document.documentElement.scrollTop || 0); }
-
-      var lo, hi, best;
-      if (bottomAt(1) <= limit){
-        if (bottomAt(MAX) <= limit){ best = MAX; }
-        else { lo = 1; hi = MAX; }
-      } else {
-        if (bottomAt(MIN) > limit){ best = MIN; }
-        else { lo = MIN; hi = 1; }
-      }
-      if (best === undefined){
-        for (var i = 0; i < 9; i++){
-          var mid = (lo + hi) / 2;
-          if (bottomAt(mid) <= limit) lo = mid; else hi = mid;
-        }
-        best = lo;
-      }
-      setF(best); adjustGap(pg);
-      /* pengaman: kalau masih melewati batas (>0.5px), kecilkan sedikit demi sedikit */
-      for (var k = 0; k < 30 && best > MIN && bottomAt(best) > limit + 0.5; k++){ best = Math.max(MIN, best - 0.01); }
-      setF(best); adjustGap(pg);
-    }catch(e){} finally { root.classList.remove('fit-measuring'); busy = false; }
+    void document.body.offsetHeight;
+    try { fn(); } catch(e) {} finally { root.classList.remove('fit-measuring'); busy = false; }
   }
 
-  function later(){
-    clearTimeout(timer);
-    timer = setTimeout(function(){
-      fit();
-      (window.requestAnimationFrame || setTimeout)(fit);
-    }, 60);
+  function reset(){
+    ALL_IDS.forEach(function(id){
+      var p = el(id); if (!p) return;
+      p.style.removeProperty('--fit');
+      p.style.removeProperty('margin-top');
+      var h = p.querySelector('.today-schedule-head');
+      if (h && id === 'page-daily-recap') h.style.removeProperty('margin-bottom');
+    });
+  }
+
+  /* ---------- hitung menu yang sedang tersembunyi (tanpa pernah tergambar) ---------- */
+  function overlayUp(){
+    var o = el('app-initial-loading-overlay');
+    return !!o && !o.classList.contains('is-hidden');
+  }
+  function canToggle(force){
+    var ae = document.activeElement;
+    if (ae && ae !== document.body && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return false;
+    return !!force || overlayUp();
+  }
+  function topOf(p, main){
+    var n = p;
+    while (n && n.parentElement !== main) n = n.parentElement;
+    return n;
+  }
+
+  function measureHidden(ids, force){
+    if (busy || !mq.matches || !canToggle(force)) return;
+    var main = document.querySelector('main');
+    if (!main) return;
+    var kids = [].slice.call(main.children).filter(function(k){ return k.tagName === 'DIV'; });
+    var was  = kids.map(function(k){ return k.classList.contains('hidden'); });
+    var targets = ids.map(el).filter(function(p){ return p && p.classList.contains('hidden') && topOf(p, main); });
+    if (!targets.length) return;
+    var sy = window.pageYOffset || 0;
+    busy = true;
+    root.classList.add('fit-measuring');
+    try {
+      targets.forEach(function(pg){
+        var top = topOf(pg, main);
+        kids.forEach(function(k){ if (k !== top) k.classList.add('hidden'); });
+        top.classList.remove('hidden');
+        pg.classList.remove('hidden');
+        void document.body.offsetHeight;
+        var ok = FIT_IDS.indexOf(pg.id) > -1 ? (solve(pg) !== null) : (adjustGap(pg), true);
+        dirty[pg.id] = !ok;
+        pg.classList.add('hidden');
+      });
+    } catch(e) {}
+    finally {
+      kids.forEach(function(k, i){ k.classList.toggle('hidden', was[i]); });
+      targets.forEach(function(pg){ pg.classList.add('hidden'); });
+      root.classList.remove('fit-measuring');
+      busy = false;
+      clsObs.forEach(function(o){ o.takeRecords(); });
+      if ((window.pageYOffset || 0) !== sy) window.scrollTo(0, sy);
+    }
+  }
+
+  function markAll(){ ALL_IDS.forEach(function(id){ dirty[id] = true; }); }
+  function scheduleHidden(force){
+    clearTimeout(hTimer);
+    hTimer = setTimeout(function(){
+      var ids = Object.keys(dirty).filter(function(k){ return dirty[k]; });
+      if (ids.length) measureHidden(ids, force);
+    }, 200);
+  }
+
+  /* ---------- reaksi ---------- */
+  function onShown(){          /* pindah menu: diperiksa sebelum frame pertama digambar */
+    if (!mq.matches) return;
+    var pg = activePage();
+    if (!pg) return;
+    withMeasure(function(){ ensure(pg); dirty[pg.id] = false; });
+  }
+  function onContent(pg){      /* isi halaman berubah */
+    if (!mq.matches) return;
+    if (isShown(pg)) withMeasure(function(){ ensure(pg); });
+    else { dirty[pg.id] = true; scheduleHidden(false); }
+  }
+  function onResize(){
+    if (!mq.matches){ reset(); lastW = window.innerWidth; return; }
+    onShown();
+    if (window.innerWidth !== lastW){      /* rotasi / ganti ukuran: hitung ulang semua menu */
+      lastW = window.innerWidth;
+      markAll();
+      scheduleHidden(true);
+    }
   }
 
   function start(){
-    IDS.forEach(function(id){
-      var pg = document.getElementById(id);
+    ALL_IDS.forEach(function(id){
+      var pg = el(id);
       if (!pg) return;
-      new MutationObserver(later).observe(pg, {attributes:true, attributeFilter:['class']});
-      new MutationObserver(later).observe(pg, {childList:true, subtree:true});
+      var o = new MutationObserver(onShown);
+      o.observe(pg, {attributes:true, attributeFilter:['class']});
+      clsObs.push(o);
+      new MutationObserver(function(){ onContent(pg); }).observe(pg, {childList:true, subtree:true});
     });
-    window.addEventListener('resize', later);
-    window.addEventListener('orientationchange', later);
-    window.addEventListener('load', later);
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', later);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
-    if (mq.addEventListener) mq.addEventListener('change', later);
-    later();
-    setTimeout(fit, 400); setTimeout(fit, 1200);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    window.addEventListener('load', function(){ markAll(); onShown(); scheduleHidden(false); });
+    if (mq.addEventListener) mq.addEventListener('change', function(){ if (mq.matches){ markAll(); onShown(); scheduleHidden(true); } else reset(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ markAll(); onShown(); scheduleHidden(false); });
+
+    /* saat layar "Memuat data..." berubah jadi sukses (masih menutupi aplikasi) -> hitung ulang semua menu sekarang */
+    var ov = el('app-initial-loading-overlay');
+    if (ov && window.MutationObserver){
+      new MutationObserver(function(){
+        if (ov.classList.contains('is-success') && !ov.classList.contains('is-hidden')){
+          markAll();
+          measureHidden(ALL_IDS, false);
+        }
+      }).observe(ov, {attributes:true, attributeFilter:['class']});
+    }
+
+    markAll();
+    onShown();
+    scheduleHidden(false);
+    setTimeout(function(){ scheduleHidden(false); }, 500);
+    setTimeout(function(){ scheduleHidden(false); }, 1500);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })();
 </script>
+
