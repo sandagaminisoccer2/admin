@@ -10614,45 +10614,48 @@ body > header {
 
 <!-- BERANDA DIHAPUS: aplikasi langsung menggunakan JADWAL HARI INI -->
 <!-- HALAMAN JADWAL ADMIN JAGA -->
-<div class="sub-menu-modern glass-panel p-4 sm:p-6 rounded-2xl hidden font-bold text-slate-900" id="page-admin-jaga">
-  <div class="flex justify-between items-center mb-4">
-    <h2 class="text-base sm:text-lg font-black text-purple-950 w-full text-center">🧑‍💼 JADWAL ADMIN JAGA</h2>
-  </div>
+<div class="sub-menu-modern hidden font-bold text-slate-900 fj-page" id="page-admin-jaga">
 
-  <div class="p-3 sm:p-4 rounded-2xl border border-purple-500/30 bg-white/30 mb-4">
-    <div class="admin-roster-toolbar">
-      <button type="button" class="admin-month-btn" onclick="ubahBulanAdminJaga(-1)">← Bulan Sebelumnya</button>
-      <div class="admin-month-title" id="admin-month-title">Agustus 2026</div>
-      <button type="button" class="admin-month-btn" onclick="ubahBulanAdminJaga(1)">Bulan Berikutnya →</button>
-    </div>
-    <div class="flex justify-center mb-3">
-      <button type="button" class="bg-purple-700 hover:bg-purple-800 text-white px-4 py-2 rounded-xl text-xs font-black shadow" onclick="kembaliKeBulanHariIniAdmin()">📅 Bulan Ini</button>
-      <button type="button" class="ml-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-black shadow" onclick="bukaKelolaNamaAdmin()">➕ Tambah Nama Admin</button>
-    </div>
+  <section class="fj-card fj-nav">
+    <button type="button" class="admin-month-btn fj-nav-btn" onclick="ubahBulanAdminJaga(-1)" aria-label="Bulan sebelumnya">‹</button>
+    <div class="admin-month-title" id="admin-month-title">Agustus 2026</div>
+    <button type="button" class="admin-month-btn fj-nav-btn" onclick="ubahBulanAdminJaga(1)" aria-label="Bulan berikutnya">›</button>
+  </section>
 
-    <!-- JADWAL HARI INI -->
-    <div id="admin-today-card" class="admin-today-card mb-3">
+
+
+  <!-- JADWAL HARI INI -->
+  <section id="admin-today-card" class="fj-card fj-today admin-today-card">
+    <div class="fj-today-head">
       <div class="admin-today-card-title">📌 JADWAL HARI INI</div>
       <div class="admin-today-card-date" id="admin-today-date">-</div>
-      <div class="admin-today-shifts">
-        <div class="admin-today-shift admin-today-pagi">
-          <span class="admin-today-icon">☀️</span>
-          <span class="admin-today-label">Pagi</span>
-          <strong id="admin-today-pagi">-</strong>
-        </div>
-        <div class="admin-today-shift admin-today-malam">
-          <span class="admin-today-icon">🌙</span>
-          <span class="admin-today-label">Malam</span>
-          <strong id="admin-today-malam">-</strong>
-        </div>
+    </div>
+    <div class="admin-today-shifts">
+      <div class="admin-today-shift admin-today-pagi">
+        <span class="admin-today-icon">☀️</span>
+        <span class="admin-today-label">Pagi</span>
+        <strong id="admin-today-pagi">-</strong>
+      </div>
+      <div class="admin-today-shift admin-today-malam">
+        <span class="admin-today-icon">🌙</span>
+        <span class="admin-today-label">Malam</span>
+        <strong id="admin-today-malam">-</strong>
       </div>
     </div>
+  </section>
 
+  <section class="fj-card fj-cal">
     <div class="admin-calendar" id="admin-calendar-grid"></div>
     <div class="admin-roster-legend">
       <span class="admin-legend-pill admin-legend-pagi">☀️ Pagi</span>
       <span class="admin-legend-pill admin-legend-malam">🌙 Malam</span>
+      <span class="admin-legend-pill admin-legend-tap">Ketuk tanggal untuk ubah</span>
     </div>
+  </section>
+
+  <div class="fj-actions">
+    <button type="button" class="fj-act" onclick="bukaKelolaNamaAdmin()"><i>➕</i><span>Nama Admin</span></button>
+    <button type="button" class="fj-act fj-act-main" onclick="bukaAturAdminDefault()"><i>⚙️</i><span>Admin Default</span></button>
   </div>
 
 </div>
@@ -16362,6 +16365,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         const ADMIN_NAMES_DEFAULT = ['Zikri', 'Alfi', 'Rama'];
         const ADMIN_NAMES = ADMIN_NAMES_DEFAULT.slice();   // diubah di tempat agar semua kode lain ikut terbarui
         let adminNamesFirebase = {};                        // { key: {nama} } dari Firebase (adminJagaNames)
+        let adminDefaultFirebase = {};                      // { key: {mulai,pagi,malam,bergantian} } dari Firebase (adminJagaDefault)
         const ADMIN_NAMES_LS_KEY = 'adminJagaNamaTambahan';
         function adminEsc(v){ return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
         function adminLocalExtraNames(){
@@ -16391,7 +16395,38 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             const b=new Date(dateKey+'T00:00:00');
             return Math.round((b-a)/86400000);
         }
+        // ---------- Admin DEFAULT yang bisa diatur (berlaku mulai tanggal tertentu) ----------
+        // Pengaturan disimpan di Firebase "adminJagaDefault" (cadangan: localStorage perangkat ini).
+        // Untuk tanggal sebelum pengaturan pertama, tetap dipakai rotasi bawaan awal (Zikri/Alfi).
+        const ADMIN_DEFAULT_LS_KEY = 'adminJagaDefaultLokal';
+        function adminDefaultLocal(){
+            try{
+                const a = JSON.parse(localStorage.getItem(ADMIN_DEFAULT_LS_KEY) || '[]');
+                return Array.isArray(a) ? a.filter(x => x && x.mulai && x.pagi && x.malam) : [];
+            }catch(_){ return []; }
+        }
+        function adminDefaultList(){
+            const out = [];
+            Object.entries(adminDefaultFirebase || {}).forEach(([k,x]) => {
+                if(x && x.mulai && x.pagi && x.malam) out.push({id:k, src:'fb', mulai:String(x.mulai), pagi:String(x.pagi), malam:String(x.malam), bergantian:x.bergantian !== false, ts:Number(x.timestamp || 0)});
+            });
+            adminDefaultLocal().forEach(x => out.push({id:String(x.timestamp || 0), src:'ls', mulai:String(x.mulai), pagi:String(x.pagi), malam:String(x.malam), bergantian:x.bergantian !== false, ts:Number(x.timestamp || 0)}));
+            out.sort((p,q) => p.mulai < q.mulai ? -1 : p.mulai > q.mulai ? 1 : p.ts - q.ts);
+            return out;
+        }
+        function adminDefaultFor(dateKey){
+            let found = null;
+            for(const c of adminDefaultList()){ if(c.mulai <= dateKey) found = c; else break; }
+            return found;
+        }
         function defaultAdminShift(dateKey, shift){
+            const cfg = adminDefaultFor(dateKey);
+            if(cfg){
+                const diff = Math.round((new Date(dateKey + 'T00:00:00') - new Date(cfg.mulai + 'T00:00:00')) / 86400000);
+                const swapped = cfg.bergantian && Math.abs(diff) % 2 === 1;
+                if(shift === 'pagi') return swapped ? cfg.malam : cfg.pagi;
+                return swapped ? cfg.pagi : cfg.malam;
+            }
             const swapped = Math.abs(adminDayDiff(dateKey)) % 2 === 1;
             if(shift === 'pagi') return swapped ? 'Alfi' : 'Zikri';
             return swapped ? 'Zikri' : 'Alfi';
@@ -16644,11 +16679,11 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             for(let day=1;day<=last.getDate();day++){
                 const d=new Date(year,month,day), key=adminDateKey(d), isToday=key===today;
                 const pagi=getAdminShiftName(key,'pagi'), malam=getAdminShiftName(key,'malam');
-                html += `<div class="admin-day ${isToday?'today':''}">
+                html += `<div class="admin-day ${isToday?'today':''}" role="button" tabindex="0" aria-label="Ubah jadwal ${key}" onclick="editJadwalAdminTanggal('${key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();editJadwalAdminTanggal('${key}')}">
                     <div class="admin-day-num"><span>${day}</span>${isToday?'<span class="admin-today-badge">HARI INI</span>':''}</div>
-                    <div class="admin-shift pagi" title="Shift Pagi"><span class="admin-shift-name">${pagi}</span></div>
-                    <div class="admin-shift malam" title="Shift Malam"><span class="admin-shift-name">${malam}</span></div>
-                    <button type="button" class="admin-edit-btn" aria-label="Edit jadwal ${key}" title="Edit jadwal" onclick="editJadwalAdminTanggal('${key}')">✏️</button>
+                    <div class="admin-shift pagi" title="Shift Pagi"><span class="admin-shift-name">${adminEsc(pagi)}</span></div>
+                    <div class="admin-shift malam" title="Shift Malam"><span class="admin-shift-name">${adminEsc(malam)}</span></div>
+                    <span class="admin-edit-btn" aria-hidden="true">✏️</span>
                 </div>`;
             }
             const totalCells=mondayIndex+last.getDate();
@@ -16789,6 +16824,114 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 scheduleRender(renderJadwalAdmin); scheduleRender(renderGajiAdmin);
             });
             setTimeout(()=>input.focus(),50);
+        };
+
+        // ---------- Atur admin default ----------
+        function renderAdminDefaultHistory(){
+            const box = document.getElementById('admin-default-history');
+            if(!box) return;
+            const today = getLocalDateString();
+            const aktif = adminDefaultFor(today);
+            const list = adminDefaultList().slice().reverse();
+            const rows = list.map(c => {
+                const badge = aktif && aktif.id === c.id && aktif.src === c.src
+                    ? '<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-black">AKTIF</span>'
+                    : (c.mulai > today ? '<span class="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-black">TERJADWAL</span>' : '');
+                const lokal = c.src === 'ls' ? ' <span class="text-[9px] text-slate-400">(perangkat ini)</span>' : '';
+                return `<div class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                    <div class="min-w-0">
+                      <div class="text-xs font-black text-slate-800">Mulai ${adminEsc(formatTanggalAdmin(c.mulai))} ${badge}${lokal}</div>
+                      <div class="text-[11px] font-bold text-slate-500">☀️ ${adminEsc(c.pagi)} · 🌙 ${adminEsc(c.malam)} · ${c.bergantian ? 'bergantian tiap hari' : 'tetap'}</div>
+                    </div>
+                    <button type="button" data-del-src="${c.src}" data-del-id="${adminEsc(c.id)}" class="text-red-600 px-2 text-sm font-black" aria-label="Hapus pengaturan">✕</button>
+                  </div>`;
+            });
+            rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                <div class="min-w-0">
+                  <div class="text-xs font-black text-slate-800">Bawaan awal ${!aktif ? '<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-black">AKTIF</span>' : ''}</div>
+                  <div class="text-[11px] font-bold text-slate-500">☀️ Zikri · 🌙 Alfi · bergantian tiap hari</div>
+                </div>
+              </div>`);
+            box.innerHTML = rows.join('');
+        }
+        window.bukaAturAdminDefault = () => {
+            document.getElementById('admin-default-box')?.remove();
+            const today = getLocalDateString();
+            const names = ADMIN_NAMES.slice();
+            const curPagi = defaultAdminShift(today,'pagi'), curMalam = defaultAdminShift(today,'malam');
+            [curPagi,curMalam].forEach(n => { if(n && !names.some(x => x.toLowerCase() === String(n).toLowerCase())) names.push(n); });
+            const opts = sel => names.map(n => `<option value="${adminEsc(n)}" ${n === sel ? 'selected' : ''}>${adminEsc(n)}</option>`).join('');
+            const wrap = document.createElement('div');
+            wrap.id = 'admin-default-box';
+            wrap.className = 'fixed inset-0 z-[10050] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm';
+            wrap.innerHTML = `
+              <div class="w-full max-w-sm bg-white rounded-2xl p-5 shadow-2xl text-slate-900 max-h-[90vh] overflow-y-auto">
+                <h3 class="font-black text-indigo-950 text-base mb-1">⚙️ Atur Admin Default</h3>
+                <p class="text-xs font-bold text-slate-500 mb-3">Dipakai di kalender untuk tanggal yang belum diubah manual. Cocok saat ada pergantian admin: tanggal sebelumnya tidak berubah.</p>
+                <label class="block text-xs font-black mb-1">☀️ Admin Pagi</label>
+                <select id="admin-default-pagi" class="w-full p-2 rounded-lg border mb-3 text-sm font-bold">${opts(curPagi)}</select>
+                <label class="block text-xs font-black mb-1">🌙 Admin Malam</label>
+                <select id="admin-default-malam" class="w-full p-2 rounded-lg border mb-3 text-sm font-bold">${opts(curMalam)}</select>
+                <label class="block text-xs font-black mb-1">📅 Berlaku mulai tanggal</label>
+                <input id="admin-default-mulai" type="date" value="${today}" class="w-full p-2 rounded-lg border mb-3 text-sm font-bold">
+                <label class="flex items-center gap-2 text-xs font-black mb-1">
+                  <input id="admin-default-bergantian" type="checkbox" checked class="w-4 h-4"> Bergantian pagi–malam tiap hari
+                </label>
+                <p class="text-[11px] font-bold text-slate-500 mb-3">Pada tanggal mulai, pagi dan malam sesuai pilihan di atas; hari berikutnya saling bertukar bila bergantian aktif. Nama baru bisa ditambah lewat tombol “Nama Admin”.</p>
+                <div class="flex gap-2 mb-4">
+                  <button type="button" data-act="batal" class="flex-1 bg-slate-200 text-slate-800 px-3 py-2 rounded-xl text-xs font-black">Batal</button>
+                  <button type="button" data-act="simpan" class="flex-1 bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-black">Simpan</button>
+                </div>
+                <div class="text-xs font-black text-slate-700 mb-2">Riwayat pengaturan</div>
+                <div id="admin-default-history" class="flex flex-col gap-1.5"></div>
+              </div>`;
+            document.body.appendChild(wrap);
+            renderAdminDefaultHistory();
+            wrap.querySelector('[data-act="batal"]').addEventListener('click', () => wrap.remove());
+            wrap.querySelector('[data-act="simpan"]').addEventListener('click', () => {
+                const pagi = wrap.querySelector('#admin-default-pagi').value;
+                const malam = wrap.querySelector('#admin-default-malam').value;
+                const mulai = wrap.querySelector('#admin-default-mulai').value;
+                const bergantian = wrap.querySelector('#admin-default-bergantian').checked;
+                if(!mulai){ alert('Pilih tanggal mulai berlaku.'); return; }
+                if(!pagi || !malam){ alert('Pilih admin untuk shift pagi dan malam.'); return; }
+                if(pagi.toLowerCase() === malam.toLowerCase()){ alert('Admin pagi dan malam tidak boleh orang yang sama.'); return; }
+                const payload = {mulai, pagi, malam, bergantian, timestamp:Date.now()};
+                const updates = {};
+                Object.entries(adminDefaultFirebase || {}).forEach(([k,x]) => { if(x && x.mulai === mulai) updates[k] = null; });
+                const nk = push(ref(db,'adminJagaDefault')).key;
+                updates[nk] = payload;
+                let pending;
+                try{ pending = update(ref(db,'adminJagaDefault'), updates); }catch(err){ pending = Promise.reject(err); }
+                pending.catch(error => {
+                    console.warn('adminJagaDefault gagal, pakai penyimpanan lokal:', error);
+                    try{
+                        const a = adminDefaultLocal().filter(x => x.mulai !== mulai);
+                        a.push(payload);
+                        localStorage.setItem(ADMIN_DEFAULT_LS_KEY, JSON.stringify(a));
+                    }catch(_){}
+                    scheduleRender(renderJadwalAdmin); scheduleRender(renderGajiAdmin);
+                    alert('Pengaturan admin default disimpan di perangkat ini saja (server menolak/tidak terjangkau).');
+                });
+                wrap.remove();
+                scheduleRender(renderJadwalAdmin); scheduleRender(renderGajiAdmin);
+                if(typeof showSuccessPopup === 'function') showSuccessPopup('Admin default berhasil diatur.');
+            });
+            wrap.addEventListener('click', async e => {
+                if(e.target === wrap){ wrap.remove(); return; }
+                const del = e.target.closest('[data-del-src]');
+                if(!del) return;
+                const ok = await (window.appConfirm ? window.appConfirm('Hapus pengaturan admin default ini?') : Promise.resolve(true));
+                if(!ok) return;
+                const src = del.getAttribute('data-del-src'), id = del.getAttribute('data-del-id');
+                if(src === 'fb'){
+                    try{ await remove(ref(db,'adminJagaDefault/' + id)); }catch(err){ alert('Gagal menghapus pengaturan: ' + err.message); return; }
+                }else{
+                    try{ localStorage.setItem(ADMIN_DEFAULT_LS_KEY, JSON.stringify(adminDefaultLocal().filter(x => String(x.timestamp || 0) !== id))); }catch(_){}
+                }
+                renderAdminDefaultHistory();
+                scheduleRender(renderJadwalAdmin); scheduleRender(renderGajiAdmin);
+            });
         };
         function formatTanggalAdmin(tgl){
             if(!tgl) return '-';
@@ -19046,6 +19189,13 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             scheduleRender(renderGajiAdmin);
         }, (error) => { console.warn('adminJagaNames tidak bisa dibaca:', error); });
 
+        onValue(ref(db, 'adminJagaDefault'), (snapshot) => {
+            adminDefaultFirebase = snapshot.val() || {};
+            if(typeof renderAdminDefaultHistory==='function') renderAdminDefaultHistory();
+            scheduleRender(renderJadwalAdmin);
+            scheduleRender(renderGajiAdmin);
+        }, (error) => { console.warn('adminJagaDefault tidak bisa dibaca:', error); });
+
 
         // =========================================================
         // API untuk DOWNLOAD DAILY RECAP
@@ -19085,20 +19235,10 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 const savedName = String(candidates[0]?.nama || '').trim();
                 if(savedName) return savedName;
 
-                // Jika tanggal masih memakai JADWAL DEFAULT, gunakan rotasi default
-                // yang sama persis dengan kalender Jadwal Admin Jaga.
-                // Anchor: 12 Agustus 2026.
-                const anchor = new Date('2026-08-12T00:00:00');
-                const target = new Date(String(dateKey || '') + 'T00:00:00');
-
-                if(!Number.isNaN(target.getTime())) {
-                    const dayDiff = Math.round((target - anchor) / 86400000);
-                    const swapped = Math.abs(dayDiff) % 2 === 1;
-
-                    // Default shift malam:
-                    // 12 Agustus 2026 = Alfi, hari berikutnya = Zikri,
-                    // lalu bergantian setiap hari.
-                    return swapped ? 'Zikri' : 'Alfi';
+                // Jika tanggal masih memakai JADWAL DEFAULT, gunakan aturan default yang sama
+                // persis dengan kalender Jadwal Admin Jaga (termasuk pengaturan Admin Default).
+                if(!Number.isNaN(new Date(String(dateKey || '') + 'T00:00:00').getTime())) {
+                    return defaultAdminShift(String(dateKey), 'malam');
                 }
 
                 return '-';
@@ -24078,8 +24218,8 @@ return;
                     const cellRect = sampleCell.getBoundingClientRect();
                     const overlay = document.createElement('div');
                     overlay.className = 'schedule-grid-done-overlay absolute bg-blue-400/90 text-white pointer-events-none z-[3] flex items-center justify-center overflow-hidden';
-                    overlay.style.left = `${(cellRect.left - wrapRect.left) + cellRect.width * 0.25}px`;
-                    overlay.style.width = `${cellRect.width * 0.5}px`;
+                    overlay.style.left = `${(cellRect.left - wrapRect.left) + cellRect.width * 0.3}px`;
+                    overlay.style.width = `${cellRect.width * 0.4}px`;
                     overlay.style.top = `${tbodyRect.top - wrapRect.top}px`;
                     overlay.style.height = `${tbodyRect.height}px`;
                     overlay.innerHTML = `<span class="schedule-grid-done-overlay-text font-black text-[7px] sm:text-[10px] leading-none whitespace-nowrap tracking-wide" style="transform:rotate(-90deg);transform-origin:center;">${'• DONE '.repeat(80)}•</span>`;
@@ -52446,3 +52586,736 @@ html body #page-masuk-manual.fx-page .fx-actions{margin:0 !important}
 html body #page-keluar.fx-page .fx-save,
 html body #page-masuk-manual.fx-page .fx-save{min-height:48px !important;padding:8px 16px !important;font-size:15px !important;border-radius:16px !important}
 </style>
+<style id="jadwal-admin-cards-v1">
+html body #page-admin-jaga.fj-page{--ac:#4f46e5;--ac2:#3730a3;--tint:#eef2ff;--bd:#c7d2fe;--tx:#312e81;--sh:rgba(79,70,229,.25);
+ margin-left:0 !important;margin-right:0 !important;width:100% !important;max-width:none !important;min-width:0 !important;box-sizing:border-box !important;
+ background:transparent !important;background-image:none !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+ padding:0 !important;border-radius:0 !important;overflow:visible !important;display:flex !important;flex-direction:column !important;gap:10px !important;color:#0f172a !important}
+html body #page-admin-jaga.fj-page.hidden{display:none !important}
+html body #page-admin-jaga.fj-page::before,html body #page-admin-jaga.fj-page::after{display:none !important;content:none !important}
+
+/* card */
+html body #page-admin-jaga.fj-page .fj-card{position:relative !important;display:flex !important;flex-direction:column !important;gap:6px !important;margin:0 !important;padding:10px 12px 12px !important;width:100% !important;box-sizing:border-box !important;
+ background:linear-gradient(180deg,#fff 0%,#f8fafc 100%) !important;border:1px solid rgba(255,255,255,.85) !important;border-radius:18px !important;
+ box-shadow:0 6px 18px rgba(15,23,42,.12),0 1px 0 #fff inset !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;overflow:visible !important}
+html body #page-admin-jaga.fj-page .fj-card::before{content:"" !important;display:block !important;position:absolute !important;left:16px;right:16px;top:0;height:2px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,var(--ac),var(--ac2));opacity:.9}
+
+/* navigasi bulan */
+html body #page-admin-jaga.fj-page .fj-nav{display:grid !important;grid-template-columns:44px 1fr 44px !important;align-items:center !important;gap:8px !important;padding:8px 10px !important}
+html body #page-admin-jaga.fj-page .fj-nav-btn{width:44px !important;height:40px !important;min-height:0 !important;padding:0 !important;margin:0 !important;border-radius:12px !important;border:1.5px solid #e2e8f0 !important;background:#fff !important;color:var(--tx) !important;
+ font-size:24px !important;font-weight:900 !important;line-height:1 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;display:grid !important;place-items:center !important;transform:none !important}
+html body #page-admin-jaga.fj-page .fj-nav-btn:active{background:var(--tint) !important;border-color:var(--ac) !important}
+html body #page-admin-jaga.fj-page .admin-month-title{margin:0 !important;padding:0 !important;text-align:center !important;font-size:16px !important;font-weight:900 !important;color:#1e293b !important;letter-spacing:.02em !important;background:transparent !important;border:0 !important;box-shadow:none !important;white-space:nowrap}
+
+/* tombol aksi */
+html body #page-admin-jaga.fj-page .fj-actions{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:8px !important;width:100% !important;margin:0 !important}
+html body #page-admin-jaga.fj-page .fj-act{display:flex !important;align-items:center !important;justify-content:center !important;gap:6px !important;min-height:44px !important;padding:6px 8px !important;margin:0 !important;border-radius:14px !important;
+ background:linear-gradient(180deg,#fff,#f1f5f9) !important;border:1px solid rgba(255,255,255,.85) !important;color:#1e293b !important;font-size:11.5px !important;font-weight:900 !important;line-height:1.1 !important;
+ box-shadow:0 5px 14px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;transform:none !important;min-width:0 !important}
+html body #page-admin-jaga.fj-page .fj-act i{font-style:normal !important;width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;border-radius:8px;background:var(--tint);border:1px solid var(--bd);font-size:13px}
+html body #page-admin-jaga.fj-page .fj-act span{min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis}
+html body #page-admin-jaga.fj-page .fj-act:active{transform:scale(.97) !important}
+html body #page-admin-jaga.fj-page .fj-act-main{background:linear-gradient(135deg,var(--ac),var(--ac2)) !important;color:#fff !important;border-color:rgba(255,255,255,.5) !important;box-shadow:0 8px 18px var(--sh) !important}
+html body #page-admin-jaga.fj-page .fj-act-main i{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35)}
+
+/* jadwal hari ini */
+html body #page-admin-jaga.fj-page .fj-today{gap:8px !important;margin:0 !important}
+html body #page-admin-jaga.fj-page .fj-today-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+html body #page-admin-jaga.fj-page .admin-today-card-title{margin:0 !important;padding:0 !important;font-size:10px !important;letter-spacing:.09em !important;font-weight:900 !important;color:#64748b !important;background:transparent !important;border:0 !important;text-align:left !important}
+html body #page-admin-jaga.fj-page .admin-today-card-date{margin:0 !important;padding:3px 10px !important;border-radius:999px !important;background:var(--tint) !important;border:1px solid var(--bd) !important;color:var(--tx) !important;font-size:11.5px !important;font-weight:900 !important;box-shadow:none !important}
+html body #page-admin-jaga.fj-page .admin-today-shifts{display:grid !important;grid-template-columns:1fr 1fr !important;gap:8px !important;margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important}
+html body #page-admin-jaga.fj-page .admin-today-shift{display:flex !important;align-items:center !important;gap:6px !important;margin:0 !important;padding:8px 10px !important;min-height:0 !important;height:auto !important;border-radius:12px !important;box-shadow:none !important;border:1px solid transparent !important;min-width:0 !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+html body #page-admin-jaga.fj-page .admin-today-pagi{background:#fffbeb !important;border-color:#fde68a !important;color:#92400e !important}
+html body #page-admin-jaga.fj-page .admin-today-malam{background:#eef2ff !important;border-color:#c7d2fe !important;color:#3730a3 !important}
+html body #page-admin-jaga.fj-page .admin-today-icon{font-size:15px !important;line-height:1 !important}
+html body #page-admin-jaga.fj-page .admin-today-label{font-size:10px !important;font-weight:900 !important;letter-spacing:.04em !important;text-transform:uppercase !important;opacity:.8}
+html body #page-admin-jaga.fj-page .admin-today-shift strong{margin-left:auto !important;font-size:14px !important;font-weight:900 !important;color:inherit !important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* kalender */
+html body #page-admin-jaga.fj-page .fj-cal{padding:8px 8px 10px !important;gap:8px !important}
+html body #page-admin-jaga.fj-page .admin-calendar{display:grid !important;grid-template-columns:repeat(7,minmax(0,1fr)) !important;gap:4px !important;width:100% !important;max-width:100% !important;margin:0 !important;padding:0 !important;
+ background:transparent !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;overflow:visible !important}
+html body #page-admin-jaga.fj-page .admin-cal-head{height:22px !important;min-height:0 !important;margin:0 !important;padding:0 !important;display:grid !important;place-items:center !important;background:transparent !important;border:0 !important;box-shadow:none !important;
+ backdrop-filter:none !important;-webkit-backdrop-filter:none !important;color:#64748b !important;font-size:10px !important;font-weight:900 !important;text-transform:uppercase !important;letter-spacing:.04em !important}
+html body #page-admin-jaga.fj-page .admin-cal-head:nth-child(7){color:#e11d48 !important}
+html body #page-admin-jaga.fj-page .admin-day{position:relative !important;display:flex !important;flex-direction:column !important;gap:3px !important;min-width:0 !important;min-height:70px !important;height:auto !important;margin:0 !important;padding:5px 3px 4px !important;
+ background:#f8fafc !important;border:1px solid #e2e8f0 !important;border-radius:12px !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;overflow:hidden !important;cursor:pointer;box-sizing:border-box !important}
+html body #page-admin-jaga.fj-page .admin-day.muted{opacity:0 !important;pointer-events:none !important}
+html body #page-admin-jaga.fj-page .admin-day:active{background:var(--tint) !important;border-color:var(--ac) !important}
+html body #page-admin-jaga.fj-page .admin-day-num{display:flex !important;align-items:center !important;justify-content:flex-start !important;gap:0 !important;margin:0 !important;padding:0 2px !important;font-size:11px !important;font-weight:900 !important;color:#334155 !important;line-height:1 !important;min-height:16px !important}
+html body #page-admin-jaga.fj-page .admin-today-badge{display:none !important}
+html body #page-admin-jaga.fj-page .admin-day.today{background:#eef2ff !important;border:2px solid var(--ac) !important;padding:4px 2px 3px !important}
+html body #page-admin-jaga.fj-page .admin-day.today .admin-day-num > span:first-child{background:var(--ac) !important;color:#fff !important;min-width:17px;height:17px;padding:0 4px;border-radius:999px;display:grid;place-items:center}
+html body #page-admin-jaga.fj-page .admin-shift{display:flex !important;align-items:center !important;justify-content:center !important;height:21px !important;min-height:0 !important;margin:0 !important;padding:0 2px !important;border-radius:8px !important;border:0 !important;box-shadow:none !important;
+ backdrop-filter:none !important;-webkit-backdrop-filter:none !important;font-size:10.5px !important;font-weight:900 !important;overflow:hidden !important;min-width:0 !important}
+html body #page-admin-jaga.fj-page .admin-shift.pagi{background:#fef3c7 !important;color:#92400e !important}
+html body #page-admin-jaga.fj-page .admin-shift.malam{background:#e0e7ff !important;color:#3730a3 !important}
+html body #page-admin-jaga.fj-page .admin-shift-name{display:block !important;max-width:100% !important;overflow:hidden !important;text-overflow:ellipsis !important;white-space:nowrap !important;font-size:10.5px !important;font-weight:900 !important;color:inherit !important;line-height:1 !important}
+html body #page-admin-jaga.fj-page .admin-edit-btn{position:absolute !important;top:4px !important;right:4px !important;left:auto !important;bottom:auto !important;width:auto !important;height:auto !important;min-width:0 !important;min-height:0 !important;margin:0 !important;padding:0 !important;
+ background:transparent !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;font-size:8.5px !important;line-height:1 !important;opacity:.4 !important;transform:none !important}
+
+/* legend */
+html body #page-admin-jaga.fj-page .admin-roster-legend{display:flex !important;flex-wrap:wrap !important;align-items:center !important;justify-content:center !important;gap:6px !important;margin:0 !important;padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important;width:100% !important}
+html body #page-admin-jaga.fj-page .admin-legend-pill{padding:3px 9px !important;border-radius:999px !important;font-size:10px !important;font-weight:900 !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;margin:0 !important}
+html body #page-admin-jaga.fj-page .admin-legend-pagi{background:#fef3c7 !important;color:#92400e !important}
+html body #page-admin-jaga.fj-page .admin-legend-malam{background:#e0e7ff !important;color:#3730a3 !important}
+html body #page-admin-jaga.fj-page .admin-legend-tap{background:#f1f5f9 !important;color:#64748b !important}
+
+</style>
+<style id="minimal-line-icons-v1">
+/* ===== Ikon minimalis gaya dock bar (garis tipis, monokrom, ikut warna teks) ===== */
+.mi{display:inline-block;width:1.15em;height:1.15em;vertical-align:-.2em;position:relative;overflow:hidden;
+  text-indent:-9999px;white-space:nowrap;font-style:normal;line-height:1;flex:0 0 auto;
+  -webkit-text-fill-color:transparent;filter:none!important;text-shadow:none!important}
+.mi::before{content:"";position:absolute;inset:0;background-color:currentColor;text-indent:0;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain}
+/* wadah ikon: polos tanpa kotak/gradien/bayangan, seperti ikon dock */
+.daily-mini-icon,.sparing-chooser-icon,.atur-member-chooser-icon,.admin-today-icon,.today-icon,
+.manual-uang-masuk-method-icon,.uang-masuk-method-icon,.uang-masuk-manual-method-icon,.setor-tunai-sisa-icon,
+.minuman-save-icon,.team-list-empty-icon,.fx-chip,.fx-title-ico,.pbg-file-ico,.masuk-field-icon,
+.dc-date-icon,.minuman-history-date-icon,.setor-tunai-date-icon,.uang-keluar-date-icon,.uang-keluar-source-date-icon,
+.uang-masuk-manual-date-icon,.today-all-paid-icon{
+  background:none!important;box-shadow:none!important;border-color:transparent!important;filter:none!important;
+  color:#132a5e!important;opacity:1!important}
+.daily-mini-icon .mi,.sparing-chooser-icon .mi,.atur-member-chooser-icon .mi,.admin-today-icon .mi,
+.today-icon .mi,.team-list-empty-icon .mi,.today-all-paid-icon .mi{width:1.35em;height:1.35em;vertical-align:middle}
+.mi-chev,.mi[data-mi="chevron"]{opacity:.6}
+
+html body :is(#daily-menu-grid,#today-schedule-panel,#page-admin-jaga,#page-masuk,#page-minuman,#page-home,body) :is(.daily-mini-icon,.sparing-chooser-icon,.atur-member-chooser-icon,.admin-today-icon,.today-icon,.today-all-paid-icon,.team-list-empty-icon,.minuman-save-icon,.setor-tunai-sisa-icon):is(.daily-mini-icon,.sparing-chooser-icon,.atur-member-chooser-icon,.admin-today-icon,.today-icon,.today-all-paid-icon,.team-list-empty-icon,.minuman-save-icon,.setor-tunai-sisa-icon):is(.daily-mini-icon,.sparing-chooser-icon,.atur-member-chooser-icon,.admin-today-icon,.today-icon,.today-all-paid-icon,.team-list-empty-icon,.minuman-save-icon,.setor-tunai-sisa-icon){
+  background:none!important;background-image:none!important;box-shadow:none!important;border:0!important;color:#132a5e!important}
+
+/* ===== Admin Jaga: tombol aksi di paling bawah, 2 kolom sama lebar ===== */
+html body #page-admin-jaga.fj-page .fj-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;width:100%!important;margin:0 0 calc(88px + env(safe-area-inset-bottom,0px))!important}
+html body #page-admin-jaga.fj-page .fj-act{min-height:48px!important;padding:8px 10px!important;border-radius:16px!important;justify-content:center!important;font-size:13px!important}
+html body #page-admin-jaga.fj-page .fj-act span{text-align:center!important;white-space:nowrap!important;overflow:visible!important}
+html body #page-admin-jaga.fj-page .fj-act i{background:none!important;border:0!important;box-shadow:none!important;width:22px!important;height:22px!important;flex:0 0 22px!important;color:inherit!important}
+html body #page-admin-jaga.fj-page .fj-act i .mi{width:1.5em;height:1.5em}
+html body #page-admin-jaga.fj-page .fj-act-main i{background:none!important;border:0!important}
+
+/* ===== Booking Schedule: tampilan minimalis ===== */
+html body #page-booking-schedule.sub-menu-modern{--bsink:#132a5e;--bsline:rgba(19,42,94,.07)}
+html body #page-booking-schedule.sub-menu-modern > .flex h2{font-size:14px!important;letter-spacing:.16em!important;font-weight:800!important;color:var(--bsink)!important;text-shadow:none!important;filter:none!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period #filter-periode-jadwal{background:rgba(255,255,255,.78)!important;border:1px solid var(--bsline)!important;box-shadow:none!important;color:var(--bsink)!important;font-size:14px!important;font-weight:800!important;text-shadow:none!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period .bs-period-nav{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--bsink)!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period .bs-period-nav svg{stroke-width:2!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap{background:rgba(255,255,255,.82)!important;border:1px solid var(--bsline)!important;box-shadow:none!important;border-radius:18px!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .booking-single-week-table-wrap{background:transparent!important;border-radius:18px!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap table{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap table :is(th,td){border:0!important;border-bottom:1px solid var(--bsline)!important;border-right:1px solid var(--bsline)!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap table :is(th,td):last-child{border-right:0!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead tr,
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th{background:transparent!important;color:var(--bsink)!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th > div:first-child{opacity:.55;font-weight:800!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th > div:nth-child(2){background:transparent!important;color:var(--bsink)!important;padding:0!important;font-weight:900!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap tbody td:first-child{background:transparent!important;color:#64748b!important;font-weight:700!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap td.bg-slate-950{background:rgba(225,29,72,.06)!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-team-holder{box-shadow:none!important;border:0!important;text-shadow:none!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-team-member{background:#e8f0ff!important;color:#1d4ed8!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-team-nonmember{background:#ffeaee!important;color:#be123c!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-done-overlay{background:repeating-linear-gradient(135deg,rgba(100,116,139,.12) 0 5px,rgba(100,116,139,.04) 5px 10px)!important;color:#94a3b8!important;border-radius:6px!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-done-overlay-text{opacity:.7;font-weight:700!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;margin:12px 0!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-items{display:flex!important;justify-content:center!important;gap:22px!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-item{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;display:inline-flex!important;align-items:center!important;gap:8px!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-item .bs-chip{width:14px!important;height:14px!important;min-width:14px!important;border-radius:5px!important;box-shadow:none!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-item .bs-chip::after{display:none!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-item.is-member .bs-chip{background:#dbe7ff!important;border:1.5px solid #3b6fe0!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-item.is-non .bs-chip{background:#ffe0e6!important;border:1.5px solid #e11d48!important}
+html body #page-booking-schedule.sub-menu-modern .bs-legend-item b{font-size:13px!important;font-weight:800!important}
+html body #page-booking-schedule.sub-menu-modern #btn-cek-bentrok.bs-bentrok{background:rgba(255,255,255,.78)!important;border:1px solid var(--bsline)!important;box-shadow:none!important;color:var(--bsink)!important;border-radius:16px!important;padding:12px 14px!important}
+html body #page-booking-schedule.sub-menu-modern #btn-cek-bentrok .bs-bentrok-ico{background:none!important;border:0!important;box-shadow:none!important;color:var(--bsink)!important}
+html body #page-booking-schedule.sub-menu-modern #btn-cek-bentrok .bs-bentrok-ico svg{width:22px!important;height:22px!important;stroke-width:1.9!important}
+html body #page-booking-schedule.sub-menu-modern #btn-cek-bentrok .bs-bentrok-txt b{font-size:14px!important;color:var(--bsink)!important}
+html body #page-booking-schedule.sub-menu-modern #btn-cek-bentrok .bs-bentrok-txt small{font-size:11px!important;color:#64748b!important}
+html body #page-booking-schedule.sub-menu-modern #btn-cek-bentrok .bs-bentrok-go{background:none!important;border:0!important;box-shadow:none!important;color:#94a3b8!important}
+
+/* --- Booking Schedule v2: kartu putih solid, teks jelas, strip DONE terlihat, kartu periode = kartu bulan Admin Jaga --- */
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-periods .booking-single-week-table-wrap{background:#fff!important;border:1px solid rgba(19,42,94,.10)!important;border-radius:18px!important;box-shadow:0 6px 18px rgba(15,23,42,.10)!important;overflow:hidden!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap table{background:transparent!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap tbody,html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap tbody tr,html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap tbody td{background:transparent!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap table :is(th,td){border-color:rgba(19,42,94,.10)!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th{border-bottom:1px solid rgba(19,42,94,.20)!important;padding-top:5px!important;padding-bottom:5px!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th > div:first-child{font-size:9px!important;font-weight:900!important;opacity:1!important;color:#132a5e!important;letter-spacing:.02em!important;line-height:1.2!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th > div:nth-child(2){font-size:9px!important;font-weight:800!important;color:#475569!important;background:transparent!important;padding:0!important;line-height:1.2!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap thead th svg{color:#132a5e!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap tbody td:first-child{font-size:9px!important;font-weight:800!important;color:#334155!important;padding:0!important;letter-spacing:0!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-done-overlay{background:rgba(59,111,224,.16)!important;border-left:1px solid rgba(59,111,224,.35)!important;border-right:1px solid rgba(59,111,224,.35)!important;border-radius:6px!important;color:#2f5fd0!important}
+html body #page-booking-schedule.sub-menu-modern #booking-schedule-grid-wrap .schedule-grid-done-overlay-text{opacity:1!important;font-weight:800!important;color:#2f5fd0!important;font-size:8px!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period{position:relative!important;display:block!important;background:linear-gradient(180deg,#fff,#f8fafc)!important;border:1px solid rgba(255,255,255,.85)!important;border-radius:18px!important;box-shadow:0 6px 18px rgba(15,23,42,.12),0 1px 0 #fff inset!important;padding:8px 10px!important;margin:0 0 10px!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period::before{content:""!important;display:block!important;position:absolute;left:16px;right:16px;top:0;height:2px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,#4f46e5,#3730a3);opacity:.9}
+html body #page-booking-schedule.sub-menu-modern .bs-period #filter-periode-jadwal{display:block!important;width:100%!important;height:40px!important;min-height:0!important;margin:0!important;padding:0 58px!important;background:transparent!important;background-image:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;-webkit-appearance:none!important;appearance:none!important;text-align:center!important;text-align-last:center!important;font-size:16px!important;font-weight:900!important;color:#1e293b!important;letter-spacing:.02em!important;text-shadow:none!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period .bs-period-nav{position:absolute!important;top:50%!important;width:44px!important;height:40px!important;min-width:0!important;padding:0!important;margin:0!important;transform:translateY(-50%)!important;border:1.5px solid #e2e8f0!important;border-radius:12px!important;background:#fff!important;color:#312e81!important;box-shadow:none!important;display:grid!important;place-items:center!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period .bs-period-prev{left:10px!important;right:auto!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period .bs-period-next{right:10px!important;left:auto!important}
+html body #page-booking-schedule.sub-menu-modern .bs-period .bs-period-nav svg{width:18px!important;height:18px!important;stroke-width:3!important}
+
+/* ===== Header: kaca putih minimalis, senada dengan dock bar ===== */
+html body:not(#_a):not(#_b) > header{min-height:64px!important;padding:9px 14px!important;gap:12px!important;border-radius:22px!important;
+  background:linear-gradient(145deg,rgba(255,255,255,.90),rgba(255,255,255,.66))!important;
+  background-image:linear-gradient(145deg,rgba(255,255,255,.90),rgba(255,255,255,.66))!important;
+  border:1px solid rgba(255,255,255,.88)!important;
+  box-shadow:0 10px 28px rgba(15,23,42,.14),inset 0 1px 0 rgba(255,255,255,.92)!important;
+  backdrop-filter:blur(14px) saturate(130%)!important;-webkit-backdrop-filter:blur(14px) saturate(130%)!important}
+html body:not(#_a):not(#_b) > header img{flex:0 0 44px!important;width:44px!important;height:44px!important}
+html body:not(#_a):not(#_b) > header h1{font-size:clamp(.78rem,3.2vw,.95rem)!important;letter-spacing:.06em!important}
+html body:not(#_a):not(#_b) > header .admin-global-header-main-title{color:#132a5e!important;font-weight:900!important;letter-spacing:.08em!important}
+html body:not(#_a):not(#_b) > header .admin-global-header-brand-title{color:#64748b!important;font-weight:800!important;letter-spacing:.14em!important;font-size:.78em!important}
+
+button .mi,.btn .mi,h1 .mi,h2 .mi,h3 .mi,h4 .mi{vertical-align:-.22em}
+.mi[data-mi="calendar"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224.5%22 width=%2218%22 height=%2216.5%22 rx=%223%22/%3E%3Cpath d=%22M8 2.8v3.4M16 2.8v3.4M3 10h18%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%224.5%22 width=%2218%22 height=%2216.5%22 rx=%223%22/%3E%3Cpath d=%22M8 2.8v3.4M16 2.8v3.4M3 10h18%22/%3E%3C/svg%3E")}
+.mi[data-mi="clock"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 7v5l3 2%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 7v5l3 2%22/%3E%3C/svg%3E")}
+.mi[data-mi="cash"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%226.5%22 width=%2218%22 height=%2211%22 rx=%222.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%222.5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%226.5%22 width=%2218%22 height=%2211%22 rx=%222.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%222.5%22/%3E%3C/svg%3E")}
+.mi[data-mi="wallet"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3%22/%3E%3Crect x=%224%22 y=%228%22 width=%2216%22 height=%2211%22 rx=%222.5%22/%3E%3Cpath d=%22M16 13.5h.01%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3%22/%3E%3Crect x=%224%22 y=%228%22 width=%2216%22 height=%2211%22 rx=%222.5%22/%3E%3Cpath d=%22M16 13.5h.01%22/%3E%3C/svg%3E")}
+.mi[data-mi="card"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225.5%22 width=%2218%22 height=%2213%22 rx=%222.5%22/%3E%3Cpath d=%22M3 10h18M7 15h3%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%225.5%22 width=%2218%22 height=%2213%22 rx=%222.5%22/%3E%3Cpath d=%22M3 10h18M7 15h3%22/%3E%3C/svg%3E")}
+.mi[data-mi="bank"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 9.5L12 4l9 5.5M5 10v7M10 10v7M14 10v7M19 10v7M3 20h18%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 9.5L12 4l9 5.5M5 10v7M10 10v7M14 10v7M19 10v7M3 20h18%22/%3E%3C/svg%3E")}
+.mi[data-mi="moneyout"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 16V8M8.5 11.5L12 8l3.5 3.5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 16V8M8.5 11.5L12 8l3.5 3.5%22/%3E%3C/svg%3E")}
+.mi[data-mi="save"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5 4h11l3 3v13H5V4z%22/%3E%3Cpath d=%22M8 4v5h7V4M8 20v-6h8v6%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5 4h11l3 3v13H5V4z%22/%3E%3Cpath d=%22M8 4v5h7V4M8 20v-6h8v6%22/%3E%3C/svg%3E")}
+.mi[data-mi="ball"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 8.2l3.4 2.5-1.3 4h-4.2l-1.3-4L12 8.2zM12 3v5.2M15.4 10.7l5.3-1.6M14.1 14.7l3.2 4.2M9.9 14.7l-3.2 4.2M8.6 10.7L3.3 9.1%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M12 8.2l3.4 2.5-1.3 4h-4.2l-1.3-4L12 8.2zM12 3v5.2M15.4 10.7l5.3-1.6M14.1 14.7l3.2 4.2M9.9 14.7l-3.2 4.2M8.6 10.7L3.3 9.1%22/%3E%3C/svg%3E")}
+.mi[data-mi="cup"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 3h12l-1.4 16.2A2 2 0 0 1 14.6 21H9.4a2 2 0 0 1-2-1.8L6 3z%22/%3E%3Cpath d=%22M6.6 9h10.8M13 3l1-2%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 3h12l-1.4 16.2A2 2 0 0 1 14.6 21H9.4a2 2 0 0 1-2-1.8L6 3z%22/%3E%3Cpath d=%22M6.6 9h10.8M13 3l1-2%22/%3E%3C/svg%3E")}
+.mi[data-mi="list"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9 6h11M9 12h11M9 18h11%22/%3E%3Cpath d=%22M4.5 6h.01M4.5 12h.01M4.5 18h.01%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M9 6h11M9 12h11M9 18h11%22/%3E%3Cpath d=%22M4.5 6h.01M4.5 12h.01M4.5 18h.01%22/%3E%3C/svg%3E")}
+.mi[data-mi="clipboard"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%225%22 y=%224.5%22 width=%2214%22 height=%2216.5%22 rx=%222.5%22/%3E%3Cpath d=%22M9 4.5V3h6v1.5M9 11h6M9 15h6%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%225%22 y=%224.5%22 width=%2214%22 height=%2216.5%22 rx=%222.5%22/%3E%3Cpath d=%22M9 4.5V3h6v1.5M9 11h6M9 15h6%22/%3E%3C/svg%3E")}
+.mi[data-mi="note"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 3h8l5 5v13H6V3z%22/%3E%3Cpath d=%22M14 3v5h5M9 13h7M9 17h7%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 3h8l5 5v13H6V3z%22/%3E%3Cpath d=%22M14 3v5h5M9 13h7M9 17h7%22/%3E%3C/svg%3E")}
+.mi[data-mi="edit"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z%22/%3E%3Cpath d=%22M14.5 7.5l3 3%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z%22/%3E%3Cpath d=%22M14.5 7.5l3 3%22/%3E%3C/svg%3E")}
+.mi[data-mi="trash"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7h16M9 7V4h6v3M6.5 7l1 13h9l1-13M10 11v5M14 11v5%22/%3E%3C/svg%3E")}
+.mi[data-mi="plus"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 5v14M5 12h14%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 5v14M5 12h14%22/%3E%3C/svg%3E")}
+.mi[data-mi="handshake"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%228.5%22 cy=%228%22 r=%223%22/%3E%3Ccircle cx=%2216%22 cy=%229%22 r=%222.5%22/%3E%3Cpath d=%22M3 20c0-3.3 2.4-6 5.5-6s5.5 2.7 5.5 6M15 14.2c2.8-.3 6 1.4 6 5.8%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%228.5%22 cy=%228%22 r=%223%22/%3E%3Ccircle cx=%2216%22 cy=%229%22 r=%222.5%22/%3E%3Cpath d=%22M3 20c0-3.3 2.4-6 5.5-6s5.5 2.7 5.5 6M15 14.2c2.8-.3 6 1.4 6 5.8%22/%3E%3C/svg%3E")}
+.mi[data-mi="versus"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5 19L19 5M14 5h5v5M5 5l14 14M5 10V5h5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5 19L19 5M14 5h5v5M5 5l14 14M5 10V5h5%22/%3E%3C/svg%3E")}
+.mi[data-mi="image"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%224.5%22 width=%2217%22 height=%2215%22 rx=%223%22/%3E%3Ccircle cx=%229%22 cy=%2210%22 r=%221.6%22/%3E%3Cpath d=%22M4 17l5-5 4 4 3-3 4 4%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%224.5%22 width=%2217%22 height=%2215%22 rx=%223%22/%3E%3Ccircle cx=%229%22 cy=%2210%22 r=%221.6%22/%3E%3Cpath d=%22M4 17l5-5 4 4 3-3 4 4%22/%3E%3C/svg%3E")}
+.mi[data-mi="stadium"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cellipse cx=%2212%22 cy=%228%22 rx=%228%22 ry=%223.5%22/%3E%3Cpath d=%22M4 8v8c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V8M9 11.5v6M15 11.5v6%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cellipse cx=%2212%22 cy=%228%22 rx=%228%22 ry=%223.5%22/%3E%3Cpath d=%22M4 8v8c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V8M9 11.5v6M15 11.5v6%22/%3E%3C/svg%3E")}
+.mi[data-mi="gear"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7h10M18 7h2M4 17h2M10 17h10%22/%3E%3Ccircle cx=%2216%22 cy=%227%22 r=%222%22/%3E%3Ccircle cx=%228%22 cy=%2217%22 r=%222%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 7h10M18 7h2M4 17h2M10 17h10%22/%3E%3Ccircle cx=%2216%22 cy=%227%22 r=%222%22/%3E%3Ccircle cx=%228%22 cy=%2217%22 r=%222%22/%3E%3C/svg%3E")}
+.mi[data-mi="sun"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%224%22/%3E%3Cpath d=%22M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%224%22/%3E%3Cpath d=%22M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4%22/%3E%3C/svg%3E")}
+.mi[data-mi="moon"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z%22/%3E%3C/svg%3E")}
+.mi[data-mi="search"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2211%22 cy=%2211%22 r=%227%22/%3E%3Cpath d=%22M21 21l-4.3-4.3%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2211%22 cy=%2211%22 r=%227%22/%3E%3Cpath d=%22M21 21l-4.3-4.3%22/%3E%3C/svg%3E")}
+.mi[data-mi="check"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5 12.5l4.5 4.5L19 7.5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M5 12.5l4.5 4.5L19 7.5%22/%3E%3C/svg%3E")}
+.mi[data-mi="close"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 6l12 12M18 6L6 18%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 6l12 12M18 6L6 18%22/%3E%3C/svg%3E")}
+.mi[data-mi="chevron"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E")}
+.mi[data-mi="download"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4v11M7 11l5 5 5-5M5 20h14%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4v11M7 11l5 5 5-5M5 20h14%22/%3E%3C/svg%3E")}
+.mi[data-mi="chart"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 20v-9M10 20V4M16 20v-6M3 20h18M21 20v-3%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 20v-9M10 20V4M16 20v-6M3 20h18M21 20v-3%22/%3E%3C/svg%3E")}
+.mi[data-mi="eye"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%222.8%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%222.8%22/%3E%3C/svg%3E")}
+.mi[data-mi="home"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 11l8-7 8 7M6 10v10h12V10M10 20v-5h4v5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M4 11l8-7 8 7M6 10v10h12V10M10 20v-5h4v5%22/%3E%3C/svg%3E")}
+.mi[data-mi="tag"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.5 12.5V4.5h8l9 9-8 8-9-9z%22/%3E%3Ccircle cx=%228%22 cy=%229%22 r=%221.2%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3.5 12.5V4.5h8l9 9-8 8-9-9z%22/%3E%3Ccircle cx=%228%22 cy=%229%22 r=%221.2%22/%3E%3C/svg%3E")}
+.mi[data-mi="users"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%229%22 cy=%228%22 r=%223%22/%3E%3Cpath d=%22M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.5a3 3 0 0 1 0 5.5M18 14.5c2 .8 3 2.6 3 5.5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%229%22 cy=%228%22 r=%223%22/%3E%3Cpath d=%22M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.5a3 3 0 0 1 0 5.5M18 14.5c2 .8 3 2.6 3 5.5%22/%3E%3C/svg%3E")}
+.mi[data-mi="user"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%228%22 r=%223.5%22/%3E%3Cpath d=%22M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%228%22 r=%223.5%22/%3E%3Cpath d=%22M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7%22/%3E%3C/svg%3E")}
+.mi[data-mi="gift"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%229%22 width=%2217%22 height=%224%22 rx=%221.2%22/%3E%3Cpath d=%22M5 13v7.5h14V13M12 9v11.5M12 9c-2.5 0-4.5-1-4.5-2.8S9.7 3.8 12 9zM12 9c2.5 0 4.5-1 4.5-2.8S14.3 3.8 12 9z%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223.5%22 y=%229%22 width=%2217%22 height=%224%22 rx=%221.2%22/%3E%3Cpath d=%22M5 13v7.5h14V13M12 9v11.5M12 9c-2.5 0-4.5-1-4.5-2.8S9.7 3.8 12 9zM12 9c2.5 0 4.5-1 4.5-2.8S14.3 3.8 12 9z%22/%3E%3C/svg%3E")}
+.mi[data-mi="folder"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2.5h6.5A2.5 2.5 0 0 1 21 10v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-11z%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2.5h6.5A2.5 2.5 0 0 1 21 10v8.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-11z%22/%3E%3C/svg%3E")}
+.mi[data-mi="phone"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%227%22 y=%222.5%22 width=%2210%22 height=%2219%22 rx=%222.8%22/%3E%3Cpath d=%22M11 18.5h2%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%227%22 y=%222.5%22 width=%2210%22 height=%2219%22 rx=%222.8%22/%3E%3Cpath d=%22M11 18.5h2%22/%3E%3C/svg%3E")}
+.mi[data-mi="link"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1%22/%3E%3C/svg%3E")}
+.mi[data-mi="receipt"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 3h12v18l-3-2-3 2-3-2-3 2V3z%22/%3E%3Cpath d=%22M9 8h6M9 12h6%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M6 3h12v18l-3-2-3 2-3-2-3 2V3z%22/%3E%3Cpath d=%22M9 8h6M9 12h6%22/%3E%3C/svg%3E")}
+.mi[data-mi="briefcase"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%227.5%22 width=%2218%22 height=%2212.5%22 rx=%222.5%22/%3E%3Cpath d=%22M9 7.5V5h6v2.5M3 13h18%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%223%22 y=%227.5%22 width=%2218%22 height=%2212.5%22 rx=%222.5%22/%3E%3Cpath d=%22M9 7.5V5h6v2.5M3 13h18%22/%3E%3C/svg%3E")}
+.mi[data-mi="stop"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%226%22 y=%226%22 width=%2212%22 height=%2212%22 rx=%222.5%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%226%22 y=%226%22 width=%2212%22 height=%2212%22 rx=%222.5%22/%3E%3C/svg%3E")}
+.mi[data-mi="alert"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4l9 16H3L12 4z%22/%3E%3Cpath d=%22M12 10v4.5M12 17.5h.01%22/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.9%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M12 4l9 16H3L12 4z%22/%3E%3Cpath d=%22M12 10v4.5M12 17.5h.01%22/%3E%3C/svg%3E")}</style>
+<script id="minimal-line-icons-v1-js">
+(function(){
+  var MAP={"📅": "calendar", "🗓": "calendar", "🕐": "clock", "⏰": "clock", "⏱": "clock", "⌛": "clock", "⏳": "clock", "💵": "cash", "💰": "wallet", "👛": "wallet", "💳": "card", "🏦": "bank", "💸": "moneyout", "💾": "save", "⚽": "ball", "🥤": "cup", "📌": "list", "📋": "clipboard", "📝": "note", "✏": "edit", "🗑": "trash", "➕": "plus", "🤝": "handshake", "🥊": "versus", "🖼": "image", "🏟": "stadium", "⚙": "gear", "☀": "sun", "🌙": "moon", "🔎": "search", "🔍": "search", "⌕": "search", "✅": "check", "✓": "check", "✔": "check", "✕": "close", "⌄": "chevron", "⬇": "download", "📥": "download", "📊": "chart", "👁": "eye", "🏠": "home", "🏷": "tag", "👥": "users", "👤": "user", "🧑": "user", "🎁": "gift", "📁": "folder", "📲": "phone", "📱": "phone", "🟢": "phone", "🔗": "link", "🧾": "receipt", "💼": "briefcase", "⏹": "stop", "⚠": "alert"};
+  var KEYS=Object.keys(MAP).sort(function(a,b){return b.length-a.length});
+  var RE=new RegExp('('+KEYS.map(function(k){return k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}).join('|')+')[\uFE0E\uFE0F]?','g');
+  var SKIP='SCRIPT,STYLE,TEXTAREA,INPUT,OPTION,SELECT,SVG,CANVAS,TITLE,NOSCRIPT,.mi,[data-no-mi],#daily-report-capture,.daily-report-export,[id^="daily-report-"],[class*="report-capture"],[class*="export-capture"]';
+  function skip(n){var p=n.parentElement;return !p||(p.closest&&p.closest(SKIP));}
+  function proc(n){
+    if(n.nodeType===3){
+      if(!n.nodeValue||skip(n))return;
+      RE.lastIndex=0; if(!RE.test(n.nodeValue))return; RE.lastIndex=0;
+      var t=n.nodeValue,f=document.createDocumentFragment(),last=0,m;
+      while((m=RE.exec(t))){
+        if(m.index>last)f.appendChild(document.createTextNode(t.slice(last,m.index)));
+        var sp=document.createElement('span');sp.className='mi';sp.setAttribute('aria-hidden','true');
+        sp.setAttribute('data-mi',MAP[m[1]]);sp.textContent=m[0];f.appendChild(sp);last=m.index+m[0].length;
+      }
+      if(last<t.length)f.appendChild(document.createTextNode(t.slice(last)));
+      n.parentNode.replaceChild(f,n);
+    }else if(n.nodeType===1){
+      if(n.matches&&n.matches(SKIP))return;
+      var w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT,null),a=[],x;
+      while((x=w.nextNode()))a.push(x);
+      a.forEach(proc);
+    }
+  }
+  var q=[],busy=false;
+  function flush(){busy=false;var l=q;q=[];obs.disconnect();l.forEach(function(n){if(n.isConnected)proc(n)});attach();}
+  function sched(n){q.push(n);if(!busy){busy=true;(window.requestAnimationFrame||setTimeout)(flush)}}
+  var obs=new MutationObserver(function(ms){ms.forEach(function(m){
+    if(m.type==='childList')m.addedNodes.forEach(function(n){sched(n)});
+    else if(m.type==='characterData')sched(m.target);
+  })});
+  function attach(){obs.observe(document.body,{childList:true,subtree:true,characterData:true})}
+  function start(){proc(document.body);attach()}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
+<script id="header-gap-align-v1">
+(function(){
+  var PAGES={'page-admin-jaga':'.fj-nav','page-booking-schedule':'.bs-period'},TARGET=10;
+  function fix(){
+    var h=document.querySelector('body > header'); if(!h) return;
+    var hb=h.getBoundingClientRect().bottom, sy=(document.scrollingElement||document.documentElement).scrollTop||0;
+    Object.keys(PAGES).forEach(function(id){
+      var pg=document.getElementById(id); if(!pg) return;
+      if(pg.classList.contains('hidden')){pg.style.removeProperty('margin-top');return;}
+      var first=pg.querySelector(PAGES[id]); if(!first) return;
+      pg.style.setProperty('margin-top','0px','important');
+      var gap=first.getBoundingClientRect().top+sy-hb;
+      pg.style.setProperty('margin-top',(TARGET-gap)+'px','important');
+    });
+  }
+  function later(){fix();(window.requestAnimationFrame||setTimeout)(fix);setTimeout(fix,150);setTimeout(fix,500);}
+  function start(){
+    Object.keys(PAGES).forEach(function(id){var pg=document.getElementById(id);if(pg)new MutationObserver(later).observe(pg,{attributes:true,attributeFilter:['class']});});
+    window.addEventListener('resize',later);window.addEventListener('orientationchange',later);window.addEventListener('load',later);
+    later();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
+
+<!-- =====================================================================
+     REVISI FINAL (HP): (1) tinggi layout menyesuaikan tinggi layar supaya
+     TANPA SCROLL di Daily Recap, Minuman, Uang Keluar, Uang Masuk, Menu
+     Lainnya; (2) semua card dibuat agak transparan agar latar tetap terlihat.
+     Hanya tampilan — tidak menyentuh data / Firebase / fungsi.
+     Blok ini sengaja diletakkan PALING AKHIR file.
+     --fit = 1 (layar cukup tinggi) ... 0.5 (layar sangat pendek); diatur
+     otomatis oleh script di bawah. Di desktop tidak ada yang berubah.
+     ===================================================================== -->
+<style id="mobile-fit-screen-and-glass-v1">
+:root{ --fit:1; }
+
+@media (max-width:640px){
+
+  :root{ --fs: calc(.74 + .26 * min(var(--fit), 1.35)); }
+
+  /* hindari scroll tambahan akibat 100vh di browser HP */
+  html body{ min-height:100dvh !important; }
+
+  /* =====================================================================
+     1) HEADER + DOCK — sedikit lebih transparan
+     ===================================================================== */
+  html body > header,
+  html body:has(#page-jadwal:not(.hidden)) > header,
+  html body:has(#page-minuman:not(.hidden)) > header,
+  html body:has(#page-daily-recap:not(.hidden)) > header,
+  html body:has(#page-more:not(.hidden)) > header,
+  html body:has(#page-setor-tunai:not(.hidden)) > header,
+  html body:has(#page-keluar:not(.hidden)) > header,
+  html body:has(#page-admin-jaga:not(.hidden)) > header{
+    background:linear-gradient(135deg,rgba(255,255,255,.52),rgba(231,242,255,.30)) !important;
+    -webkit-backdrop-filter:blur(22px) saturate(150%) !important;
+    backdrop-filter:blur(22px) saturate(150%) !important;
+  }
+  html body nav#quick-bottom-nav.quick-bottom-nav{
+    background:linear-gradient(145deg,rgba(255,255,255,.62),rgba(255,255,255,.36)) !important;
+    -webkit-backdrop-filter:blur(18px) saturate(140%) !important;
+    backdrop-filter:blur(18px) saturate(140%) !important;
+  }
+
+  /* =====================================================================
+     2) DAILY RECAP
+     ===================================================================== */
+  /* bar tanggal */
+  html body main #page-daily-recap#page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head{
+    margin-bottom:calc(12px * var(--fit)) !important;
+    background:linear-gradient(145deg,rgba(255,255,255,.58),rgba(255,255,255,.30)) !important;
+    -webkit-backdrop-filter:blur(16px) saturate(135%) !important;
+    backdrop-filter:blur(16px) saturate(135%) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head > .today-date-picker-btn.today-date-picker-btn{
+    background:rgba(255,255,255,.60) !important;
+    border-color:rgba(255,255,255,.75) !important;
+  }
+
+  /* jarak antar blok */
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard{ gap:calc(8px * var(--fit)) !important; }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid{ gap:calc(8px * var(--fit)) !important; }
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid{ gap:calc(8px * var(--fit)) !important; }
+
+  /* kartu putih (Pemasukan, Cash, QRIS, Pengeluaran) -> kaca */
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(-n+4){
+    background:linear-gradient(145deg,rgba(255,255,255,.62),rgba(255,255,255,.36)) !important;
+    border:1px solid rgba(255,255,255,.72) !important;
+    box-shadow:0 8px 22px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.75) !important;
+    -webkit-backdrop-filter:blur(14px) saturate(135%) !important;
+    backdrop-filter:blur(14px) saturate(135%) !important;
+    padding:calc(11px * var(--fit)) 14px !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(-n+4) > p:first-child{
+    color:#475569 !important;
+    font-size:calc(13.5px * var(--fs)) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(-n+4) > p:last-child{
+    font-size:calc(22px * var(--fs)) !important;
+    margin-top:calc(6px * var(--fit)) !important;
+  }
+
+  /* Sisa Cash Lapangan (hijau) & Minuman (ungu) -> berwarna tapi tembus */
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5){
+    background:linear-gradient(135deg,rgba(4,120,87,.70),rgba(16,185,129,.52)) !important;
+    border:1px solid rgba(255,255,255,.38) !important;
+    box-shadow:0 8px 22px rgba(4,120,87,.22), inset 0 1px 0 rgba(255,255,255,.35) !important;
+    -webkit-backdrop-filter:blur(14px) saturate(140%) !important;
+    backdrop-filter:blur(14px) saturate(140%) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6){
+    background:linear-gradient(135deg,rgba(91,33,182,.70),rgba(139,92,246,.52)) !important;
+    border:1px solid rgba(255,255,255,.38) !important;
+    box-shadow:0 8px 22px rgba(91,33,182,.22), inset 0 1px 0 rgba(255,255,255,.35) !important;
+    -webkit-backdrop-filter:blur(14px) saturate(140%) !important;
+    backdrop-filter:blur(14px) saturate(140%) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5),
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6){
+    padding:calc(12px * var(--fit)) 14px !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(5) > p:first-child,
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(6) > p:first-child{
+    color:#fff !important;
+    font-size:calc(14px * var(--fs)) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard #daily-sisa-cash-lapangan,
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard #daily-sisa-cash-minuman{
+    color:#fff !important;
+    font-size:calc(26px * var(--fs)) !important;
+    margin-top:calc(8px * var(--fit)) !important;
+  }
+
+  /* Total Sisa Cash (biru) */
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7){
+    background:linear-gradient(135deg,rgba(30,64,175,.74),rgba(37,99,235,.56)) !important;
+    border:1px solid rgba(255,255,255,.38) !important;
+    box-shadow:0 10px 24px rgba(30,64,175,.26), inset 0 1px 0 rgba(255,255,255,.35) !important;
+    -webkit-backdrop-filter:blur(14px) saturate(140%) !important;
+    backdrop-filter:blur(14px) saturate(140%) !important;
+    padding:calc(16px * var(--fit)) 18px !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div:nth-child(7) > p:first-child{
+    font-size:calc(14px * var(--fs)) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard #daily-cash-seharusnya{
+    font-size:calc(34px * var(--fs)) !important;
+    margin-top:calc(6px * var(--fit)) !important;
+  }
+
+  /* tombol menu (Lapangan / Minuman / Keluar / Ringkasan) */
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n){
+    height:max(42px, calc(60px * var(--fit))) !important;
+    min-height:max(42px, calc(60px * var(--fit))) !important;
+    padding:calc(9px * var(--fit)) 12px calc(9px * var(--fit)) 9px !important;
+    background:linear-gradient(135deg,rgba(255,255,255,.60) 0%, color-mix(in srgb, var(--m-bg) 58%, transparent) 100%) !important;
+    -webkit-backdrop-filter:blur(14px) saturate(135%) !important;
+    backdrop-filter:blur(14px) saturate(135%) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-icon{
+    width:clamp(28px, calc(42px * var(--fit)), 50px) !important;
+    height:clamp(28px, calc(42px * var(--fit)), 50px) !important;
+    min-width:clamp(28px, calc(42px * var(--fit)), 50px) !important;
+    font-size:calc(22px * var(--fs)) !important;
+    background:rgba(255,255,255,.78) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::before{
+    font-size:calc(14px * var(--fs)) !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-text::after{
+    font-size:calc(10.5px * var(--fs)) !important;
+  }
+
+  /* =====================================================================
+     3) MINUMAN
+     ===================================================================== */
+  html body main #page-minuman#page-minuman .today-schedule-head.today-schedule-head.today-schedule-head{
+    background:linear-gradient(145deg,rgba(255,255,255,.58),rgba(255,255,255,.30)) !important;
+    -webkit-backdrop-filter:blur(16px) saturate(135%) !important;
+    backdrop-filter:blur(16px) saturate(135%) !important;
+  }
+  html body main #page-minuman#page-minuman .today-schedule-head.today-schedule-head.today-schedule-head > .today-date-picker-btn.today-date-picker-btn{
+    background:rgba(255,255,255,.60) !important;
+    border-color:rgba(255,255,255,.75) !important;
+  }
+
+  html body main #page-minuman#page-minuman form .minuman-grid{
+    gap:calc(10px * var(--fit)) !important;
+    margin-bottom:calc(14px * var(--fit)) !important;
+  }
+  /* tile minuman (sudah kaca; tinggi saja yang menyesuaikan, dan sedikit lebih tembus) */
+  html body main #page-minuman#page-minuman form .minuman-grid .minuman-btn:not(.minuman-save-btn){
+    min-height:max(60px, calc(112px * var(--fit))) !important;
+    padding:calc(10px * var(--fit)) !important;
+    background:linear-gradient(145deg,rgba(255,255,255,.52),rgba(255,255,255,.22)) !important;
+  }
+  html body main #page-minuman#page-minuman form .minuman-grid .minuman-btn:not(.minuman-save-btn) img{
+    width:clamp(40px, calc(78px * var(--fit)), 104px) !important;
+    height:clamp(40px, calc(78px * var(--fit)), 104px) !important;
+  }
+  html body main #page-minuman#page-minuman form .minuman-grid .minuman-save-btn{
+    height:max(40px, calc(54px * var(--fit))) !important;
+    min-height:max(40px, calc(54px * var(--fit))) !important;
+  }
+  html body main #page-minuman#page-minuman #m-metode.minuman-payment-select{
+    height:max(38px, calc(50px * var(--fit))) !important;
+    min-height:max(38px, calc(50px * var(--fit))) !important;
+    background-color:rgba(255,255,255,.46) !important;
+  }
+  html body main #page-minuman#page-minuman .minuman-sales-summary{
+    gap:calc(10px * var(--fit)) !important;
+    margin:calc(12px * var(--fit)) 0 4px !important;
+  }
+  html body main #page-minuman#page-minuman .minuman-summary-card{
+    min-height:max(44px, calc(68px * var(--fit))) !important;
+    padding:calc(10px * var(--fit)) 14px !important;
+    gap:calc(6px * var(--fit)) !important;
+    background:linear-gradient(145deg,rgba(255,255,255,.52),rgba(255,255,255,.24)) !important;
+  }
+  html body main #page-minuman#page-minuman .minuman-summary-card strong{
+    font-size:calc(19px * var(--fs)) !important;
+  }
+  html body main #page-minuman#page-minuman #minuman-qty-control{
+    background:linear-gradient(145deg,rgba(255,255,255,.52),rgba(255,255,255,.24)) !important;
+    margin-bottom:calc(12px * var(--fit)) !important;
+  }
+
+  /* =====================================================================
+     4) UANG KELUAR + UANG MASUK (satu gaya)
+     ===================================================================== */
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page{ gap:calc(10px * var(--fit)) !important; }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-form{ gap:calc(10px * var(--fit)) !important; }
+
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-card{
+    background:linear-gradient(160deg,rgba(255,255,255,.58),rgba(248,250,252,.34)) !important;
+    border:1px solid rgba(255,255,255,.72) !important;
+    box-shadow:0 8px 22px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.75) !important;
+    -webkit-backdrop-filter:blur(14px) saturate(135%) !important;
+    backdrop-filter:blur(14px) saturate(135%) !important;
+    padding:calc(10px * var(--fit)) 12px calc(12px * var(--fit)) !important;
+    gap:calc(6px * var(--fit)) !important;
+  }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-card-title b{ color:#475569 !important; }
+
+  /* input & tombol tanggal/metode */
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-input{
+    background:rgba(255,255,255,.60) !important;
+    border-color:rgba(255,255,255,.85) !important;
+    min-height:max(36px, calc(44px * var(--fit))) !important;
+    padding-top:calc(8px * var(--fit)) !important;
+    padding-bottom:calc(8px * var(--fit)) !important;
+  }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-input-money{
+    min-height:max(40px, calc(48px * var(--fit))) !important;
+  }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .uang-keluar-date-button,
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .uang-keluar-source-date-button,
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page #manual-uang-masuk-date-btn,
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page #manual-uang-masuk-method-btn{
+    background:rgba(255,255,255,.60) !important;
+    border-color:rgba(255,255,255,.85) !important;
+    min-height:max(36px, calc(44px * var(--fit))) !important;
+  }
+
+  /* pilihan Uang Lapangan / Uang Minuman */
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-choice > span{
+    min-height:max(38px, calc(52px * var(--fit))) !important;
+    padding-top:calc(8px * var(--fit)) !important;
+    padding-bottom:calc(8px * var(--fit)) !important;
+  }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-choice input:not(:checked) + span{
+    background:rgba(255,255,255,.46) !important;
+    border-color:rgba(255,255,255,.80) !important;
+  }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-choice input:checked + span{
+    background:linear-gradient(160deg,rgba(255,255,255,.72),color-mix(in srgb, var(--tint) 60%, transparent)) !important;
+  }
+
+  /* info saldo & tombol simpan */
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-saldo{
+    background:rgba(255,251,235,.70) !important;
+    padding:calc(7px * var(--fit)) 10px !important;
+  }
+  html body main :is(#page-keluar,#page-masuk-manual).fx-page .fx-save{
+    min-height:max(40px, calc(48px * var(--fit))) !important;
+    padding-top:calc(8px * var(--fit)) !important;
+    padding-bottom:calc(8px * var(--fit)) !important;
+  }
+
+  /* =====================================================================
+     5) MENU LAINNYA
+     ===================================================================== */
+  html body main #page-more .more-menu-page .more-page-grid{ gap:calc(10px * var(--fit)) !important; }
+  html body main #page-more .more-menu-page .more-page-grid > button{
+    min-height:max(44px, calc(64px * var(--fit))) !important;
+    padding:calc(10px * var(--fit)) 10px !important;
+    grid-template-columns:clamp(30px, calc(42px * var(--fit)), 50px) minmax(0,1fr) !important;
+    column-gap:calc(10px * var(--fit)) !important;
+    background:linear-gradient(145deg,rgba(255,255,255,.58),rgba(255,255,255,.30)) !important;
+    -webkit-backdrop-filter:blur(16px) saturate(135%) !important;
+    backdrop-filter:blur(16px) saturate(135%) !important;
+  }
+  html body main #page-more .more-menu-page .more-page-grid > button:hover{
+    background:linear-gradient(145deg,rgba(255,255,255,.70),rgba(255,255,255,.42)) !important;
+  }
+  html body main #page-more .more-menu-page .more-page-grid > button .more-ic{
+    width:clamp(30px, calc(42px * var(--fit)), 50px) !important;
+    height:clamp(30px, calc(42px * var(--fit)), 50px) !important;
+  }
+  html body main #page-more .more-menu-page .more-page-grid > button .more-ic svg{
+    width:clamp(16px, calc(21px * var(--fit)), 26px) !important;
+    height:clamp(16px, calc(21px * var(--fit)), 26px) !important;
+  }
+  html body main #page-more .more-menu-page .more-page-grid > button b{ font-size:calc(12px * var(--fs)) !important; }
+  html body main #page-more .more-menu-page .more-page-grid > button small{ font-size:calc(9.5px * var(--fs)) !important; }
+}
+</style>
+
+<style id="hide-sync-pending-chip-v1">
+/* Sembunyikan chip "Mengirim N data ke server..." (hanya tampilan; pengiriman data tetap berjalan normal).
+   Peringatan offline (kuning) dan "Terkirim ke server" (hijau) tidak disembunyikan. */
+#sync-pending-chip.is-pending{ display:none !important; }
+</style>
+<style id="fit-measure-freeze-v1">
+html.fit-measuring *, html.fit-measuring *::before, html.fit-measuring *::after{ transition:none !important; }
+</style>
+<style id="minuman-summary-contrast-v1">
+@media (max-width:640px){
+  html body main #page-minuman#page-minuman .minuman-summary-card{
+    background:linear-gradient(145deg,rgba(255,255,255,.74),rgba(255,255,255,.50)) !important;
+  }
+  html body main #page-minuman#page-minuman .minuman-summary-label{
+    color:#0f2a5c !important;
+    opacity:1 !important;
+    font-size:calc(11px * var(--fs)) !important;
+    font-weight:900 !important;
+    letter-spacing:.08em !important;
+    text-shadow:none !important;
+  }
+  html body main #page-minuman#page-minuman .minuman-summary-card:nth-child(1) strong{ color:#047857 !important; }
+  html body main #page-minuman#page-minuman .minuman-summary-card:nth-child(2) strong{ color:#1d4ed8 !important; }
+}
+</style>
+<script id="mobile-fit-screen-v1-js">
+/* Mengatur --fit otomatis agar halaman HP PAS memenuhi layar (tanpa scroll,
+   tanpa ruang kosong besar): layar pendek -> mengecil (min 0.5), layar tinggi ->
+   membesar (maks 1.8). Juga menyamakan jarak header -> card pertama dengan
+   jarak antar card di Uang Keluar, Uang Masuk dan Menu Lainnya.
+   Hanya aktif di lebar <= 640px. Tidak mengubah data/fungsi apa pun. */
+(function(){
+  'use strict';
+  var IDS = ['page-daily-recap','page-minuman','page-keluar','page-masuk-manual','page-more'];
+  var GAPCFG = {
+    'page-keluar':       {first:'.fx-card', gapEl:'.fx-form'},
+    'page-masuk-manual': {first:'.fx-card', gapEl:'.fx-form'},
+    'page-more':         {first:'.more-page-grid > button', gapEl:'.more-page-grid'},
+    'page-daily-recap':  {first:'.today-schedule-head', gapEl:'#daily-menu-grid',
+                          head:'.today-schedule-head', next:'#daily-cash-dashboard > section > .grid > div:nth-child(7)'}
+  };
+  var ENDSEL = {
+    'page-minuman':'.minuman-sales-summary',
+    'page-keluar':'.fx-save',
+    'page-masuk-manual':'.fx-save',
+    'page-daily-recap':'#daily-menu-grid',
+    'page-more':'.more-page-grid'
+  };
+  var MIN = 0.5, MAX = 1.8;
+  var mq = window.matchMedia('(max-width:640px)');
+  var busy = false, timer = null;
+  var root = document.documentElement;
+
+  function activePage(){
+    for (var i = 0; i < IDS.length; i++){
+      var el = document.getElementById(IDS[i]);
+      if (el && !el.classList.contains('hidden') && el.getClientRects().length && el.closest('main')) return el;
+    }
+    return null;
+  }
+  function setF(f){ root.style.setProperty('--fit', f.toFixed(3)); }
+
+  function adjustGap(pg){
+    var c = GAPCFG[pg.id];
+    if (!c) return;
+    pg.style.setProperty('margin-top','0px','important');
+    var hdr = document.querySelector('body > header');
+    var first = pg.querySelector(c.first);
+    var ge = pg.querySelector(c.gapEl);
+    if (!hdr || !first || !ge) return;
+    var cs = getComputedStyle(ge);
+    var gap = parseFloat(cs.rowGap);
+    if (isNaN(gap)) gap = parseFloat(cs.gap);
+    if (isNaN(gap)) gap = 10;
+    var actual = first.getBoundingClientRect().top - hdr.getBoundingClientRect().bottom;
+    pg.style.setProperty('margin-top', (gap - actual) + 'px', 'important');
+    if (c.head && c.next){
+      var head = pg.querySelector(c.head), nx = pg.querySelector(c.next);
+      if (head && nx){
+        head.style.setProperty('margin-bottom','0px','important');
+        var a2 = nx.getBoundingClientRect().top - head.getBoundingClientRect().bottom;
+        head.style.setProperty('margin-bottom', (gap - a2) + 'px', 'important');
+      }
+    }
+  }
+
+  function fit(){
+    if (busy) return;
+    busy = true;
+    root.classList.add('fit-measuring');
+    try{
+      if (!mq.matches){
+        setF(1);
+        Object.keys(GAPCFG).forEach(function(id){ var e=document.getElementById(id); if(e){ e.style.removeProperty('margin-top'); var h=e.querySelector('.today-schedule-head'); if(h && id==='page-daily-recap') h.style.removeProperty('margin-bottom'); } });
+        return;
+      }
+      var pg  = activePage();
+      var nav = document.getElementById('quick-bottom-nav');
+      if (!pg || !nav){ setF(1); return; }
+
+      var limit = nav.getBoundingClientRect().top - 10;
+      var endEl = (ENDSEL[pg.id] && pg.querySelector(ENDSEL[pg.id])) || pg;
+      /* posisi bawah dihitung terhadap dokumen (scroll dianggap 0), karena halaman bisa sedang
+         tergulir saat diukur, lalu kembali ke atas setelah pindah menu -> hasil ukur meleset */
+      function bottomAt(f){ setF(f); adjustGap(pg); return endEl.getBoundingClientRect().bottom + (window.pageYOffset || document.documentElement.scrollTop || 0); }
+
+      var lo, hi, best;
+      if (bottomAt(1) <= limit){
+        if (bottomAt(MAX) <= limit){ best = MAX; }
+        else { lo = 1; hi = MAX; }
+      } else {
+        if (bottomAt(MIN) > limit){ best = MIN; }
+        else { lo = MIN; hi = 1; }
+      }
+      if (best === undefined){
+        for (var i = 0; i < 9; i++){
+          var mid = (lo + hi) / 2;
+          if (bottomAt(mid) <= limit) lo = mid; else hi = mid;
+        }
+        best = lo;
+      }
+      setF(best); adjustGap(pg);
+      /* pengaman: kalau masih melewati batas (>0.5px), kecilkan sedikit demi sedikit */
+      for (var k = 0; k < 30 && best > MIN && bottomAt(best) > limit + 0.5; k++){ best = Math.max(MIN, best - 0.01); }
+      setF(best); adjustGap(pg);
+    }catch(e){} finally { root.classList.remove('fit-measuring'); busy = false; }
+  }
+
+  function later(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      fit();
+      (window.requestAnimationFrame || setTimeout)(fit);
+    }, 60);
+  }
+
+  function start(){
+    IDS.forEach(function(id){
+      var pg = document.getElementById(id);
+      if (!pg) return;
+      new MutationObserver(later).observe(pg, {attributes:true, attributeFilter:['class']});
+      new MutationObserver(later).observe(pg, {childList:true, subtree:true});
+    });
+    window.addEventListener('resize', later);
+    window.addEventListener('orientationchange', later);
+    window.addEventListener('load', later);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', later);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+    if (mq.addEventListener) mq.addEventListener('change', later);
+    later();
+    setTimeout(fit, 400); setTimeout(fit, 1200);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
