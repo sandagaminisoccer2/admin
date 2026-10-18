@@ -13281,7 +13281,9 @@ document.addEventListener('input', function(e){
     '#asp-overlay .is-success .asp-pct{color:#047857}' +
     '#asp-overlay .is-warn .asp-icon{background:linear-gradient(135deg,#f59e0b,#d97706)}' +
     '#asp-overlay .is-error .asp-icon{background:linear-gradient(135deg,#ef4444,#dc2626)}' +
-    '#asp-overlay .is-error .asp-bar{background:#ef4444}';
+    '#asp-overlay .is-error .asp-bar{background:#ef4444}' +
+    /* Kartu progres disembunyikan (indikator kanan atas sudah cukup); hanya tampil bila GAGAL disimpan. */
+    '#asp-overlay{display:none !important}#asp-overlay.asp-show{display:flex !important}';
   (document.head || document.documentElement).appendChild(st);
 
   /* ---------- Helper ---------- */
@@ -13394,6 +13396,7 @@ document.addEventListener('input', function(e){
     clearInterval(tick); tick = null;
     if(failedMsg){
       setCard(0, 'Gagal disimpan', failedMsg, 'is-error', '!');
+      card.o.classList.add('asp-show');
       card.o.onclick = closeCard;
       closeT = setTimeout(closeCard, 4000);
     } else {
@@ -13417,6 +13420,8 @@ document.addEventListener('input', function(e){
      jadi tidak boleh memunculkan kartu loading selama jendela itu terbuka. */
   function posterOpen(){ var m = document.getElementById('jdp-modal'); return !!(m && m.classList.contains('open')); }
   function inPoster(t){ return !!(t && t.closest && t.closest('#jdp-modal')); }
+
+  window.__saveProgressBusy = function(){ return pending > 0 || !!card; };
 
   /* Dipanggil dari pembungkus push/update/remove/get Firebase (lihat script module). */
   window.__saveProgressTrack = function(p, kind){
@@ -20326,6 +20331,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 document.body.appendChild(el);
             }
             function busy() {
+                try { if (window.__saveProgressBusy && window.__saveProgressBusy()) return true; } catch (_) {}
                 if (!(globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded)) return true;
                 if (__dataPending.size) return true;
                 if (!window.__bgQueueDone) return true;
