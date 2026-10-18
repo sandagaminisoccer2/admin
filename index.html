@@ -13473,18 +13473,19 @@ document.addEventListener('input', function(e){
 </script>
 <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, push as __fbPush, remove as __fbRemove, update as __fbUpdate, onValue, get as __fbGet, query, orderByChild, startAt } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, push as __fbPush, remove as __fbRemove, update as __fbUpdate, onValue, get as __fbGet, query, orderByChild, orderByKey, startAt } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
         /* Pembungkus penulisan Firebase → memicu loading bar simpan (script global-save-progress-v1).
            Perilaku push/remove/update/get tidak berubah; hanya dipantau sampai server mengonfirmasi. */
-        const __trackFb = (fn, kind) => function(){
+        const __trackFb = (fn, kind, op) => function(){
             const r = fn.apply(this, arguments);
             try { if (window.__saveProgressTrack) window.__saveProgressTrack(r, kind); } catch(_) {}
+            if (kind === 'w') { try { __revTouchWrite(arguments, op); } catch(_) {} }
             return r;
         };
-        const push = __trackFb(__fbPush, 'w');
-        const remove = __trackFb(__fbRemove, 'w');
-        const update = __trackFb(__fbUpdate, 'w');
+        const push = __trackFb(__fbPush, 'w', 'push');
+        const remove = __trackFb(__fbRemove, 'w', 'remove');
+        const update = __trackFb(__fbUpdate, 'w', 'update');
         const get = __trackFb(__fbGet, 'r');
 
         const firebaseConfig = {
@@ -13536,9 +13537,13 @@ document.addEventListener('input', function(e){
         })();
         const __CACHE_MAX_AGE = 3 * 24 * 3600 * 1000;
         const __cacheTimers = {};
-        function __cachePut(name, val) {
+        function __cachePut(name, val, tKeep) {
             clearTimeout(__cacheTimers[name]);
-            __cacheTimers[name] = setTimeout(() => { __IDB.set('v1:' + name, { t: Date.now(), v: val === undefined ? null : val }); }, 1500);
+            __cacheTimers[name] = setTimeout(() => {
+                const rec = { t: tKeep || Date.now(), v: val === undefined ? null : val };
+                if (__REV_NODES.has(name)) rec.rev = __revCur(name);   /* penanda versi data saat salinan ini disimpan */
+                __IDB.set('v1:' + name, rec);
+            }, 1500);
         }
         function __fakeSnap(v) {
             return {
@@ -13573,8 +13578,133 @@ document.addEventListener('input', function(e){
             }
             el.classList.add('is-on');
         }
-        function cachedOnValue(name, target, cb, errCb) {
+        /* ---------- Penanda perubahan data (agar reload tidak mengunduh ulang data yang sama) ----------
+           Setiap penulisan dari aplikasi ini ke kelompok data di __REV_NODES juga menaikkan penanda kecil
+           di meta/rev/<nama>. Saat aplikasi dibuka ulang: bila penanda di server SAMA dengan penanda pada
+           salinan perangkat, salinan langsung dipakai dan data itu tidak diunduh lagi. Begitu penandanya
+           berubah (ada data baru dari perangkat lain) atau aplikasi ini sendiri menyimpan sesuatu, data
+           kelompok itu diunduh sekali lalu dipantau realtime seperti biasa.
+           BOOKING: booking baru (dari web customer maupun dari admin) tidak menaikkan penanda, tetapi dijemput
+           lewat pemantau ringan yang hanya meminta record dengan kunci lebih baru dari salinan terakhir
+           (kunci push berurutan waktu), jadi booking yang sudah ada tidak diunduh ulang. Ubah/hapus booking
+           dari aplikasi ini menaikkan penanda sehingga perangkat lain memuat ulang booking. */
+        const __REV_NODES = new Set(['booking','member','memberTanpaJadwal','pemasukan','minuman','pengeluaran','pelunasanMember','adminJaga','adminJagaNames','adminJagaDefault','teamProfiles']);
+        const __REV_TRUST_AGE = 24 * 3600 * 1000;      /* paling lama salinan dipercaya tanpa unduh ulang */
+        const __REV_OK_KEY = 'sandaga-rev-ok', __REV_OFF_KEY = 'sandaga-rev-off', __REV_DAY = 24 * 3600 * 1000;
+        const __revMap = {}, __revHeld = {};
+        let __revReadyResolve = null;
+        const __revReady = new Promise(res => { __revReadyResolve = res; setTimeout(() => res(false), 3000); });
+        function __lsNum(k) { try { return +localStorage.getItem(k) || 0; } catch (_) { return 0; } }
+        function __revOffNow() { const t = __lsNum(__REV_OFF_KEY); return !!t && Date.now() - t < __REV_DAY; }
+        function __revOkFresh() { const t = __lsNum(__REV_OK_KEY); return !!t && Date.now() - t < __REV_DAY && !__revOffNow(); }
+        function __revFail() { try { localStorage.setItem(__REV_OFF_KEY, String(Date.now())); localStorage.removeItem(__REV_OK_KEY); } catch (_) {} }
+        function __revCur(name) { return __revMap[name] || '0'; }
+        function __revGateOn(name) { return __REV_NODES.has(name) && __revOkFresh(); }
+        function __revNodesOfWrite(args) {
+            const out = new Set();
+            try {
+                const loc = args[0]; if (!loc) return out;
+                let pth = ''; try { pth = decodeURIComponent(new URL(String(loc)).pathname); } catch (_) {}
+                pth = pth.replace(/^\/+|\/+$/g, '');
+                if (pth) out.add(pth.split('/')[0]);
+                else if (args[1] && typeof args[1] === 'object') Object.keys(args[1]).forEach(k => out.add(String(k).replace(/^\/+/, '').split('/')[0]));
+            } catch (_) {}
+            return out;
+        }
+        function __revTouchWrite(args, op) {
+            const nodes = Array.from(__revNodesOfWrite(args)).filter(n => __REV_NODES.has(n) && !(n === 'booking' && op === 'push'));   /* booking baru ditangkap pemantau kunci, tak perlu unduh ulang */
+            if (!nodes.length) return;
+            nodes.forEach(n => { const h = __revHeld[n]; if (h) { delete __revHeld[n]; h.attach(); } });   /* data yang baru diubah harus realtime lagi */
+            if (__revOffNow()) return;
+            const stamp = Date.now() + '-' + Math.random().toString(36).slice(2, 7), up = {};
+            nodes.forEach(n => { up[n] = stamp; });
+            try { __fbUpdate(ref(db, 'meta/rev'), up).catch(__revFail); } catch (_) { __revFail(); }
+        }
+        (function __revStart() {
+            if (__revOffNow()) { __revReadyResolve(false); return; }
+            try {
+                onValue(ref(db, 'meta/rev'), (snap) => {
+                    const v = snap.val() || {};
+                    Object.keys(__revMap).forEach(k => { if (!(k in v)) delete __revMap[k]; });
+                    Object.keys(v).forEach(k => { __revMap[k] = v[k]; });
+                    __revReadyResolve(true);
+                    Object.keys(__revHeld).forEach(n => {
+                        const h = __revHeld[n];
+                        if (h && __revCur(n) !== h.rev) { delete __revHeld[n]; h.attach(); }
+                    });
+                }, () => { __revReadyResolve(false); });
+            } catch (_) { __revReadyResolve(false); }
+            /* Uji sekali sehari: aturan database harus mengizinkan penulisan meta/rev, kalau tidak cara ini dimatikan. */
+            if (!__revOkFresh()) {
+                try {
+                    __fbUpdate(ref(db, 'meta/rev'), { __probe: Date.now() })
+                        .then(() => { try { localStorage.setItem(__REV_OK_KEY, String(Date.now())); localStorage.removeItem(__REV_OFF_KEY); } catch (_) {} })
+                        .catch(__revFail);
+                } catch (_) { __revFail(); }
+            }
+        })();
+        function cachedOnValue(name, target, cb, errCb, inc) {
             let real = false;
+            if (__revGateOn(name)) {
+                let live = false;
+                const listen = () => {
+                    if (live) return; live = true;
+                    onValue(target, (snap) => {
+                        real = true;
+                        __replayPending.delete(name); __refreshChip();
+                        let r;
+                        try { r = cb(snap); }
+                        finally {
+                            try { __cachePut(name, snap.val()); } catch (_) {}
+                            if (name === 'booking') { window.__bookingRealDone = true; try { window.__bookingRealResolve(); } catch (_) {} }
+                        }
+                        return r;
+                    }, errCb);
+                };
+                __IDB.get('v1:' + name).then(async rec => {
+                    const fresh = rec && rec.t && Date.now() - rec.t <= __CACHE_MAX_AGE;
+                    if (!fresh) { listen(); return; }
+                    const revOk = await __revReady;
+                    if (live) return;
+                    const incKeys = (inc && rec.v && typeof rec.v === 'object') ? Object.keys(rec.v) : [];
+                    if (revOk && rec.rev != null && rec.rev === __revCur(name) && Date.now() - rec.t <= __REV_TRUST_AGE && (!inc || incKeys.length)) {
+                        /* Data belum berubah sejak salinan ini disimpan: pakai salinan, tidak perlu mengunduh. */
+                        try { cb(__fakeSnap(rec.v)); } catch (e) { console.warn('Salinan ' + name + ' gagal dipakai:', e); listen(); return; }
+                        let offInc = null;
+                        __revHeld[name] = { rev: rec.rev, attach: () => { if (offInc) { try { offInc(); } catch (_) {} offInc = null; } listen(); } };
+                        if (inc) {
+                            /* Pemantau booking baru: hanya record berkunci >= kunci terakhir di salinan (kunci push berurutan waktu). */
+                            const merged = Object.assign({}, rec.v);
+                            const lastKey = incKeys.reduce((a, b) => (a > b ? a : b));
+                            let first = true, tm = null;
+                            offInc = onValue(inc.keyQuery(lastKey), (snap) => {
+                                let changed = false;
+                                snap.forEach(ch => {
+                                    const v = ch.val();
+                                    if (!inc.accept(v)) return;
+                                    if (JSON.stringify(merged[ch.key]) !== JSON.stringify(v)) { merged[ch.key] = v; changed = true; }
+                                });
+                                if (first) {
+                                    first = false;
+                                    if (name === 'booking') { window.__bookingRealDone = true; try { window.__bookingRealResolve(); } catch (_) {} }
+                                }
+                                if (changed) {
+                                    clearTimeout(tm);
+                                    tm = setTimeout(() => {
+                                        try { cb(__fakeSnap(Object.assign({}, merged))); } catch (e) { console.warn('Booking baru gagal diterapkan:', e); }
+                                        try { __cachePut(name, merged, rec.t); } catch (_) {}
+                                    }, 40);
+                                }
+                            }, errCb);
+                        } else if (name === 'booking') { window.__bookingRealDone = true; try { window.__bookingRealResolve(); } catch (_) {} }
+                        return;
+                    }
+                    if (['member','booking','lunasDarurat','bookingBatal','sparring','pemasukan','memberTanpaJadwal','minuman'].indexOf(name) > -1) { __replayPending.add(name); __refreshChip(); }
+                    try { cb(__fakeSnap(rec.v)); } catch (e) { console.warn('Salinan ' + name + ' gagal dipakai:', e); }
+                    listen();
+                }).catch(() => listen());
+                return;
+            }
             __IDB.get('v1:' + name).then(rec => {
                 if (real || !rec || !rec.t || Date.now() - rec.t > __CACHE_MAX_AGE) return;
                 if (['member','booking','lunasDarurat','bookingBatal','sparring','pemasukan','memberTanpaJadwal','minuman'].indexOf(name) > -1) { __replayPending.add(name); __refreshChip(); }
@@ -19948,6 +20078,9 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         cachedOnValue('booking', bookingFastQuery, (snapshot) => {
             if (bookingFullHistoryStarted) return; // riwayat lengkap sudah mengambil alih, jangan ditimpa subset ini
             applyBookingSnapshot(snapshot);
+        }, undefined, {
+            keyQuery: (k) => query(ref(db, 'booking'), orderByKey(), startAt(k)),
+            accept: (v) => String((v && v.tgl) || '') >= getBookingFastLoadStartString()
         });
         function startBookingFullHistoryListener() {
             if (bookingFullHistoryStarted) return;
@@ -35256,7 +35389,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
 #jdp-modal .jdp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #e2e8f0;color:#132a5e;font-size:14px;font-weight:900}
 #jdp-modal .jdp-x{width:34px;height:34px;border:0;border-radius:10px;background:#f1f5f9;color:#475569;font-size:14px;font-weight:900;cursor:pointer}
 #jdp-modal .jdp-stage{flex:1 1 auto;min-height:220px;overflow:auto;background:#0f172a;display:grid;place-items:center;padding:10px}
-#jdp-modal .jdp-img{display:block;max-width:100%;max-height:calc(100vh - 230px);max-height:calc(100dvh - 230px);width:auto;height:auto;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#jdp-modal .jdp-img{display:block;max-width:100%;max-height:calc(100vh - 340px);max-height:calc(100dvh - 340px);width:auto;height:auto;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 #jdp-modal .jdp-loading{color:#cbd5e1;font-size:12px;font-weight:800;text-align:center;padding:30px 10px}
 #jdp-modal .jdp-loading.err{color:#fca5a5}
 #jdp-modal .jdp-note{padding:8px 14px 0;min-height:1.2em;font-size:11px;font-weight:700;color:#64748b;text-align:center;line-height:1.35}
@@ -35266,6 +35399,42 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
 #jdp-modal .jdp-btn:disabled{opacity:.45;cursor:not-allowed}
 #jdp-modal .jdp-primary{color:#fff;background:linear-gradient(135deg,#059669,#047857)}
 #jdp-modal .jdp-secondary{color:#132a5e;background:#e8f0ff}
+#jdp-modal .jdp-colors{display:flex;flex-direction:column;gap:8px;padding:9px 14px 0}
+#jdp-modal .jdp-seg{display:flex;gap:4px;padding:3px;border-radius:11px;background:#f1f5f9}
+#jdp-modal .jdp-seg-b{flex:1 1 0;min-width:0;padding:0 2px;white-space:nowrap;min-height:30px;border:0;border-radius:8px;background:transparent;color:#475569;font-size:11px;font-weight:800;cursor:pointer}
+#jdp-modal .jdp-seg-b.on{background:#fff;color:#132a5e;box-shadow:0 1px 4px rgba(15,23,42,.18)}
+#jdp-modal .jdp-colors-l{flex:none;font-size:11px;font-weight:800;color:#475569}
+#jdp-modal .jdp-sws{display:flex;flex-wrap:wrap;gap:7px}
+#jdp-modal .jdp-opa{display:none;align-items:center;gap:10px;font-size:11px;font-weight:800;color:#475569}
+#jdp-modal .jdp-opa input{flex:1 1 auto;min-width:0;accent-color:#132a5e}
+#jdp-modal .jdp-opa b{flex:none;min-width:34px;text-align:right;color:#132a5e}
+#jdp-modal .jdp-sw{position:relative;overflow:hidden;width:26px;height:26px;padding:0;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;cursor:pointer}
+#jdp-modal .jdp-sw.on{box-shadow:0 0 0 2.5px #132a5e}
+#jdp-modal .jdp-sw-custom{background:conic-gradient(#ef4444,#facc15,#4ade80,#22d3ee,#3b82f6,#d946ef,#ef4444)}
+#jdp-modal .jdp-sw-custom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+/* ---- Tampilan minimalis panel warna (rata tengah) ---- */
+#jdp-modal .jdp-box{border-radius:22px}
+#jdp-modal .jdp-head{padding:14px 16px;border-bottom:0;font-size:14px;font-weight:800;letter-spacing:.01em}
+#jdp-modal .jdp-x{width:32px;height:32px;border-radius:50%;background:transparent;color:#64748b;font-size:13px;font-weight:800}
+#jdp-modal .jdp-x:hover{background:#f1f5f9}
+#jdp-modal .jdp-stage{padding:8px}
+#jdp-modal .jdp-colors{gap:14px;padding:14px 16px 0;align-items:stretch}
+#jdp-modal .jdp-seg{gap:2px;padding:3px;border-radius:12px;background:#f1f5f9}
+#jdp-modal .jdp-seg-b{min-height:32px;border-radius:9px;font-size:11px;font-weight:700;color:#64748b;transition:background .15s,color .15s}
+#jdp-modal .jdp-seg-b.on{background:#fff;color:#132a5e;font-weight:800;box-shadow:0 1px 3px rgba(15,23,42,.12)}
+#jdp-modal .jdp-sws{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;padding:4px 0}
+#jdp-modal .jdp-sw{width:26px;height:26px;border:0;box-shadow:inset 0 0 0 1px rgba(15,23,42,.14);transition:box-shadow .15s}
+#jdp-modal .jdp-sw.on{box-shadow:0 0 0 2px #fff,0 0 0 4px #132a5e}
+#jdp-modal .jdp-opa{justify-content:center;gap:12px;width:100%;max-width:320px;margin:0 auto;font-size:11px;font-weight:700;color:#64748b}
+#jdp-modal .jdp-opa input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;max-width:190px;height:4px;border-radius:99px;background:#e2e8f0;outline:none}
+#jdp-modal .jdp-opa input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#132a5e;border:3px solid #fff;box-shadow:0 1px 4px rgba(15,23,42,.35)}
+#jdp-modal .jdp-opa input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#132a5e;border:3px solid #fff;box-shadow:0 1px 4px rgba(15,23,42,.35)}
+#jdp-modal .jdp-opa b{min-width:36px;text-align:right;color:#132a5e;font-weight:800}
+#jdp-modal .jdp-note{padding:10px 16px 0;font-size:11px;font-weight:600}
+#jdp-modal .jdp-actions{gap:10px;padding:12px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#jdp-modal .jdp-btn{border-radius:14px;font-weight:800}
+#jdp-modal .jdp-primary{background:#059669}
+#jdp-modal .jdp-secondary{background:#f1f5f9;color:#132a5e}
 </style>
 <script id="jadwal-poster-script">
 (function(){
@@ -35294,10 +35463,13 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   /* Posisi (ukuran desain 900x1600). Hasil x1.2 ditulis di kartu upload. */
   var PILL = { x: 437, y: 423, w: 363, h: 52 };           /* area periode */
   var G = { tableX: 70, tableY: 500, tableW: 765, hh: 66, x0: 163, colW: 96, y0: 566, rowH: 41 };
+  var DATE_Y = G.tableY + G.hh - 13;   /* posisi tanggal di kolom hari (di bawah nama hari); geser angka 13 bila perlu */
+  var DONE_DX = 0;   /* geser strip DONE ke kanan(+)/kiri(-) dalam satuan desain bila kolom di latar tidak pas tengah */
+  var MON3 = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
   function colX(j){ return G.x0 + j * G.colW; }
   function rowY(i){ return G.y0 + i * G.rowH; }
 
-  var state = { canvas: null, blob: null, name: 'jadwal.png', busy: false, token: 0 };
+  var state = { canvas: null, blob: null, name: 'jadwal.png', busy: false, token: 0, data: null, bg: null, sel: {}, target: 'tim', alpha: {} };
 
   function $(id){ return document.getElementById(id); }
   function fb(){
@@ -35412,6 +35584,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     if (!netP) netP = fetchBackground().then(function(r){ netP = null; return r; }, function(e){ netP = null; throw e; });
     return netP;
   }
+  function errWhy(e){ var m = e && (e.message || e.code || String(e)); return m ? ' (' + String(m).slice(0, 60) + ')' : ''; }
   function firebaseReady(){ var F = fb(); return !!(F.db && F.get && F.ref); }
 
   /* Selalu memakai latar TERBARU: versi (jadwalUpdatedAt) dicek ke server setiap kali; gambar hanya
@@ -35435,26 +35608,28 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     }
     var net = fetchBackgroundOnce();
     var done = net.then(function(r){ return { ok: r }; }, function(e){ return { err: e }; });
-    var soft = new Promise(function(res){ setTimeout(function(){ res({ slow: true }); }, cachedImg ? 3000 : 8000); });
+    var soft = new Promise(function(res){ setTimeout(function(){ res({ slow: true }); }, cachedImg ? 600 : 8000); });
     var first = await Promise.race([done, soft]);
     if (first.ok) return { img: first.ok.img || (bgMem && bgMem.img) || null, note: first.ok.note || '' };
     if (first.err) {
       console.warn('Gagal memuat latar jadwal:', first.err);
-      return cachedImg ? { img: cachedImg, note: 'Server bermasalah, memakai latar tersimpan terakhir.' }
-                       : { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
+      return cachedImg ? { img: cachedImg, note: 'Server bermasalah' + errWhy(first.err) + ', memakai latar tersimpan terakhir.' }
+                       : { img: null, note: 'Latar gagal dimuat' + errWhy(first.err) + ', memakai latar bawaan.' };
     }
-    /* lambat: tampilkan sementara, lanjutkan unduhan di belakang layar */
+    /* lambat: tampilkan dulu. Bila sudah ada salinan latar di perangkat, poster langsung bisa diunduh
+       (versi dicek di belakang layar; bila ternyata berubah, poster digambar ulang otomatis). */
     return {
       img: cachedImg,
-      note: 'Koneksi lambat, memeriksa latar terbaru…',
+      note: cachedImg ? 'Memeriksa latar terbaru…' : 'Koneksi lambat, mengunduh latar…',
       late: done.then(function(x){
-        if (x.ok) return { img: x.ok.img || (bgMem && bgMem.img) || null, note: x.ok.note || '' };
+        if (x.ok) return { img: x.ok.img || (bgMem && bgMem.img) || null, note: '', changed: !!x.ok.changed };
         console.warn('Gagal memuat latar jadwal:', x.err);
-        return cachedImg ? { img: cachedImg, note: 'Server bermasalah, memakai latar tersimpan terakhir.' }
-                         : { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
+        return cachedImg ? { img: cachedImg, note: 'Server bermasalah' + errWhy(x.err) + ', memakai latar tersimpan terakhir.', changed: false }
+                         : { img: null, note: 'Latar gagal dimuat' + errWhy(x.err) + ', memakai latar bawaan.', changed: true };
       })
     };
   }
+
   /* Pemanasan di latar belakang: saat tombol Download Jadwal ditekan, latar & font sudah siap. */
   window.jdpPrefetch = function(){ try { loadBackground(); loadFonts(); } catch (e) {} };
   function warm(){
@@ -35581,7 +35756,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     ctx.stroke();
     ctx.font = 'italic 800 ' + (guide ? 20 : 24) + 'px ' + CON;
     if (!guide) ctx.fillStyle = LIME;
-    DAYS.forEach(function(d, j){ ctx.fillText(d, colX(j) + G.colW / 2, ty + G.hh / 2); });
+    DAYS.forEach(function(d, j){ ctx.fillText(d, colX(j) + G.colW / 2, ty + G.hh / 2 - (guide ? 0 : 8)); });
     ctx.font = '800 ' + (guide ? 20 : 26) + 'px ' + CON;
     if (!guide) ctx.fillStyle = '#fff';
     JAMS.forEach(function(j, i){ ctx.fillText(j.replace(':', '.'), tx + (G.x0 - tx) / 2, rowY(i) + G.rowH / 2); });
@@ -35635,16 +35810,102 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     return { size: 7, lines: [t + '…'] };
   }
 
-  function drawPill(ctx, x, y, w, h, text, isOff){
+  /* ---------- Warna nama tim (bisa dipilih admin, tersimpan di perangkat) ---------- */
+  var PALETTES = [
+    { id: 'lime',   name: 'Hijau lime', top: '#c9f850', bot: '#9fe32c', stroke: 'rgba(70,120,10,.75)',  text: '#10210a' },
+    { id: 'kuning', name: 'Kuning',     top: '#fde68a', bot: '#facc15', stroke: 'rgba(161,98,7,.8)',    text: '#3b2a00' },
+    { id: 'oranye', name: 'Oranye',     top: '#fdba74', bot: '#f97316', stroke: 'rgba(154,52,18,.8)',   text: '#2b1100' },
+    { id: 'cyan',   name: 'Cyan',       top: '#67e8f9', bot: '#06b6d4', stroke: 'rgba(14,116,144,.8)',  text: '#04262e' },
+    { id: 'pink',   name: 'Pink',       top: '#f9a8d4', bot: '#ec4899', stroke: 'rgba(157,23,77,.8)',   text: '#3b0420' },
+    { id: 'biru',   name: 'Biru',       top: '#93c5fd', bot: '#3b82f6', stroke: 'rgba(30,58,138,.85)',  text: '#0b1b3a' },
+    { id: 'putih',  name: 'Putih',      top: '#ffffff', bot: '#e5e7eb', stroke: 'rgba(100,100,100,.6)', text: '#111827' },
+    { id: 'gelap',  name: 'Gelap',      top: '#475569', bot: '#0f172a', stroke: 'rgba(255,255,255,.55)', text: '#ffffff' }
+  ];
+  var KEYS = { tim: 'jdp-team-color', tgl: 'jdp-date-color', per: 'jdp-period-color', done: 'jdp-done-color', lain: 'jdp-other-color' };
+  var ALPHA_KEYS = { done: 'jdp-done-alpha', lain: 'jdp-other-alpha' };   /* kepekatan strip: DONE dan Bulan lain diatur terpisah */
+  var DONEC = [
+    { id: 'biru',   name: 'Biru',   c: '#3b6fe0' },
+    { id: 'merah',  name: 'Merah',  c: '#ef4444' },
+    { id: 'hijau',  name: 'Hijau',  c: '#22c55e' },
+    { id: 'kuning', name: 'Kuning', c: '#facc15' },
+    { id: 'pink',   name: 'Pink',   c: '#f472b6' },
+    { id: 'abu',    name: 'Abu',    c: '#94a3b8' },
+    { id: 'hitam',  name: 'Hitam',  c: '#0f172a' },
+    { id: 'putih',  name: 'Putih',  c: '#ffffff' }
+  ];
+  var TEXTC = [
+    { id: 'lime',   name: 'Hijau lime', c: '#b4f23a' },
+    { id: 'putih',  name: 'Putih',      c: '#ffffff' },
+    { id: 'kuning', name: 'Kuning',     c: '#facc15' },
+    { id: 'oranye', name: 'Oranye',     c: '#fb923c' },
+    { id: 'cyan',   name: 'Cyan',       c: '#22d3ee' },
+    { id: 'pink',   name: 'Pink',       c: '#f472b6' },
+    { id: 'hitam',  name: 'Hitam',      c: '#111827' },
+    { id: 'abu',    name: 'Abu gelap',  c: '#3b3b3b' }
+  ];
+  function readSel(t){
+    try {
+      var o = JSON.parse(localStorage.getItem(KEYS[t]) || 'null');
+      if (o && ((o.custom && /^#[0-9a-f]{6}$/i.test(o.custom)) || o.id)) return o;
+    } catch (e) {}
+    return null;   /* null = pakai warna bawaan */
+  }
+  function getSel(t){ if (state.sel[t] === undefined) state.sel[t] = readSel(t); return state.sel[t]; }
+  function saveSel(t, o){ state.sel[t] = o; try { localStorage.setItem(KEYS[t], JSON.stringify(o)); } catch (e) {} }
+  function mixRgb(a, b, t){ return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)]; }
+  function rgbCss(c, al){ return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (al == null ? 1 : al) + ')'; }
+  function hexRgb(h){ return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
+  function palFromHex(hex){
+    var c = hexRgb(hex);
+    var lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    return { top: rgbCss(mixRgb(c, [255, 255, 255], 0.35)), bot: rgbCss(c), stroke: rgbCss(mixRgb(c, [0, 0, 0], 0.5), 0.85), text: lum > 0.55 ? '#111827' : '#ffffff' };
+  }
+  function readAlpha(t){
+    try { var v = parseFloat(localStorage.getItem(ALPHA_KEYS[t])); if (v >= 0.05 && v <= 0.9) return v; } catch (e) {}
+    return 0.22;
+  }
+  function getAlpha(t){ if (state.alpha[t] == null) state.alpha[t] = readAlpha(t); return state.alpha[t]; }
+  /* Gaya strip DONE: warna + kepekatan (bawaan biru, 22%).
+     Warna tulisan DONE otomatis kontras dengan strip: pada kepekatan rendah memakai warna strip itu sendiri,
+     pada kepekatan tinggi memakai putih (strip gelap) atau versi gelap (strip terang) agar selalu terbaca. */
+  function getStripStyle(t){
+    var sel = getSel(t), c = t === 'lain' ? [148, 163, 184] : [59, 111, 224], text = t === 'lain' ? '#64748b' : '#2f5fd0', hex = null, i;
+    if (sel && sel.custom) hex = sel.custom;
+    else if (sel) for (i = 0; i < DONEC.length; i++) if (DONEC[i].id === sel.id) hex = DONEC[i].c;
+    if (hex) { c = hexRgb(hex); text = hex; }
+    else if (t === 'lain') { hex = '#94a3b8'; }
+    var lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    var a = getAlpha(t === 'lain' ? 'lain' : 'done');
+    if (hex && lum > 0.75) text = rgbCss(mixRgb(c, [0, 0, 0], 0.55));
+    if (a >= 0.3) text = lum > 0.5 ? rgbCss(mixRgb(c, [0, 0, 0], 0.72)) : '#ffffff';
+    return { fill: rgbCss(c, a), stroke: rgbCss(c, Math.min(1, a + 0.33)), text: text };
+  }
+  function getDoneStyle(){ return getStripStyle('done'); }
+  function getPalette(){
+    var sel = getSel('tim');
+    if (sel && sel.custom) return palFromHex(sel.custom);
+    if (sel) for (var i = 0; i < PALETTES.length; i++) if (PALETTES[i].id === sel.id) return PALETTES[i];
+    return PALETTES[0];
+  }
+  /* Warna teks tanggal ('tgl') dan periode ('per'); bawaan: tanggal lime, periode abu gelap (putih bila latar bawaan) */
+  function getTextColor(t, hasBg){
+    var sel = getSel(t);
+    if (sel && sel.custom) return sel.custom;
+    if (sel) for (var i = 0; i < TEXTC.length; i++) if (TEXTC[i].id === sel.id) return TEXTC[i].c;
+    if (t === 'tgl') return LIME;
+    return hasBg ? '#3b3b3b' : '#ffffff';
+  }
+
+  function drawPill(ctx, x, y, w, h, text, isOff, pal){
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1;
     var g = ctx.createLinearGradient(0, y, 0, y + h);
     if (isOff) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e5e7eb'); }
-    else { g.addColorStop(0, '#c9f850'); g.addColorStop(1, '#9fe32c'); }
+    else { g.addColorStop(0, pal.top); g.addColorStop(1, pal.bot); }
     ctx.fillStyle = g; rr(ctx, x, y, w, h, 8); ctx.fill();
     ctx.shadowColor = 'transparent';
-    ctx.lineWidth = 0.8; ctx.strokeStyle = isOff ? 'rgba(100,100,100,.6)' : 'rgba(70,120,10,.75)'; ctx.stroke();
-    ctx.fillStyle = isOff ? '#7f1d1d' : '#10210a';
+    ctx.lineWidth = 0.8; ctx.strokeStyle = isOff ? 'rgba(100,100,100,.6)' : pal.stroke; ctx.stroke();
+    ctx.fillStyle = isOff ? '#7f1d1d' : pal.text;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     var f = fitText(ctx, text.toUpperCase(), w - 8, h - 5);
     ctx.font = '800 ' + f.size + 'px ' + MON;
@@ -35655,6 +35916,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
 
   /* ---------- Gambar poster: hanya periode + nama tim ---------- */
   function draw(data, bgImg){
+    var pal = getPalette();
     var c = document.createElement('canvas');
     c.width = W; c.height = H;
     var ctx = c.getContext('2d');
@@ -35667,7 +35929,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
 
     /* PERIODE (teks saja, kotaknya dibuat di desain latar) */
     ctx.save();
-    ctx.fillStyle = bgImg ? '#3b3b3b' : '#ffffff'; ctx.textAlign = 'center';
+    ctx.fillStyle = getTextColor('per', !!bgImg); ctx.textAlign = 'center';
     var ps = 27;
     ctx.font = 'italic 800 ' + ps + 'px ' + CON;
     if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
@@ -35675,37 +35937,70 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     ctx.fillText(data.label, PILL.x + PILL.w / 2 + 1.5, PILL.y + PILL.h / 2 + 2);
     ctx.restore();
 
+    /* TANGGAL di bawah nama hari (hanya hari dalam periode) */
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '800 10.5px ' + MON;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0.4px';
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 1;
+    var dateCol = getTextColor('tgl', !!bgImg), dateColDim = rgbCss(hexRgb(dateCol), 0.6);
+    data.dates.forEach(function(dt, ci){
+      ctx.fillStyle = !dt.active ? 'rgba(255,255,255,.45)' : (dt.done ? dateColDim : dateCol);
+      ctx.fillText(dt.date.getDate() + ' ' + MON3[dt.date.getMonth()], colX(ci) + G.colW / 2, DATE_Y);
+    });
+    ctx.restore();
+
     /* NAMA TIM */
     data.rows.forEach(function(row, ri){
       if (row.jam === '18:00') return;   /* baris OFF 18.00 dibuat di desain latar */
       row.cells.forEach(function(cell, ci){
         var x = colX(ci) + 4.5, y = rowY(ri) + 3, w = G.colW - 9, h = G.rowH - 6;
-        if (cell.t === 'team') drawPill(ctx, x, y, w, h, cell.n, false);
-        else if (cell.t === 'off') drawPill(ctx, x, y, w, h, 'OFF', true);
+        if (cell.t === 'team') drawPill(ctx, x, y, w, h, cell.n, false, pal);
+        else if (cell.t === 'off') drawPill(ctx, x, y, w, h, 'OFF', true, pal);
       });
     });
 
-    /* STRIP DONE: satu pita vertikal utuh per kolom hari yang sudah lewat */
+    /* STRIP DONE: satu pita vertikal utuh per kolom hari yang sudah lewat.
+       Strip tepat di tengah kolom; tulisan DONE diletakkan simetris: pas di tengah lebar strip
+       (memakai tinggi huruf asli) dan berjarak rata sepanjang strip, tanpa huruf terpotong. */
     var top0 = rowY(0), hAll = JAMS.length * G.rowH;
-    data.dates.forEach(function(dt, ci){
-      if (!dt.done) return;
-      var sx = colX(ci) + G.colW * 0.3, sw = G.colW * 0.4;
+    var dn = getDoneStyle(), ln = getStripStyle('lain');
+    function drawStrip(ci, word, st){
+      var sw = G.colW * 0.4, cx = colX(ci) + G.colW / 2 + DONE_DX, sx = cx - sw / 2;
       ctx.save();
       rr(ctx, sx, top0, sw, hAll, 6);
-      ctx.fillStyle = 'rgba(59,111,224,.22)'; ctx.fill();
-      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(59,111,224,.55)'; ctx.stroke();
+      ctx.fillStyle = st.fill; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = st.stroke; ctx.stroke();
       ctx.clip();
-      ctx.fillStyle = '#2f5fd0';
+      ctx.fillStyle = st.text;
       ctx.font = '800 9px ' + MON;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
-      ctx.translate(sx + sw / 2, top0 + hAll / 2);
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.translate(cx, top0 + hAll / 2);
       ctx.rotate(-Math.PI / 2);
-      var unit = '• DONE ', str2 = '';
-      for (var k = 0; k < 40; k++) str2 += unit;
-      ctx.fillText(str2 + '•', 0, 0);
+      var TRK = 1.4, ww = -TRK, k, cw = [];
+      for (k = 0; k < word.length; k++) { var m1 = ctx.measureText(word[k]).width; cw.push(m1); ww += m1 + TRK; }
+      var capH = (ctx.measureText('D').actualBoundingBoxAscent) || 6.3;
+      var n = Math.max(1, Math.floor((hAll - 16) / (ww + 30))), pitch = hAll / n;
+      for (var i = 0; i < n; i++) {
+        var mid = -hAll / 2 + pitch * (i + 0.5), x = mid - ww / 2;
+        for (k = 0; k < word.length; k++) { ctx.fillText(word[k], x, capH / 2); x += cw[k] + TRK; }
+        if (i < n - 1) { ctx.beginPath(); ctx.arc(-hAll / 2 + pitch * (i + 1), 0, 1.5, 0, Math.PI * 2); ctx.fill(); }
+      }
       ctx.restore();
-    });
+    }
+    /* hari dalam periode yang sudah lewat = DONE */
+    data.dates.forEach(function(dt, ci){ if (dt.done) drawStrip(ci, 'DONE', dn); });
+
+    /* kolom di luar periode (bulan sebelumnya / selanjutnya) = strip sama seperti DONE, warna sendiri */
+    var firstAct = -1, lastAct = -1;
+    data.dates.forEach(function(dt, i2){ if (dt.active) { if (firstAct < 0) firstAct = i2; lastAct = i2; } });
+    if (firstAct >= 0) {
+      data.dates.forEach(function(dt, ci){
+        if (dt.active) return;
+        drawStrip(ci, ci < firstAct ? 'BULAN SEBELUMNYA' : 'BULAN SELANJUTNYA', ln);
+      });
+    }
 
     ctx.restore();
     return c;
@@ -35731,6 +36026,51 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   }
 
   /* ---------- Modal pratinjau ---------- */
+  function swatchesHtml(t){
+    var list = t === 'tim'
+      ? PALETTES.map(function(p){ return { id: p.id, name: p.name, bg: 'linear-gradient(180deg,' + p.top + ',' + p.bot + ')' }; })
+      : ((t === 'done' || t === 'lain') ? DONEC : TEXTC).map(function(p){ return { id: p.id, name: p.name, bg: p.c }; });
+    return list.map(function(p){
+      return '<button type="button" class="jdp-sw" data-pal="' + p.id + '" title="' + p.name + '" aria-label="Warna ' + p.name + '" style="background:' + p.bg + '"></button>';
+    }).join('') + '<label class="jdp-sw jdp-sw-custom" title="Warna lain" aria-label="Pilih warna lain"><input type="color" id="jdp-color-custom" value="#b4f23a"></label>';
+  }
+  function markSwatches(){
+    var m = $('jdp-modal'); if (!m) return;
+    var t = state.target, sel = getSel(t), hasBg = !!(state.bg && state.bg.img);
+    var cur = sel ? (sel.custom ? null : sel.id) : (t === 'per' ? (hasBg ? 'abu' : null) : (t === 'lain' ? 'abu' : (t === 'done' ? 'biru' : 'lime')));
+    Array.prototype.forEach.call(m.querySelectorAll('.jdp-sw[data-pal]'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-pal') === cur);
+    });
+    var cl = m.querySelector('.jdp-sw-custom'), ci = m.querySelector('#jdp-color-custom');
+    if (cl) cl.classList.toggle('on', !!(sel && sel.custom));
+    if (ci && sel && sel.custom) ci.value = sel.custom;
+    Array.prototype.forEach.call(m.querySelectorAll('.jdp-seg-b'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-target') === t);
+    });
+    var op = $('jdp-opa');
+    if (op) {
+      op.style.display = (t === 'done' || t === 'lain') ? 'flex' : 'none';
+      var sl = $('jdp-done-alpha'), lb = $('jdp-done-alpha-v'), pc = Math.round(getAlpha(t === 'lain' ? 'lain' : 'done') * 100);
+      if (sl) sl.value = pc; if (lb) lb.textContent = pc + '%';
+    }
+  }
+  function setTarget(t){
+    state.target = t;
+    var box = $('jdp-sws'); if (box) box.innerHTML = swatchesHtml(t);
+    markSwatches();
+  }
+  /* Gambar ulang pratinjau (data & latar yang sama, tanpa unduh ulang) */
+  function redraw(){
+    var m = $('jdp-modal');
+    if (state.data && state.bg && m && m.classList.contains('open')) renderPreview(state.data, state.bg, state.token);
+  }
+  function setPal(sel){ saveSel(state.target, sel); markSwatches(); redraw(); }
+  function setAlpha(pc){
+    var at = state.target === 'lain' ? 'lain' : 'done';
+    state.alpha[at] = Math.max(5, Math.min(90, pc)) / 100;
+    try { localStorage.setItem(ALPHA_KEYS[at], String(state.alpha[at])); } catch (e) {}
+    redraw();
+  }
   function ensureModal(){
     var m = $('jdp-modal');
     if (m) return m;
@@ -35741,13 +36081,38 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
       '<div class="jdp-box">' +
         '<div class="jdp-head"><strong>Poster Jadwal</strong><button type="button" class="jdp-x" onclick="jdpClose()" aria-label="Tutup">✕</button></div>' +
         '<div class="jdp-stage" id="jdp-stage"><div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div></div>' +
+        '<div class="jdp-colors">' +
+          '<div class="jdp-seg"><button type="button" class="jdp-seg-b on" data-target="tim">Nama tim</button><button type="button" class="jdp-seg-b" data-target="tgl">Tanggal</button><button type="button" class="jdp-seg-b" data-target="per">Periode</button><button type="button" class="jdp-seg-b" data-target="done">Done</button><button type="button" class="jdp-seg-b" data-target="lain">Bulan lain</button></div>' +
+          '<div class="jdp-sws" id="jdp-sws">' + swatchesHtml(state.target) + '</div>' +
+          '<div class="jdp-opa" id="jdp-opa"><span>Kepekatan strip</span><input type="range" id="jdp-done-alpha" min="5" max="90" step="1" value="22" aria-label="Kepekatan strip Done"><b id="jdp-done-alpha-v">22%</b></div>' +
+        '</div>' +
         '<div class="jdp-note" id="jdp-note"></div>' +
         '<div class="jdp-actions">' +
           '<button type="button" class="jdp-btn jdp-primary" id="jdp-dl" onclick="jdpDownload()" disabled>⬇️ Download PNG</button>' +
           '<button type="button" class="jdp-btn jdp-secondary" id="jdp-share" onclick="jdpShare()" disabled style="display:none">📤 Bagikan</button>' +
         '</div>' +
       '</div>';
-    m.addEventListener('click', function(e){ if (e.target === m) window.jdpClose(); });
+    m.addEventListener('click', function(e){
+      if (e.target === m) { window.jdpClose(); return; }
+      var sg = e.target.closest && e.target.closest('.jdp-seg-b');
+      if (sg) { setTarget(sg.getAttribute('data-target')); return; }
+      var b = e.target.closest && e.target.closest('.jdp-sw[data-pal]');
+      if (b) setPal({ id: b.getAttribute('data-pal') });
+    });
+    var ct = null;
+    m.addEventListener('input', function(e){
+      var ci = e.target;
+      if (!ci) return;
+      if (ci.id === 'jdp-done-alpha') {
+        var lb = $('jdp-done-alpha-v'); if (lb) lb.textContent = ci.value + '%';
+        clearTimeout(ct);
+        ct = setTimeout(function(){ setAlpha(parseInt(ci.value, 10)); }, 100);
+        return;
+      }
+      if (ci.id !== 'jdp-color-custom') return;
+      clearTimeout(ct);
+      ct = setTimeout(function(){ setPal({ custom: ci.value }); }, 120);
+    });
     document.body.appendChild(m);
     return m;
   }
@@ -35760,7 +36125,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     state.token++;
     var m = $('jdp-modal'); if (m) m.classList.remove('open');
     document.documentElement.classList.remove('jdp-lock');
-    state.canvas = null; state.blob = null;
+    state.canvas = null; state.blob = null; state.data = null; state.bg = null;
     var st = $('jdp-stage'); if (st) st.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
   };
 
@@ -35769,6 +36134,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   function renderPreview(data, bg, token){
     var stage = $('jdp-stage'), dl = $('jdp-dl'), sh = $('jdp-share');
     if (!stage || !dl || !sh) return;
+    state.data = data; state.bg = bg;
     var canvas = draw(data, bg.img);
     state.canvas = canvas; state.blob = null; state.name = data.fileName;
     canvas.className = 'jdp-img';
@@ -35778,7 +36144,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     dl.disabled = true; dl.textContent = '⏳ Menyiapkan file…';
     sh.disabled = true; sh.style.display = 'none';
     setNote(bg.note || (data.label + ' • ' + W + '×' + H + ' px'), !!bg.note);
-    if (bg.late) { dl.textContent = '⏳ Menunggu latar terbaru…'; return; }
+    if (bg.late && !bg.img) { dl.textContent = '⏳ Menunggu latar…'; return; }   /* tanpa salinan latar: tunggu unduhan */
     setTimeout(function(){
       canvas.toBlob(function(blob){
         if (token !== state.token || state.canvas !== canvas) return;
@@ -35798,6 +36164,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
     state.busy = true;
     var token = ++state.token;
     var m = ensureModal();
+    markSwatches();
     m.classList.add('open');
     document.documentElement.classList.add('jdp-lock');
     var dl = $('jdp-dl'), sh = $('jdp-share');
@@ -35815,6 +36182,10 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
       if (bg.late) bg.late.then(function(nb){
         if (token !== state.token) return;
         var mm = $('jdp-modal'); if (!mm || !mm.classList.contains('open')) return;
+        if (bg.img && !nb.changed) {   /* salinan di perangkat sudah yang terbaru: poster tidak diganggu */
+          setNote(nb.note || (data.label + ' • ' + W + '×' + H + ' px'), !!nb.note);
+          return;
+        }
         renderPreview(data, nb, token);
       });
     } catch (e) {
