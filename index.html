@@ -20043,8 +20043,8 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             'daily-recap': __LZ_KAS.concat(['adminJaga','adminJagaNames','adminJagaDefault']),
             'monthly-recap': __LZ_ALL,
             'laporan': __LZ_ALL,
-            'booking-history': ['bookingFull','pelunasanMember'],
-            'booking-schedule': ['bookingFull','memberTanpaJadwal'],
+            'booking-history': ['pelunasanMember'],   // hanya booking hari ini ke depan (sudah ada di data tahap 1), riwayat lama tidak diminta
+            'booking-schedule': ['memberTanpaJadwal'],   // periode hanya bulan ini & bulan depan (sudah ada di data tahap 1)
             'booking': ['memberTanpaJadwal','pendingSparingNames','teamProfiles'],
             'sparring': ['memberTanpaJadwal','pendingSparingNames','teamProfiles','teamLogos'],
             'admin-jaga': ['adminJaga','adminJagaNames','adminJagaDefault'],
@@ -20054,7 +20054,8 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             'team-list': ['teamProfiles','memberTanpaJadwal','bookingFull','teamLogos'],
             'team-tanpa-logo': ['teamProfiles','memberTanpaJadwal','teamLogos']
         };
-        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pengeluaran','pelunasanMember','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','bookingFull','teamLogos'];
+        /* 'bookingFull' (seluruh riwayat booking) sengaja TIDAK diminta otomatis; hanya dimuat saat menu laporan/rekap/gaji/dst dibuka. */
+        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pelunasanMember','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','teamLogos'];
         function __lzStart(key) {
             if (key === 'teamLogos') { try { startAdminTeamLogosListener(); } catch (_) {} return; }
             if (__LZ[key]) __LZ[key].start();
@@ -20122,25 +20123,28 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             }).observe(main, { attributes: true, attributeFilter: ['class'], subtree: true });
         })();
 
-        /* Antrean latar belakang: dimulai setelah data Jadwal Hari Ini siap, satu per satu. */
+        /* Antrean latar belakang: dimulai begitu data Jadwal Hari Ini (menu yang pertama dibuka) siap.
+           Semua data lain langsung DIMINTA berurutan (minuman → jadwal → lainnya) dengan jeda singkat,
+           tanpa menunggu tiap data selesai diunduh dan tanpa menunggu admin membuka menu lain.
+           Bila admin berpindah menu, data menu itu didahulukan. */
         (function startBackgroundQueue() {
             let started = false;
+            const GAP = 150;           // jeda antar permintaan (ms) → urutan tetap terjaga, tidak menumpuk sekaligus
+            const issued = new Set();  // cegah pengulangan tak berujung bila penanda 'started' sebuah data tidak pernah menyala
             const timer = setInterval(() => {
                 const ready = (globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded) || globalCache.__initialLoadingTimedOut;
                 if (!ready || started) return;
                 started = true; clearInterval(timer);
-                let i = 0;
                 const next = () => {
-                    while (i < __LZ_BG_ORDER.length && __lzStarted(__LZ_BG_ORDER[i])) i++;
-                    if (i >= __LZ_BG_ORDER.length) return;
-                    if (window.__saveHoldCount > 0) { setTimeout(next, 1000); return; }
-                    const key = __LZ_BG_ORDER[i++];
+                    if (window.__saveHoldCount > 0) { setTimeout(next, 500); return; }
+                    const queue = __lzNeeds(__lzCurrent).concat(__LZ_BG_ORDER);   // menu yang sedang dibuka didahulukan
+                    const key = queue.find(k => !issued.has(k) && !__lzStarted(k));
+                    if (!key) { window.__bgQueueDone = true; return; }
+                    issued.add(key);
                     __lzStart(key);
-                    const t0 = Date.now();
-                    const wait = () => (__lzLoaded(key) || Date.now() - t0 > 10000) ? setTimeout(next, 400) : setTimeout(wait, 200);
-                    wait();
+                    setTimeout(next, GAP);
                 };
-                next();   // Jadwal Hari Ini sudah tampil → langsung minta data Minuman (lalu menu lain bertahap)
+                next();
             }, 100);
         })();
 
@@ -35293,7 +35297,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   function colX(j){ return G.x0 + j * G.colW; }
   function rowY(i){ return G.y0 + i * G.rowH; }
 
-  var state = { canvas: null, blob: null, name: 'jadwal.png', busy: false };
+  var state = { canvas: null, blob: null, name: 'jadwal.png', busy: false, token: 0 };
 
   function $(id){ return document.getElementById(id); }
   function fb(){
@@ -35307,7 +35311,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   function loadFonts(){
     if (fontsPromise) return fontsPromise;
     fontsPromise = new Promise(function(resolve){
-      var timer = setTimeout(resolve, 2500);
+      var timer = setTimeout(resolve, 1500);
       function after(){
         var jobs = [
           document.fonts.load('italic 800 30px "Barlow Condensed"'),
@@ -35362,58 +35366,123 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   function idbSet(k, v){
     return idbOpen().then(function(db){ db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); }).catch(function(){});
   }
-  async function loadBackground(){
-    var F = fb();
-    if (!F.db || !F.get || !F.ref) return { img: null, note: 'Firebase belum siap, memakai latar bawaan.' };
-    /* Pembacaan murni: tidak memicu kartu "Menyimpan data" */
-    var rd = window.__APP_FIREBASE_GET_RAW__ || F.get;
-    try {
-      /* 1) Cek versi latar (kecil). */
-      var stampSnap = await rd(F.ref(F.db, PATH + '/jadwalUpdatedAt'));
-      var stamp = (stampSnap && stampSnap.val && stampSnap.val()) || 0;
-
-      /* 2) Cache memori */
-      if (stamp && bgMem && bgMem.stamp === stamp && bgMem.img) return { img: bgMem.img, note: '' };
-
-      /* 3) Cache IndexedDB */
-      if (stamp) {
-        var rec = await idbGet('jadwal');
-        if (rec && rec.stamp === stamp && typeof rec.src === 'string') {
-          try {
-            var imC = await loadImage(rec.src);
-            bgMem = { stamp: stamp, src: rec.src, img: imC };
-            return { img: imC, note: '' };
-          } catch (e) { /* cache rusak, unduh ulang */ }
-        }
-      }
-
-      /* 4) Unduh HANYA anak 'jadwal' (bukan seluruh node posterBackground
-            yang juga memuat gambar sparing & lawan). */
-      var snap = await rd(F.ref(F.db, PATH + '/jadwal'));
-      var src = snap && snap.val && snap.val();
-      if (typeof src === 'string' && /^data:image\//i.test(src)) {
-        var im = await loadImage(src);
-        if (stamp) { bgMem = { stamp: stamp, src: src, img: im }; idbSet('jadwal', { stamp: stamp, src: src }); }
-        return { img: im, note: '' };
-      }
-      return { img: null, note: 'Latar belum diupload, memakai latar bawaan.' };
-    } catch (e) {
-      console.warn('Gagal memuat latar jadwal:', e);
-      return { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
-    }
+  function idbDel(k){
+    return idbOpen().then(function(db){ db.transaction('kv', 'readwrite').objectStore('kv').delete(k); }).catch(function(){});
   }
-  /* Pemanasan di latar belakang: saat tombol Download Jadwal ditekan, latar sudah siap. */
-  window.jdpPrefetch = function(){ try { loadBackground(); loadFonts(); } catch (e) {} };
-  (function(){
-    var tries = 0;
-    function go(){
-      if (window.__APP_FIREBASE_DB__ && window.__APP_FIREBASE_GET__) { window.jdpPrefetch(); return; }
-      if (++tries < 20) setTimeout(go, 1500);
+  function withTimeout(p, ms){
+    return new Promise(function(res, rej){
+      var t = setTimeout(function(){ rej(new Error('timeout')); }, ms);
+      p.then(function(v){ clearTimeout(t); res(v); }, function(e){ clearTimeout(t); rej(e); });
+    });
+  }
+  var NOSTAMP_TTL = 10 * 60 * 1000;   /* latar lama tanpa jadwalUpdatedAt: cache dipercaya 10 menit */
+
+  /* Jalur jaringan: cek versi (kecil) -> unduh gambar hanya bila berubah.
+     Batas waktu dibuat longgar (koneksi bisa sedang ramai memuat data lain). Bila belum ada salinan,
+     permintaan gambar dikirim BERSAMAAN dengan cek versi (hemat satu kali bolak-balik). */
+  async function fetchBackground(){
+    var F = fb();
+    var rd = window.__APP_FIREBASE_GET_RAW__ || F.get;
+    var haveCache = !!(bgMem && bgMem.img);
+    var pStamp = withTimeout(rd(F.ref(F.db, PATH + '/jadwalUpdatedAt')), 45000);
+    var pImg = haveCache ? null : withTimeout(rd(F.ref(F.db, PATH + '/jadwal')), 90000);
+    if (pImg) pImg.catch(function(){});
+    var stampSnap;
+    try { stampSnap = await pStamp; }
+    catch (e) { if (!pImg) throw e; stampSnap = null; }   /* tanpa salinan: cukup andalkan unduhan gambar */
+    var stamp = (stampSnap && stampSnap.val && stampSnap.val()) || 0;
+    if (haveCache && bgMem.stamp === stamp && (stamp || Date.now() - bgMem.t < NOSTAMP_TTL)) {
+      bgMem.v = Date.now();
+      return { changed: false };
     }
-    setTimeout(function(){
-      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 5000 }); else go();
-    }, 8000);
+    var snap = await (pImg || withTimeout(rd(F.ref(F.db, PATH + '/jadwal')), 90000));
+    var src = snap && snap.val && snap.val();
+    if (typeof src === 'string' && /^data:image\//i.test(src)) {
+      var im = await loadImage(src);
+      bgMem = { stamp: stamp, src: src, img: im, t: Date.now(), v: Date.now() };
+      idbSet('jadwal', { stamp: stamp, src: src, t: Date.now() });
+      return { changed: true, img: im, note: '' };
+    }
+    /* latar sudah dihapus admin */
+    bgMem = null; idbDel('jadwal');
+    return { changed: true, img: null, note: 'Latar belum diupload, memakai latar bawaan.' };
+  }
+  var netP = null;   /* satu permintaan jaringan pada satu waktu (prefetch + klik tidak dobel unduh) */
+  function fetchBackgroundOnce(){
+    if (!netP) netP = fetchBackground().then(function(r){ netP = null; return r; }, function(e){ netP = null; throw e; });
+    return netP;
+  }
+  function firebaseReady(){ var F = fb(); return !!(F.db && F.get && F.ref); }
+
+  /* Selalu memakai latar TERBARU: versi (jadwalUpdatedAt) dicek ke server setiap kali; gambar hanya
+     diunduh bila berubah. Bila server lambat, poster tampil dulu (salinan tersimpan / sementara polos),
+     unduhan TETAP berjalan, lalu poster digambar ulang otomatis begitu latar terbaru sampai
+     (hasilnya di properti `late`). */
+  async function loadBackground(){
+    if (!bgMem) {
+      var rec = await idbGet('jadwal');
+      if (rec && typeof rec.src === 'string') {
+        try {
+          var imC = await loadImage(rec.src);
+          if (!bgMem) bgMem = { stamp: rec.stamp || 0, src: rec.src, img: imC, t: rec.t || 0, v: 0 };
+        } catch (e) { /* cache rusak, unduh ulang */ }
+      }
+    }
+    var cachedImg = (bgMem && bgMem.img) || null;
+    if (!firebaseReady()) {
+      return cachedImg ? { img: cachedImg, note: 'Offline, memakai latar tersimpan terakhir.' }
+                       : { img: null, note: 'Firebase belum siap, memakai latar bawaan.' };
+    }
+    var net = fetchBackgroundOnce();
+    var done = net.then(function(r){ return { ok: r }; }, function(e){ return { err: e }; });
+    var soft = new Promise(function(res){ setTimeout(function(){ res({ slow: true }); }, cachedImg ? 3000 : 8000); });
+    var first = await Promise.race([done, soft]);
+    if (first.ok) return { img: first.ok.img || (bgMem && bgMem.img) || null, note: first.ok.note || '' };
+    if (first.err) {
+      console.warn('Gagal memuat latar jadwal:', first.err);
+      return cachedImg ? { img: cachedImg, note: 'Server bermasalah, memakai latar tersimpan terakhir.' }
+                       : { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
+    }
+    /* lambat: tampilkan sementara, lanjutkan unduhan di belakang layar */
+    return {
+      img: cachedImg,
+      note: 'Koneksi lambat, memeriksa latar terbaru…',
+      late: done.then(function(x){
+        if (x.ok) return { img: x.ok.img || (bgMem && bgMem.img) || null, note: x.ok.note || '' };
+        console.warn('Gagal memuat latar jadwal:', x.err);
+        return cachedImg ? { img: cachedImg, note: 'Server bermasalah, memakai latar tersimpan terakhir.' }
+                         : { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
+      })
+    };
+  }
+  /* Pemanasan di latar belakang: saat tombol Download Jadwal ditekan, latar & font sudah siap. */
+  window.jdpPrefetch = function(){ try { loadBackground(); loadFonts(); } catch (e) {} };
+  function warm(){
+    var tries = 0;
+    (function go(){
+      if (window.__APP_FIREBASE_DB__ && window.__APP_FIREBASE_GET__ && (window.__bgQueueDone || tries >= 20)) { window.jdpPrefetch(); return; }
+      if (++tries < 40) setTimeout(go, 1000);
+    })();
+  }
+  /* 1) begitu tombol "Download Jadwal" terlihat di layar (halaman Booking Schedule dibuka) */
+  (function(){
+    var done = false;
+    function hook(){
+      var btn = $('btn-poster-jadwal');
+      if (!btn) { setTimeout(hook, 1500); return; }
+      if (!('IntersectionObserver' in window)) { warm(); return; }
+      var io = new IntersectionObserver(function(es){
+        if (done) return;
+        for (var i = 0; i < es.length; i++) if (es[i].isIntersecting) { done = true; io.disconnect(); warm(); return; }
+      });
+      io.observe(btn);
+    }
+    hook();
   })();
+  /* 2) cadangan: saat browser sedang santai */
+  setTimeout(function(){
+    if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 4000 }); else warm();
+  }, 4000);
 
   /* ---------- Ambil data dari grid Booking Schedule ---------- */
   function collect(){
@@ -35688,20 +35757,51 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   }
 
   window.jdpClose = function(){
+    state.token++;
     var m = $('jdp-modal'); if (m) m.classList.remove('open');
     document.documentElement.classList.remove('jdp-lock');
     state.canvas = null; state.blob = null;
     var st = $('jdp-stage'); if (st) st.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
   };
 
+  /* Tampilkan canvas langsung sebagai pratinjau (tanpa menunggu encode PNG).
+     File PNG-nya dibuat sesudahnya; tombol Download aktif begitu file siap. */
+  function renderPreview(data, bg, token){
+    var stage = $('jdp-stage'), dl = $('jdp-dl'), sh = $('jdp-share');
+    if (!stage || !dl || !sh) return;
+    var canvas = draw(data, bg.img);
+    state.canvas = canvas; state.blob = null; state.name = data.fileName;
+    canvas.className = 'jdp-img';
+    canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Poster jadwal ' + data.label);
+    stage.innerHTML = '';
+    stage.appendChild(canvas);
+    dl.disabled = true; dl.textContent = '⏳ Menyiapkan file…';
+    sh.disabled = true; sh.style.display = 'none';
+    setNote(bg.note || (data.label + ' • ' + W + '×' + H + ' px'), !!bg.note);
+    if (bg.late) { dl.textContent = '⏳ Menunggu latar terbaru…'; return; }
+    setTimeout(function(){
+      canvas.toBlob(function(blob){
+        if (token !== state.token || state.canvas !== canvas) return;
+        dl.textContent = '⬇️ Download PNG';
+        if (!blob) { setNote('Gagal membuat file gambar.', true); return; }
+        state.blob = blob; dl.disabled = false;
+        try {
+          var f = new File([blob], data.fileName, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [f] })) { sh.style.display = ''; sh.disabled = false; }
+        } catch (e) {}
+      }, 'image/png');
+    }, 30);
+  }
+
   window.jdpOpen = async function(){
     if (state.busy) return;
     state.busy = true;
+    var token = ++state.token;
     var m = ensureModal();
     m.classList.add('open');
     document.documentElement.classList.add('jdp-lock');
     var dl = $('jdp-dl'), sh = $('jdp-share');
-    dl.disabled = true; sh.disabled = true; sh.style.display = 'none';
+    dl.disabled = true; dl.textContent = '⬇️ Download PNG'; sh.disabled = true; sh.style.display = 'none';
     var stage = $('jdp-stage');
     stage.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
     setNote('');
@@ -35709,23 +35809,14 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
       var data = collect();
       if (!data) throw new Error('Periode jadwal belum dipilih / tabel belum siap.');
       var results = await Promise.all([loadFonts(), loadBackground()]);
+      if (token !== state.token) return;          /* modal sudah ditutup */
       var bg = results[1];
-      var canvas = draw(data, bg.img);
-      var blob = await new Promise(function(res){ canvas.toBlob(res, 'image/png'); });
-      if (!blob) throw new Error('Gagal membuat gambar.');
-      state.canvas = canvas; state.blob = blob; state.name = data.fileName;
-      var url = URL.createObjectURL(blob);
-      stage.innerHTML = '';
-      var img = new Image(); img.alt = 'Poster jadwal ' + data.label; img.className = 'jdp-img';
-      img.onload = function(){ setTimeout(function(){ URL.revokeObjectURL(url); }, 60000); };
-      img.src = url;
-      stage.appendChild(img);
-      dl.disabled = false;
-      try {
-        var f = new File([blob], data.fileName, { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [f] })) { sh.style.display = ''; sh.disabled = false; }
-      } catch (e) {}
-      setNote(bg.note || (data.label + ' • ' + W + '×' + H + ' px'), !!bg.note);
+      renderPreview(data, bg, token);
+      if (bg.late) bg.late.then(function(nb){
+        if (token !== state.token) return;
+        var mm = $('jdp-modal'); if (!mm || !mm.classList.contains('open')) return;
+        renderPreview(data, nb, token);
+      });
     } catch (e) {
       console.error(e);
       stage.innerHTML = '<div class="jdp-loading err">Gagal membuat poster.</div>';
