@@ -35307,7 +35307,7 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   function loadFonts(){
     if (fontsPromise) return fontsPromise;
     fontsPromise = new Promise(function(resolve){
-      var timer = setTimeout(resolve, 4500);
+      var timer = setTimeout(resolve, 2500);
       function after(){
         var jobs = [
           document.fonts.load('italic 800 30px "Barlow Condensed"'),
@@ -35339,15 +35339,62 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
       im.src = src;
     });
   }
+  /* Cache latar: memori + IndexedDB. Divalidasi lewat jadwalUpdatedAt (kecil, ~13 byte),
+     jadi gambar besar (base64) hanya diunduh sekali, atau saat admin upload latar baru. */
+  var bgMem = null; /* { stamp, src, img } */
+  var IDB_NAME = 'jdp-bg-cache';
+  function idbOpen(){
+    return new Promise(function(res, rej){
+      try {
+        var r = indexedDB.open(IDB_NAME, 1);
+        r.onupgradeneeded = function(){ r.result.createObjectStore('kv'); };
+        r.onsuccess = function(){ res(r.result); };
+        r.onerror = function(){ rej(r.error); };
+      } catch (e) { rej(e); }
+    });
+  }
+  function idbGet(k){
+    return idbOpen().then(function(db){ return new Promise(function(res){
+      var q = db.transaction('kv').objectStore('kv').get(k);
+      q.onsuccess = function(){ res(q.result); }; q.onerror = function(){ res(undefined); };
+    }); }).catch(function(){ return undefined; });
+  }
+  function idbSet(k, v){
+    return idbOpen().then(function(db){ db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); }).catch(function(){});
+  }
   async function loadBackground(){
     var F = fb();
     if (!F.db || !F.get || !F.ref) return { img: null, note: 'Firebase belum siap, memakai latar bawaan.' };
+    /* Pembacaan murni: tidak memicu kartu "Menyimpan data" */
+    var rd = window.__APP_FIREBASE_GET_RAW__ || F.get;
     try {
-      var snap = await F.get(F.ref(F.db, PATH));
-      var d = (snap && snap.val && snap.val()) || {};
-      var src = d.jadwal;
+      /* 1) Cek versi latar (kecil). */
+      var stampSnap = await rd(F.ref(F.db, PATH + '/jadwalUpdatedAt'));
+      var stamp = (stampSnap && stampSnap.val && stampSnap.val()) || 0;
+
+      /* 2) Cache memori */
+      if (stamp && bgMem && bgMem.stamp === stamp && bgMem.img) return { img: bgMem.img, note: '' };
+
+      /* 3) Cache IndexedDB */
+      if (stamp) {
+        var rec = await idbGet('jadwal');
+        if (rec && rec.stamp === stamp && typeof rec.src === 'string') {
+          try {
+            var imC = await loadImage(rec.src);
+            bgMem = { stamp: stamp, src: rec.src, img: imC };
+            return { img: imC, note: '' };
+          } catch (e) { /* cache rusak, unduh ulang */ }
+        }
+      }
+
+      /* 4) Unduh HANYA anak 'jadwal' (bukan seluruh node posterBackground
+            yang juga memuat gambar sparing & lawan). */
+      var snap = await rd(F.ref(F.db, PATH + '/jadwal'));
+      var src = snap && snap.val && snap.val();
       if (typeof src === 'string' && /^data:image\//i.test(src)) {
-        return { img: await loadImage(src), note: '' };
+        var im = await loadImage(src);
+        if (stamp) { bgMem = { stamp: stamp, src: src, img: im }; idbSet('jadwal', { stamp: stamp, src: src }); }
+        return { img: im, note: '' };
       }
       return { img: null, note: 'Latar belum diupload, memakai latar bawaan.' };
     } catch (e) {
@@ -35355,6 +35402,18 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
       return { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
     }
   }
+  /* Pemanasan di latar belakang: saat tombol Download Jadwal ditekan, latar sudah siap. */
+  window.jdpPrefetch = function(){ try { loadBackground(); loadFonts(); } catch (e) {} };
+  (function(){
+    var tries = 0;
+    function go(){
+      if (window.__APP_FIREBASE_DB__ && window.__APP_FIREBASE_GET__) { window.jdpPrefetch(); return; }
+      if (++tries < 20) setTimeout(go, 1500);
+    }
+    setTimeout(function(){
+      if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 5000 }); else go();
+    }, 8000);
+  })();
 
   /* ---------- Ambil data dari grid Booking Schedule ---------- */
   function collect(){
