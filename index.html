@@ -7,6 +7,18 @@
 <title>ADMIN SANDAGA MINISOCCER</title>
 <!-- Penghubung Manifest untuk Android/Chrome -->
 <link href="manifest.json" rel="manifest"/>
+<script>
+/* Hemat memori/baterai: timer berkala (setInterval) tidak menjalankan pekerjaan saat tab/aplikasi
+   sedang di latar belakang. Begitu kembali tampil, timer langsung bekerja lagi. */
+(function(){
+  var _si = window.setInterval;
+  window.setInterval = function(fn, ms){
+    if (typeof fn !== 'function') return _si.apply(window, arguments);
+    var rest = Array.prototype.slice.call(arguments, 2);
+    return _si.call(window, function(){ if (document.hidden) return; return fn.apply(this, arguments); }, ms, ...rest);
+  };
+})();
+</script>
 <!-- Ikon Standar & Apple Touch Icon -->
 <link href="ikon.png" rel="icon" type="image/png"/>
 <link href="ikon.png" rel="apple-touch-icon"/>
@@ -10662,7 +10674,7 @@ body > header {
 <!-- HALAMAN SPARING -->
 <div class="sub-menu-modern p-4 sm:p-6 rounded-2xl hidden font-bold text-slate-900" id="page-sparring">
   <div class="flex justify-between items-center mb-4">
-    <h2 class="text-base sm:text-lg font-black w-full text-center">🤝 CATATAN SPARING</h2>
+    <h2 class="text-base sm:text-lg font-black w-full text-center" id="sparring-page-heading">🤝 CATATAN SPARING</h2>
   </div>
 
   <div class="sparring-summary-grid">
@@ -10677,7 +10689,7 @@ body > header {
   <!-- PANEL UPLOAD LATAR POSTER (muncul saat mode "background") -->
   <div id="poster-bg-panel">
     <div class="pbg-head">
-      <h3>🖼️ Latar Poster Customer</h3>
+      <h3>🖼️ Upload Poster</h3>
       <p>Upload desain baru (PNG atau JPG). Rasio & tata letak kotak harus sama seperti desain lama (9:16). Setelah disimpan, poster di web customer langsung memakai gambar baru.</p>
     </div>
     <div class="pbg-grid">
@@ -10714,6 +10726,23 @@ body > header {
           <button type="button" class="pbg-reset" onclick="pbgReset('lawan')">RESET KE BAWAAN</button>
         </div>
         <div class="pbg-status" id="pbg-status-lawan"></div>
+      </div>
+      <div class="pbg-card" data-kind="jadwal">
+        <div class="pbg-title">📅 Latar Download Jadwal</div>
+        <div class="pbg-preview"><img alt="Preview latar download jadwal" id="pbg-img-jadwal"><span class="pbg-empty" id="pbg-empty-jadwal">Memakai latar polos bawaan</span></div>
+        <div class="pbg-file" data-kind="jadwal">
+          <input type="file" id="pbg-file-jadwal" class="pbg-file-input" accept="image/png,image/jpeg,.png,.jpg,.jpeg" onchange="pbgPick('jadwal',this)">
+          <label for="pbg-file-jadwal" class="pbg-file-btn">
+            <span class="pbg-file-ico">🖼️</span>
+            <span class="pbg-file-text"><strong>Pilih Gambar</strong><small id="pbg-fname-jadwal">PNG atau JPG • rasio 9:16 • bisa tarik &amp; lepas</small></span>
+            <span class="pbg-file-arrow">›</span>
+          </label>
+        </div>
+        <div class="pbg-actions">
+          <button type="button" class="pbg-save" id="pbg-save-jadwal" onclick="pbgSave('jadwal')" disabled>SIMPAN</button>
+          <button type="button" class="pbg-reset" onclick="pbgReset('jadwal')">RESET KE BAWAAN</button>
+        </div>
+        <div class="pbg-status" id="pbg-status-jadwal"></div>
       </div>
     </div>
   </div>
@@ -10842,14 +10871,6 @@ body > header {
         </span>
         <span class="sparing-chooser-arrow">›</span>
       </button>
-      <button type="button" class="sparing-chooser-btn" onclick="openPosterBackgroundPanel()">
-        <span class="sparing-chooser-icon">🖼️</span>
-        <span class="sparing-chooser-copy">
-          <strong>Upload Latar Poster</strong>
-          <small>Ganti desain latar poster Cari Lawan Sparing & Match Founded (PNG/JPG).</small>
-        </span>
-        <span class="sparing-chooser-arrow">›</span>
-      </button>
     </div>
   </div>
 </div>
@@ -10878,6 +10899,14 @@ body > header {
 <div class="bs-legend-item is-non"><i class="bs-chip" aria-hidden="true"></i><span class="bs-legend-text"><b>Non-Member</b></span></div>
 </div>
 </div>
+
+<button type="button" id="btn-poster-jadwal" class="bs-poster-btn" onclick="jdpOpen()">
+<span class="bs-poster-ico" aria-hidden="true">
+<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M12 8v6.5M9 12l3 3 3-3"/><path d="M7.5 18h9"/></svg>
+</span>
+<span class="bs-poster-txt"><b>Download Jadwal</b><small>Tulis periode dan nama tim ke latar custom</small></span>
+<span class="bs-poster-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+</button>
 
 <button type="button" id="btn-cek-bentrok" class="bs-bentrok" onclick="cekBentrokJadwal()">
 <span class="bs-bentrok-ico" aria-hidden="true">
@@ -12955,6 +12984,7 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
       <button type="button" onclick="quickMoreOpen('team-tanpa-logo')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-5 4 4 3-3 4 4"/></svg></span><b>Tim Tanpa Logo</b><small>Tambah logo tim</small></button>
       <button type="button" onclick="quickMoreOpen('setor-tunai')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="18" height="11" rx="2.5"/><circle cx="12" cy="12" r="2.5"/></svg></span><b>Setor Tunai</b><small>Rekap cash per tanggal</small></button>
       <button type="button" onclick="quickMoreOpen('gaji-admin')"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M16 13.5h.01"/></svg></span><b>Gaji Admin</b><small>Gaji shift + bonus tim</small></button>
+      <button type="button" onclick="openPosterBackgroundPanel()"><span class="more-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="9" cy="9.5" r="1.6"/><path d="M4 17l5-5 4 4 3-3 4 4"/></svg></span><b>Upload Poster</b><small>Latar poster customer</small></button>
     </div>
   </div>
 </div>
@@ -13226,7 +13256,7 @@ document.addEventListener('input', function(e){
   var HARD_MS       = 20000;   // batas maksimal kartu loading
 
   var lastAction = 0, lastSaveIntent = 0, lastLabel = '';
-  var pending = 0, open = [], failedMsg = '', batch = 0;
+  var pending = 0, open = [], failedMsg = '', batch = 0, writeCount = 0;
   var card = null, topbar = null, tick = null, graceT = null, doneT = null, closeT = null;
   var pct = 10, startedAt = 0;
 
@@ -13279,7 +13309,12 @@ document.addEventListener('input', function(e){
     card.m.className = 'asp-modal' + (mode ? ' ' + mode : '');
     if(icon) card.ic.textContent = icon;
   }
-  function progressTitle(){ return isDelete() ? 'Menghapus data...' : 'Menyimpan data...'; }
+  /* Kartu hanya berjudul "Menyimpan/Menghapus data" bila memang ada proses TULIS.
+     Bila yang berjalan hanya membaca data (mis. membuka menu), judulnya "Menyiapkan data". */
+  function writing(){ return writeCount > 0; }
+  function progressTitle(){ return (writing() && isDelete()) ? 'Menghapus data...' : 'Menyiapkan data...'; }
+  function progressText(){ return writing() ? 'Mohon tunggu, jangan tutup halaman.' : 'Mohon tunggu, data sedang disiapkan.'; }
+  function progressIcon(){ return writing() ? '💾' : '⏳'; }
 
   function showCard(){
     clearTimeout(closeT);
@@ -13287,7 +13322,7 @@ document.addEventListener('input', function(e){
     if(card){
       // kartu masih tampil (mis. sedang menutup) → kembali ke mode progres
       if(!tick){ tick = setInterval(onTick, 150); }
-      setCard(Math.max(pct, 10), progressTitle(), 'Mohon tunggu, jangan tutup halaman.', '', '💾');
+      setCard(Math.max(pct, 10), progressTitle(), progressText(), '', progressIcon());
       return;
     }
     if(blocked() || !document.body) return;
@@ -13295,9 +13330,9 @@ document.addEventListener('input', function(e){
     o.id = 'asp-overlay';
     o.innerHTML =
       '<div class="asp-modal" role="dialog" aria-modal="true" aria-live="polite">' +
-        '<div class="asp-icon">💾</div>' +
-        '<h3 class="asp-title">Menyimpan data...</h3>' +
-        '<p class="asp-text">Mohon tunggu, jangan tutup halaman.</p>' +
+        '<div class="asp-icon">⏳</div>' +
+        '<h3 class="asp-title">Menyiapkan data...</h3>' +
+        '<p class="asp-text">Mohon tunggu, data sedang disiapkan.</p>' +
         '<div class="asp-track"><div class="asp-bar"></div></div>' +
         '<div class="asp-pct">10%</div>' +
       '</div>';
@@ -13313,7 +13348,7 @@ document.addEventListener('input', function(e){
     };
     pct = 10;
     startedAt = Date.now();
-    setCard(pct, progressTitle(), 'Mohon tunggu, jangan tutup halaman.', '', '💾');
+    setCard(pct, progressTitle(), progressText(), '', progressIcon());
     tick = setInterval(onTick, 150);
   }
 
@@ -13323,7 +13358,7 @@ document.addEventListener('input', function(e){
     if(card){ card.o.remove(); card = null; }
   }
 
-  function reset(){ batch++; pending = 0; open = []; failedMsg = ''; }
+  function reset(){ batch++; pending = 0; open = []; failedMsg = ''; writeCount = 0; }
 
   function handoff(){
     // Server belum konfirmasi: serahkan ke chip "Mengirim data ke server" yang sudah ada.
@@ -13348,7 +13383,7 @@ document.addEventListener('input', function(e){
     if(el > SLOW_MS){
       setCard(pct, progressTitle(), 'Koneksi agak lambat, data tetap dikirim. Jangan tutup halaman.', 'is-warn', '⏳');
     } else {
-      setCard(pct, progressTitle(), 'Mohon tunggu, jangan tutup halaman.', '', '💾');
+      setCard(pct, progressTitle(), progressText(), '', progressIcon());
     }
   }
 
@@ -13391,6 +13426,7 @@ document.addEventListener('input', function(e){
       }
       var pp = Promise.resolve(p);
       var id = batch;
+      if(kind !== 'r') writeCount++;
       pending++; open.push(pp);
       clearTimeout(doneT);
       showCard();
@@ -13401,6 +13437,7 @@ document.addEventListener('input', function(e){
   /* ---------- Pemicu dari aksi admin ---------- */
   var SAVE_RE = /simpan|save|lunas|bayar|catat|hapus|delete|konfirmasi|perbarui/i;
   var SKIP_RE = /^\s*(batal|tutup|close|cancel|kembali)/i;
+  var NAV_RE = /^\s*(quickMoreOpen|showPage|openSparingChooser|openSparingSection|openAturMemberChooser|openPosterBackgroundPanel|toggleQuickMore)\b/;
 
   function armGrace(){
     lastSaveIntent = Date.now();
@@ -13417,7 +13454,9 @@ document.addEventListener('input', function(e){
     if(!b || b.disabled) return;
     var visible = (b.textContent || b.value || '').trim();
     if(SKIP_RE.test(visible)) return;
-    var txt = visible + ' ' + (b.getAttribute('onclick') || '') + ' ' + (b.id || '');
+    var oc = b.getAttribute('onclick') || '';
+    if(NAV_RE.test(oc)) return;   // tombol pindah menu (Menu Lainnya, popup pilihan) bukan aksi simpan
+    var txt = visible + ' ' + oc + ' ' + (b.id || '');
     if(SAVE_RE.test(txt)){   // submit form asli ditangani oleh event 'submit' di bawah
       lastLabel = txt;
       armGrace();
@@ -13462,6 +13501,114 @@ document.addEventListener('input', function(e){
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        /* =========================================================
+           PEMUATAN DATA BERTAHAP
+           - Saat aplikasi dibuka hanya data utama Jadwal Hari Ini yang diminta
+             (member, booking bulan berjalan, pemasukan, sparing, dst).
+           - Saat sebuah menu dibuka, hanya data milik menu itu yang langsung
+             diminta (kalau belum ada) dan menu menampilkan "Menyiapkan data...".
+           - Setelah itu data lain diminta satu per satu di latar belakang.
+           ========================================================= */
+        const __LZ = {};
+
+        /* ---------- Salinan data terakhir di perangkat (IndexedDB) ----------
+           Bila halaman dibuka ulang (mis. tab dibuang HP), data terakhir langsung
+           ditampilkan dari salinan ini, lalu data terbaru dari Firebase menyusul
+           dan menimpanya. Salinan lebih dari 3 hari diabaikan. Logo tim tidak disalin. */
+        const __IDB = (function () {
+            let dbp = null;
+            function open() {
+                if (dbp) return dbp;
+                dbp = new Promise((res, rej) => {
+                    try {
+                        const r = indexedDB.open('sandaga-data-cache', 1);
+                        r.onupgradeneeded = () => r.result.createObjectStore('kv');
+                        r.onsuccess = () => res(r.result);
+                        r.onerror = () => rej(r.error);
+                    } catch (e) { rej(e); }
+                });
+                return dbp;
+            }
+            return {
+                get(k) { return open().then(db => new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); })).catch(() => undefined); },
+                set(k, v) { return open().then(db => { db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); }).catch(() => {}); }
+            };
+        })();
+        const __CACHE_MAX_AGE = 3 * 24 * 3600 * 1000;
+        const __cacheTimers = {};
+        function __cachePut(name, val) {
+            clearTimeout(__cacheTimers[name]);
+            __cacheTimers[name] = setTimeout(() => { __IDB.set('v1:' + name, { t: Date.now(), v: val === undefined ? null : val }); }, 1500);
+        }
+        function __fakeSnap(v) {
+            return {
+                key: null,
+                val: () => v,
+                exists: () => v !== null && v !== undefined,
+                forEach(fn) {
+                    if (v && typeof v === 'object') {
+                        for (const k of Object.keys(v)) { if (fn({ key: k, val: () => v[k], exists: () => true }) === true) return true; }
+                    }
+                    return false;
+                }
+            };
+        }
+        /* Penanda "riwayat booking asli dari server sudah datang" (dipakai agar sinkron Sparing→Booking
+           tidak berjalan memakai salinan lama). */
+        window.__bookingRealDone = false;
+        window.__bookingRealP = new Promise(r => { window.__bookingRealResolve = r; });
+        const __replayPending = new Set();
+        function __refreshChip() {
+            let el = document.getElementById('lz-refresh');
+            if (!__replayPending.size) { if (el) el.classList.remove('is-on'); return; }
+            if (!el) {
+                const st = document.createElement('style');
+                st.textContent = '#lz-refresh{position:fixed;right:12px;top:10px;z-index:99989;display:flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:rgba(15,23,42,.85);color:#fff;font:800 10px/1 system-ui,-apple-system,sans-serif;opacity:0;pointer-events:none;transition:opacity .2s}#lz-refresh.is-on{opacity:1}#lz-refresh i{width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;animation:lzspin .7s linear infinite}';
+                document.head.appendChild(st);
+                el = document.createElement('div');
+                el.id = 'lz-refresh'; el.setAttribute('role', 'status');
+                el.innerHTML = '<i></i><span>Memperbarui data...</span>';
+                document.body.appendChild(el);
+                void el.offsetWidth;
+            }
+            el.classList.add('is-on');
+        }
+        function cachedOnValue(name, target, cb, errCb) {
+            let real = false;
+            __IDB.get('v1:' + name).then(rec => {
+                if (real || !rec || !rec.t || Date.now() - rec.t > __CACHE_MAX_AGE) return;
+                if (['member','booking','lunasDarurat','bookingBatal','sparring','pemasukan','memberTanpaJadwal','minuman'].indexOf(name) > -1) { __replayPending.add(name); __refreshChip(); }
+                try { cb(__fakeSnap(rec.v)); } catch (e) { console.warn('Salinan ' + name + ' gagal dipakai:', e); }
+            }).catch(() => {});
+            onValue(target, (snap) => {
+                real = true;
+                __replayPending.delete(name); __refreshChip();
+                let r;
+                try { r = cb(snap); }
+                finally {
+                    try { __cachePut(name, snap.val()); } catch (_) {}
+                    if (name === 'booking') { window.__bookingRealDone = true; try { window.__bookingRealResolve(); } catch (_) {} }
+                }
+                return r;
+            }, errCb);
+        }
+        function lazyOnValue(name, target, cb, errCb) {
+            const e = __LZ[name] = { started: false, loaded: false, start() {
+                if (e.started) return;
+                e.started = true;
+                cachedOnValue(name, target, (snap) => {
+                    try { return cb(snap); } finally { __lzMark(name); }
+                }, (err) => {
+                    try { if (errCb) errCb(err); else console.warn(name + ' tidak bisa dibaca:', err); } catch (_) {}
+                    __lzMark(name);
+                });
+            } };
+        }
+        function __lzMark(name) {
+            const e = __LZ[name];
+            if (e && !e.loaded) { e.loaded = true; try { __lzPrepUpdate(); } catch (_) {} }
+        }
+
 /* Bridge untuk fitur tambahan yang berada di script non-module. */
 window.__APP_FIREBASE_DB__ = db;
 window.__APP_FIREBASE_REF__ = ref;
@@ -13469,6 +13616,7 @@ window.__APP_FIREBASE_PUSH__ = push;
 window.__APP_FIREBASE_REMOVE__ = remove;
 window.__APP_FIREBASE_UPDATE__ = update;
 window.__APP_FIREBASE_GET__ = get;
+window.__APP_FIREBASE_GET_RAW__ = __fbGet; /* pembacaan murni, tidak memicu kartu "Menyimpan data" */
 
 /* =========================================================
    ANTI DOUBLE BOOKING / DOUBLE MEMBER + CEK BENTROK JADWAL
@@ -19171,13 +19319,13 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             updateDropdownTimMasuk();
         }
 
-        onValue(ref(db, 'adminJaga'), (snapshot) => {
+        lazyOnValue('adminJaga', ref(db, 'adminJaga'), (snapshot) => {
             globalCache.adminJaga = snapshot.val() || {};
             scheduleRender(renderJadwalAdmin);
             scheduleRender(renderGajiAdmin);
         });
 
-        onValue(ref(db, 'adminJagaNames'), (snapshot) => {
+        lazyOnValue('adminJagaNames', ref(db, 'adminJagaNames'), (snapshot) => {
             adminNamesFirebase = snapshot.val() || {};
             rebuildAdminNames();
             if(typeof renderDaftarNamaAdmin==='function') renderDaftarNamaAdmin();
@@ -19185,7 +19333,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             scheduleRender(renderGajiAdmin);
         }, (error) => { console.warn('adminJagaNames tidak bisa dibaca:', error); });
 
-        onValue(ref(db, 'adminJagaDefault'), (snapshot) => {
+        lazyOnValue('adminJagaDefault', ref(db, 'adminJagaDefault'), (snapshot) => {
             adminDefaultFirebase = snapshot.val() || {};
             if(typeof renderAdminDefaultHistory==='function') renderAdminDefaultHistory();
             scheduleRender(renderJadwalAdmin);
@@ -19324,16 +19472,17 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         // jalan (mis. hari ini memang tidak ada jadwal sama sekali, atau
         // panel belum ke-render saat load), tetap nyalakan listener lengkap
         // setelah beberapa detik supaya halaman lain tidak kehilangan logo.
-        setTimeout(() => { if(!window.__adminTeamLogosListenerStarted) startAdminTeamLogosListener(); }, 4000);
+        // (Pemicu otomatis 4 detik dihapus: unduhan logo lengkap kini masuk antrean
+        //  latar belakang pemuatan bertahap, paling akhir.)
 
 
         // Profil tim untuk List Tim Main: nama/WA yang sudah diedit admin.
-        onValue(ref(db, 'teamProfiles'), (snapshot) => {
+        lazyOnValue('teamProfiles', ref(db, 'teamProfiles'), (snapshot) => {
             globalCache.teamProfiles = snapshot.val() || {};
             if (typeof window.renderTeamList === 'function') scheduleRender(window.renderTeamList);
         });
 
-        onValue(ref(db, 'member'), (snapshot) => {
+        cachedOnValue('member', ref(db, 'member'), (snapshot) => {
             globalCache.member = {};
             let listTbody = document.getElementById('tabel-list-member');
             if (listTbody) listTbody.innerHTML = "";
@@ -19741,7 +19890,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             scheduleRender(renderGajiAdmin);
             if (typeof window.renderTeamList === 'function') scheduleRender(window.renderTeamList);
         }
-        onValue(ref(db, 'memberTanpaJadwal'), (snapshot) => {
+        lazyOnValue('memberTanpaJadwal', ref(db, 'memberTanpaJadwal'), (snapshot) => {
             _memberTanpaJadwalActiveCache = {};
             if (snapshot.exists()) {
                 snapshot.forEach(child => {
@@ -19796,48 +19945,57 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         }
         const bookingFastQuery = query(ref(db, 'booking'), orderByChild('tgl'), startAt(getBookingFastLoadStartString()));
         let bookingFullHistoryStarted = false;
-        onValue(bookingFastQuery, (snapshot) => {
+        cachedOnValue('booking', bookingFastQuery, (snapshot) => {
             if (bookingFullHistoryStarted) return; // riwayat lengkap sudah mengambil alih, jangan ditimpa subset ini
             applyBookingSnapshot(snapshot);
         });
         function startBookingFullHistoryListener() {
             if (bookingFullHistoryStarted) return;
             bookingFullHistoryStarted = true;
-            onValue(ref(db, 'booking'), applyBookingSnapshot);
+            onValue(ref(db, 'booking'), (snapshot) => { applyBookingSnapshot(snapshot); __lzMark('bookingFull'); });
         }
-        if ('requestIdleCallback' in window) {
-            requestIdleCallback(startBookingFullHistoryListener, { timeout: 2500 });
-        } else {
-            setTimeout(startBookingFullHistoryListener, 1200);
-        }
+        __LZ.bookingFull = { started: false, loaded: false, start() {
+            if (__LZ.bookingFull.started) return;
+            __LZ.bookingFull.started = true;
+            startBookingFullHistoryListener();
+        } };
 
         // Penanda lunas darurat untuk jadwal yang tampil dari Member tetapi
         // belum memiliki record Booking. Tidak membuat transaksi pemasukan.
-        onValue(ref(db, 'lunasDarurat'), (snapshot) => {
+        cachedOnValue('lunasDarurat', ref(db, 'lunasDarurat'), (snapshot) => {
             globalCache.lunasDarurat = snapshot.val() || {};
             scheduleRender(renderTodaySchedule);
         });
 
         // Penanda pembatalan booking. Data tidak dihapus agar Monthly Recap
         // tetap dapat menghitung slot yang benar-benar dibatalkan.
-        onValue(ref(db, 'bookingBatal'), (snapshot) => {
+        cachedOnValue('bookingBatal', ref(db, 'bookingBatal'), (snapshot) => {
             globalCache.bookingBatal = snapshot.val() || {};
             scheduleRender(renderTodaySchedule);
             scheduleRender(renderMonthlyRecap);
             scheduleRender(renderGajiAdmin);
         });
 
-        onValue(ref(db, 'pelunasanMember'), (snapshot) => {
+        lazyOnValue('pelunasanMember', ref(db, 'pelunasanMember'), (snapshot) => {
             globalCache.pelunasanMember = snapshot.val() || {};
             if (typeof renderPelunasanMember === 'function') scheduleRender(renderPelunasanMember);
             if (typeof renderRekapHarian === 'function') scheduleRender(renderRekapHarian);
         });
 
-        onValue(ref(db, 'sparring'), async (snapshot) => {
+        cachedOnValue('sparring', ref(db, 'sparring'), async (snapshot) => {
             globalCache.sparring = snapshot.val() || {};
             // Reconcile data manual yang mungkin tersimpan sebelum booking
             // berhasil dibuat. Setelah sinkron, semua tampilan dirender ulang.
-            try { await syncManualSparingToBooking(); } catch(error) { console.error('Sync Sparing -> Booking:', error); }
+            // Sinkron ini bisa MENULIS booking, jadi hanya dijalankan setelah data booking
+            // asli dari server tiba (bukan salinan lama di perangkat).
+            if (window.__bookingRealDone) {
+                try { await syncManualSparingToBooking(); } catch(error) { console.error('Sync Sparing -> Booking:', error); }
+            } else {
+                window.__bookingRealP.then(async () => {
+                    try { await syncManualSparingToBooking(); } catch(error) { console.error('Sync Sparing -> Booking:', error); }
+                    scheduleRender(renderSparing); scheduleRender(renderGridJadwal); scheduleRender(renderTodaySchedule); scheduleRender(renderTabelBooking);
+                });
+            }
             updateSparingBookingOptions();
             scheduleRender(renderSparing);
             scheduleRender(renderGridJadwal);
@@ -19846,8 +20004,8 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if (typeof window.renderTeamList === 'function') scheduleRender(window.renderTeamList);
         });
 
-        onValue(ref(db, 'pendingSparingNames'), (snapshot) => { globalCache.pendingSparingNames = snapshot.val() || {}; });
-        onValue(ref(db, 'pemasukan'), (snapshot) => {
+        lazyOnValue('pendingSparingNames', ref(db, 'pendingSparingNames'), (snapshot) => { globalCache.pendingSparingNames = snapshot.val() || {}; });
+        cachedOnValue('pemasukan', ref(db, 'pemasukan'), (snapshot) => {
             globalCache.pemasukan = snapshot.val() || {};
             if (typeof window.renderSetorTunai === 'function') scheduleRender(window.renderSetorTunai);
             // Pelunasan disimpan di node pemasukan. Karena jadwal halaman awal
@@ -19857,17 +20015,134 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             scheduleRender(renderRekapHarian);
             scheduleRender(renderMonthlyRecap);
         });
-        onValue(ref(db, 'minuman'), (snapshot) => {
+        lazyOnValue('minuman', ref(db, 'minuman'), (snapshot) => {
             globalCache.minuman = snapshot.val() || {};
             if (typeof window.renderSetorTunai === 'function') scheduleRender(window.renderSetorTunai);
             scheduleRender(renderRekapHarian);
             scheduleRender(renderMinumanSummary);
             if (document.getElementById('minuman-history-panel')?.classList.contains('is-open')) scheduleRender(renderMinumanHistory);
         });
-        onValue(ref(db, 'pengeluaran'), (snapshot) => {
+        lazyOnValue('pengeluaran', ref(db, 'pengeluaran'), (snapshot) => {
             globalCache.pengeluaran = snapshot.val() || {};
             scheduleRender(renderRekapHarian);
         });
+
+        /* ---------- Pengatur pemuatan bertahap ---------- */
+        // Member tanpa jadwal ikut menentukan Jadwal Hari Ini (dan penanda "member siap" popup awal) → langsung dimuat.
+        __LZ.memberTanpaJadwal.start();
+        __LZ.minuman.start();   // Minuman diminta paling awal supaya menu Minuman langsung siap saat dibuka
+        const __LZ_ALL = ['memberTanpaJadwal','pelunasanMember','minuman','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','bookingFull'];
+        const __LZ_KAS = ['pelunasanMember','minuman','pengeluaran'];
+        const __LZ_PAGE_NEEDS = {
+            'jadwal': [], 'more': [], 'home': [],
+            'minuman': ['minuman'],
+            'keluar': __LZ_KAS,
+            'masuk': ['memberTanpaJadwal','pelunasanMember','minuman','pengeluaran','teamProfiles'],
+            'masuk-manual': ['memberTanpaJadwal','pelunasanMember','minuman','pengeluaran','teamProfiles'],
+            'setor-tunai': __LZ_KAS,
+            'daily-recap': __LZ_KAS.concat(['adminJaga','adminJagaNames','adminJagaDefault']),
+            'monthly-recap': __LZ_ALL,
+            'laporan': __LZ_ALL,
+            'booking-history': ['bookingFull','pelunasanMember'],
+            'booking-schedule': ['bookingFull','memberTanpaJadwal'],
+            'booking': ['memberTanpaJadwal','pendingSparingNames','teamProfiles'],
+            'sparring': ['memberTanpaJadwal','pendingSparingNames','teamProfiles','teamLogos'],
+            'admin-jaga': ['adminJaga','adminJagaNames','adminJagaDefault'],
+            'gaji-admin': ['adminJaga','adminJagaNames','adminJagaDefault','bookingFull','pelunasanMember','minuman'],
+            'pelunasan-member': ['pelunasanMember','memberTanpaJadwal','teamProfiles','bookingFull'],
+            'atur-member': ['memberTanpaJadwal','pelunasanMember','teamProfiles','teamLogos'],
+            'team-list': ['teamProfiles','memberTanpaJadwal','bookingFull','teamLogos'],
+            'team-tanpa-logo': ['teamProfiles','memberTanpaJadwal','teamLogos']
+        };
+        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pengeluaran','pelunasanMember','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','bookingFull','teamLogos'];
+        function __lzStart(key) {
+            if (key === 'teamLogos') { try { startAdminTeamLogosListener(); } catch (_) {} return; }
+            if (__LZ[key]) __LZ[key].start();
+        }
+        function __lzStarted(key) {
+            if (key === 'teamLogos') return !!window.__adminTeamLogosListenerStarted;
+            return !!(__LZ[key] && __LZ[key].started);
+        }
+        function __lzLoaded(key) {
+            if (key === 'teamLogos') return !!globalCache.__teamLogosFullLoaded;
+            return !!(__LZ[key] && __LZ[key].loaded);
+        }
+        let __lzCurrent = 'jadwal', __lzGiveUp = {}, __lzGiveUpT = null;
+        function __lzNeeds(id) {
+            const n = Object.prototype.hasOwnProperty.call(__LZ_PAGE_NEEDS, id) ? __LZ_PAGE_NEEDS[id] : __LZ_ALL;
+            return n.filter(k => k !== 'teamLogos');
+        }
+        function __lzPill(show) {
+            let el = document.getElementById('lz-prep');
+            if (!show) { if (el) el.classList.remove('is-on'); return; }
+            if (!el) {
+                const st = document.createElement('style');
+                st.textContent = '#lz-prep{position:fixed;left:50%;top:14px;transform:translate(-50%,-14px);z-index:99990;display:flex;align-items:center;gap:9px;padding:9px 16px;border-radius:999px;background:rgba(15,23,42,.92);color:#fff;font:800 12px/1 system-ui,-apple-system,sans-serif;box-shadow:0 8px 24px rgba(2,6,23,.3);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}'
+                    + '#lz-prep.is-on{opacity:1;transform:translate(-50%,0)}'
+                    + '#lz-prep i{width:14px;height:14px;border-radius:50%;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;animation:lzspin .7s linear infinite}'
+                    + '@keyframes lzspin{to{transform:rotate(360deg)}}'
+                    + '.lz-preparing{opacity:.45;pointer-events:none;transition:opacity .15s}';
+                document.head.appendChild(st);
+                el = document.createElement('div');
+                el.id = 'lz-prep'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+                el.innerHTML = '<i></i><span>Menyiapkan data...</span>';
+                document.body.appendChild(el);
+                void el.offsetWidth;
+            }
+            el.classList.add('is-on');
+        }
+        function __lzPrepUpdate() {
+            const pg = document.getElementById('page-' + __lzCurrent);
+            const waiting = !__lzGiveUp[__lzCurrent] && __lzNeeds(__lzCurrent).some(k => !__lzLoaded(k));
+            if (pg) pg.classList.toggle('lz-preparing', waiting);
+            __lzPill(waiting);
+        }
+        function __lzOnPage(id) {
+            if (!id) return;
+            document.querySelectorAll('.lz-preparing').forEach(n => n.classList.remove('lz-preparing'));
+            __lzCurrent = id;
+            __lzNeeds(id).forEach(__lzStart);
+            if (id === 'sparring' || id === 'atur-member' || id === 'team-list' || id === 'team-tanpa-logo') { try { startAdminTeamLogosListener(); } catch (_) {} }
+            __lzPrepUpdate();
+            clearTimeout(__lzGiveUpT);
+            __lzGiveUpT = setTimeout(() => { __lzGiveUp[id] = true; __lzPrepUpdate(); }, 12000);
+        }
+        window.__ensureDataForPage = __lzOnPage;
+        (function watchPages() {
+            const main = document.querySelector('main');
+            if (!main || typeof MutationObserver === 'undefined') return;
+            new MutationObserver((muts) => {
+                for (const m of muts) {
+                    const t = m.target;
+                    if (t && t.parentElement === main && /^page-/.test(t.id) && !t.classList.contains('hidden')) {
+                        const id = t.id.replace(/^page-/, '');
+                        if (id !== __lzCurrent) __lzOnPage(id);
+                    }
+                }
+            }).observe(main, { attributes: true, attributeFilter: ['class'], subtree: true });
+        })();
+
+        /* Antrean latar belakang: dimulai setelah data Jadwal Hari Ini siap, satu per satu. */
+        (function startBackgroundQueue() {
+            let started = false;
+            const timer = setInterval(() => {
+                const ready = (globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded) || globalCache.__initialLoadingTimedOut;
+                if (!ready || started) return;
+                started = true; clearInterval(timer);
+                let i = 0;
+                const next = () => {
+                    while (i < __LZ_BG_ORDER.length && __lzStarted(__LZ_BG_ORDER[i])) i++;
+                    if (i >= __LZ_BG_ORDER.length) return;
+                    if (window.__saveHoldCount > 0) { setTimeout(next, 1000); return; }
+                    const key = __LZ_BG_ORDER[i++];
+                    __lzStart(key);
+                    const t0 = Date.now();
+                    const wait = () => (__lzLoaded(key) || Date.now() - t0 > 10000) ? setTimeout(next, 400) : setTimeout(wait, 200);
+                    wait();
+                };
+                next();   // Jadwal Hari Ini sudah tampil → langsung minta data Minuman (lalu menu lain bertahap)
+            }, 100);
+        })();
 
         // Menentukan harga lapangan berdasarkan hari dan jam booking.
         function getHargaLapangan(tanggalStr, jamStr, status) {
@@ -24159,14 +24434,14 @@ return;
                         if(cellData.type === 'member') {
                             // Sel tetap memakai warna dasar yang sama dengan slot kosong.
                             // Warna hanya diterapkan pada pill nama tim.
-                            textVal = `<span class="schedule-grid-team-holder schedule-grid-team-member">${escapeCell(cellData.nama)}</span>`;
+                            textVal = `<span class="schedule-grid-team-holder schedule-grid-team-member"${cellData.__batal ? ' data-batal="1"' : ''}>${escapeCell(cellData.nama)}</span>`;
                         } else if(cellData.type === 'off') {
                             bgClass = "bg-red-500/20 border border-slate-900/40 border-dashed text-red-900 font-black shadow-lg text-center";
                             textVal = `<span class="schedule-grid-off-holder"><img src="off.png" alt="OFF" class="schedule-grid-off-stamp" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"><span class="hidden items-center justify-center text-red-900 font-black text-[9px] sm:text-xs tracking-widest">OFF</span></span>`;
                         } else {
                             // Non-member juga tidak memberi warna pada sel pembungkus;
                             // warna tetap hanya berada di pill nama tim.
-                            textVal = `<span class="schedule-grid-team-holder schedule-grid-team-nonmember">${escapeCell(cellData.nama)}</span>`;
+                            textVal = `<span class="schedule-grid-team-holder schedule-grid-team-nonmember"${cellData.__batal ? ' data-batal="1"' : ''}>${escapeCell(cellData.nama)}</span>`;
                         }
                     }
 
@@ -34734,6 +35009,9 @@ document.addEventListener('DOMContentLoaded', function(){
 <style id="poster-bg-admin-style">
 #poster-bg-panel{display:none;margin-bottom:16px}
 #page-sparring[data-sparring-mode="background"] #poster-bg-panel{display:block}
+#page-sparring[data-sparring-mode="background"] #sparring-page-heading{display:none}
+#page-sparring[data-sparring-mode="background"] #sparring-page-heading,
+#page-sparring[data-sparring-mode="background"] .sparring-summary-grid{display:none!important}
 #page-sparring[data-sparring-mode="background"] .sparring-summary-grid,
 #page-sparring[data-sparring-mode="background"] .sparring-form-wrap,
 #page-sparring[data-sparring-mode="background"] .sparring-list-wrap{display:none!important}
@@ -34774,15 +35052,15 @@ document.addEventListener('DOMContentLoaded', function(){
 (function(){
   'use strict';
   var PATH='settings/posterBackground';
-  var KINDS={sparing:'sparing',lawan:'lawan'};
-  var pending={sparing:null,lawan:null};
+  var KINDS={sparing:'sparing',lawan:'lawan',jadwal:'jadwal'};
+  var pending={sparing:null,lawan:null,jadwal:null};
   var MAX_INPUT=15*1024*1024;      // batas file asli 15 MB
   var MAX_W=1080, MAX_H=1920;      // poster 9:16
   var MAX_CHARS=900000;            // target ukuran hasil (teks base64) agar ringan dibuka customer
 
   function $(id){return document.getElementById(id);}
   function fb(){
-    return {db:window.__APP_FIREBASE_DB__,ref:window.__APP_FIREBASE_REF__,get:window.__APP_FIREBASE_GET__,update:window.__APP_FIREBASE_UPDATE__};
+    return {db:window.__APP_FIREBASE_DB__,ref:window.__APP_FIREBASE_REF__,get:window.__APP_FIREBASE_GET_RAW__||window.__APP_FIREBASE_GET__,update:window.__APP_FIREBASE_UPDATE__};
   }
   function setStatus(kind,msg,type){
     var el=$('pbg-status-'+kind); if(!el) return;
@@ -34875,7 +35153,7 @@ document.addEventListener('DOMContentLoaded', function(){
       pending[kind]=null;
       var inp=$('pbg-file-'+kind); if(inp) inp.value='';
       setFname(kind,'');
-      setStatus(kind,'✅ Tersimpan. Poster customer sekarang memakai gambar ini.','ok');
+      setStatus(kind,kind==='jadwal'?'✅ Tersimpan. Download Jadwal sekarang memakai latar ini.':'✅ Tersimpan. Poster customer sekarang memakai gambar ini.','ok');
     }catch(e){
       console.error(e);
       if(btn) btn.disabled=false;
@@ -34906,9 +35184,9 @@ document.addEventListener('DOMContentLoaded', function(){
   async function pbgLoad(){
     var F=fb(); if(!F.db||!F.get||!F.ref) return;
     try{
-      var snap=await F.get(F.ref(F.db,PATH));
+      var snap=await (window.__APP_FIREBASE_GET_RAW__||F.get)(F.ref(F.db,PATH));
       var d=snap.val()||{};
-      ['sparing','lawan'].forEach(function(k){
+      ['sparing','lawan','jadwal'].forEach(function(k){
         if(pending[k]) return; // jangan timpa preview yang belum disimpan
         showImg(k, (typeof d[k]==='string' && /^data:image\//i.test(d[k])) ? d[k] : '');
       });
@@ -34942,6 +35220,494 @@ document.addEventListener('DOMContentLoaded', function(){
       pbgLoad();
     },30);
   };
+})();
+</script>
+
+<style id="jadwal-poster-style">
+#poster-bg-panel .pbg-hint{margin-top:8px;font-size:.6rem;line-height:1.45;font-weight:700;color:#64748b}
+#poster-bg-panel .pbg-hint b{color:#0f172a;font-weight:900}
+#poster-bg-panel .pbg-guide{display:block;width:100%;margin-top:10px;border:1.5px dashed #ec4899;border-radius:11px;padding:10px 12px;background:#fdf2f8;color:#9d174d;font-size:.68rem;font-weight:950;cursor:pointer}
+#poster-bg-panel .pbg-guide:active{transform:scale(.985)}
+@media(min-width:1000px){#poster-bg-panel .pbg-grid{grid-template-columns:repeat(3,1fr)}}
+
+html body #page-booking-schedule #btn-poster-jadwal.bs-poster-btn{
+  display:flex;align-items:center;gap:14px;width:100%;margin:12px 0 6px;padding:12px 14px;
+  border-radius:16px;text-align:left;cursor:pointer;color:#132a5e;font-size:inherit;font-weight:inherit;
+  background:rgba(255,255,255,.78);border:1px solid rgba(19,42,94,.07);box-shadow:none;
+  transition:transform .12s ease;
+}
+html body #page-booking-schedule #btn-poster-jadwal.bs-poster-btn:active{transform:scale(.985)}
+html body #page-booking-schedule #btn-poster-jadwal.bs-poster-btn:focus-visible{outline:3px solid rgba(37,99,235,.7);outline-offset:2px}
+html body #page-booking-schedule #btn-poster-jadwal .bs-poster-ico{flex:none;width:36px;height:36px;display:grid;place-items:center;color:#132a5e}
+html body #page-booking-schedule #btn-poster-jadwal .bs-poster-ico svg{width:22px;height:22px;stroke-width:1.9}
+html body #page-booking-schedule #btn-poster-jadwal .bs-poster-txt{display:block;flex:1 1 auto;min-width:0}
+html body #page-booking-schedule #btn-poster-jadwal .bs-poster-txt b{display:block;font-size:14px;font-weight:900;line-height:1.2;color:#132a5e}
+html body #page-booking-schedule #btn-poster-jadwal .bs-poster-txt small{display:block;margin-top:3px;font-size:11px;font-weight:700;line-height:1.3;color:#64748b}
+html body #page-booking-schedule #btn-poster-jadwal .bs-poster-go{flex:none;width:34px;height:34px;display:grid;place-items:center;color:#94a3b8}
+
+html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
+#jdp-modal{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;padding:12px;background:rgba(8,15,35,.74);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#jdp-modal.open{display:flex}
+#jdp-modal .jdp-box{width:min(100%,430px);max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);display:flex;flex-direction:column;background:#fff;border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden}
+#jdp-modal .jdp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid #e2e8f0;color:#132a5e;font-size:14px;font-weight:900}
+#jdp-modal .jdp-x{width:34px;height:34px;border:0;border-radius:10px;background:#f1f5f9;color:#475569;font-size:14px;font-weight:900;cursor:pointer}
+#jdp-modal .jdp-stage{flex:1 1 auto;min-height:220px;overflow:auto;background:#0f172a;display:grid;place-items:center;padding:10px}
+#jdp-modal .jdp-img{display:block;max-width:100%;max-height:calc(100vh - 230px);max-height:calc(100dvh - 230px);width:auto;height:auto;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#jdp-modal .jdp-loading{color:#cbd5e1;font-size:12px;font-weight:800;text-align:center;padding:30px 10px}
+#jdp-modal .jdp-loading.err{color:#fca5a5}
+#jdp-modal .jdp-note{padding:8px 14px 0;min-height:1.2em;font-size:11px;font-weight:700;color:#64748b;text-align:center;line-height:1.35}
+#jdp-modal .jdp-note.err{color:#b45309}
+#jdp-modal .jdp-actions{display:flex;gap:8px;padding:10px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+#jdp-modal .jdp-btn{flex:1 1 0;min-height:46px;border:0;border-radius:14px;font-size:13px;font-weight:900;cursor:pointer}
+#jdp-modal .jdp-btn:disabled{opacity:.45;cursor:not-allowed}
+#jdp-modal .jdp-primary{color:#fff;background:linear-gradient(135deg,#059669,#047857)}
+#jdp-modal .jdp-secondary{color:#132a5e;background:#e8f0ff}
+</style>
+<script id="jadwal-poster-script">
+(function(){
+  'use strict';
+  /* =====================================================================
+     DOWNLOAD JADWAL (POSTER)
+     - Latar diambil dari settings/posterBackground/jadwal (diupload lewat
+       panel "Upload Latar Poster", sama seperti poster sparing).
+     - TABEL TIDAK DIGAMBAR: tabel dibuat sendiri di desain latar.
+       Yang ditulis otomatis hanya PERIODE dan NAMA TIM.
+     - Selalu 19 baris tetap (07.00 ... 24.00, 01.00) x 7 kolom (Senin-Minggu),
+       baik kosong maupun terisi, jadi posisi nama tim tidak pernah bergeser.
+     - Data dibaca dari grid Booking Schedule yang sedang tampil.
+     - Koordinat memakai ukuran desain 900x1600, lalu diskalakan x1.2
+       menjadi 1080x1920 (rasio 9:16).
+     ===================================================================== */
+  var PATH = 'settings/posterBackground';
+  var W = 1080, H = 1920, K = 1.2;
+  var LIME = '#b4f23a';
+  var MONTHS = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+  var DAYS = ['SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU','MINGGU'];
+  var JAMS = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00','24:00','01:00'];
+  var CON = '"Barlow Condensed","Arial Narrow","Impact",sans-serif';
+  var MON = '"Montserrat","Arial",sans-serif';
+
+  /* Posisi (ukuran desain 900x1600). Hasil x1.2 ditulis di kartu upload. */
+  var PILL = { x: 437, y: 423, w: 363, h: 52 };           /* area periode */
+  var G = { tableX: 70, tableY: 500, tableW: 765, hh: 66, x0: 163, colW: 96, y0: 566, rowH: 41 };
+  function colX(j){ return G.x0 + j * G.colW; }
+  function rowY(i){ return G.y0 + i * G.rowH; }
+
+  var state = { canvas: null, blob: null, name: 'jadwal.png', busy: false };
+
+  function $(id){ return document.getElementById(id); }
+  function fb(){
+    return { db: window.__APP_FIREBASE_DB__, ref: window.__APP_FIREBASE_REF__, get: window.__APP_FIREBASE_GET__ };
+  }
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function ymd(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+
+  /* ---------- Font (Google Fonts, ada cadangan bila offline) ---------- */
+  var fontsPromise = null;
+  function loadFonts(){
+    if (fontsPromise) return fontsPromise;
+    fontsPromise = new Promise(function(resolve){
+      var timer = setTimeout(resolve, 4500);
+      function after(){
+        var jobs = [
+          document.fonts.load('italic 800 30px "Barlow Condensed"'),
+          document.fonts.load('800 30px "Barlow Condensed"'),
+          document.fonts.load('800 30px "Montserrat"')
+        ];
+        Promise.all(jobs).then(function(){ clearTimeout(timer); resolve(); }, function(){ clearTimeout(timer); resolve(); });
+      }
+      try {
+        var link = $('jdp-fonts');
+        if (!link) {
+          link = document.createElement('link');
+          link.id = 'jdp-fonts'; link.rel = 'stylesheet';
+          link.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,800;1,800&family=Montserrat:wght@800&display=swap';
+          link.onload = after; link.onerror = function(){ clearTimeout(timer); resolve(); };
+          document.head.appendChild(link);
+        } else { after(); }
+      } catch (e) { clearTimeout(timer); resolve(); }
+    });
+    return fontsPromise;
+  }
+
+  /* ---------- Latar dari Firebase ---------- */
+  function loadImage(src){
+    return new Promise(function(res, rej){
+      var im = new Image();
+      im.onload = function(){ res(im); };
+      im.onerror = function(){ rej(new Error('Gambar latar tidak bisa dibuka')); };
+      im.src = src;
+    });
+  }
+  async function loadBackground(){
+    var F = fb();
+    if (!F.db || !F.get || !F.ref) return { img: null, note: 'Firebase belum siap, memakai latar bawaan.' };
+    try {
+      var snap = await F.get(F.ref(F.db, PATH));
+      var d = (snap && snap.val && snap.val()) || {};
+      var src = d.jadwal;
+      if (typeof src === 'string' && /^data:image\//i.test(src)) {
+        return { img: await loadImage(src), note: '' };
+      }
+      return { img: null, note: 'Latar belum diupload, memakai latar bawaan.' };
+    } catch (e) {
+      console.warn('Gagal memuat latar jadwal:', e);
+      return { img: null, note: 'Latar gagal dimuat, memakai latar bawaan.' };
+    }
+  }
+
+  /* ---------- Ambil data dari grid Booking Schedule ---------- */
+  function collect(){
+    if (typeof window.renderGridJadwal === 'function') { try { window.renderGridJadwal(); } catch (e) {} }
+    var sel = $('filter-periode-jadwal');
+    var opt = sel && sel.options && sel.options[sel.selectedIndex];
+    var sStr = (opt && opt.dataset && opt.dataset.periodStart) || (sel && sel.value) || '';
+    var eStr = (opt && opt.dataset && opt.dataset.periodEnd) || sStr;
+    var s = new Date(sStr + 'T00:00:00');
+    if (!sStr || isNaN(s.getTime())) return null;
+
+    var monday = new Date(s);
+    monday.setDate(s.getDate() - ((s.getDay() + 6) % 7));
+    var dates = [];
+    var today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(monday); d.setDate(monday.getDate() + i);
+      var str = ymd(d);
+      var act0 = str >= sStr && str <= eStr;
+      /* done = hari dalam periode yang sudah lewat (sama dengan strip DONE di grid Booking Schedule) */
+      dates.push({ str: str, date: d, active: act0, done: act0 && d < today0 });
+    }
+
+    var byJam = {};
+    var trs = document.querySelectorAll('#booking-schedule-periods tbody tr');
+    Array.prototype.forEach.call(trs, function(tr){
+      var jam = ((tr.children[0] && tr.children[0].textContent) || '').trim();
+      if (!/^\d{2}:\d{2}$/.test(jam)) return;
+      byJam[jam] = dates.map(function(dt){
+        if (!dt.active) return { t: 'x' };
+        var td = tr.querySelector('td[data-date="' + dt.str + '"]');
+        if (!td) return { t: '' };
+        if (td.querySelector('.schedule-grid-off-holder')) return { t: 'off' };
+        var team = td.querySelector('.schedule-grid-team-holder');
+        if (!team || team.getAttribute('data-batal') === '1') return { t: '' };
+        var name = (team.textContent || '').trim();
+        return name ? { t: 'team', n: name } : { t: '' };
+      });
+    });
+    if (!Object.keys(byJam).length) return null;
+    /* Selalu 19 baris tetap, berurutan, meskipun kosong */
+    var rows = JAMS.map(function(jam){
+      return { jam: jam, cells: byJam[jam] || dates.map(function(){ return { t: '' }; }) };
+    });
+
+    var act = dates.filter(function(x){ return x.active; });
+    var a = act[0].date, b = act[act.length - 1].date;
+    var label;
+    if (act.length === 1) label = a.getDate() + ' ' + MONTHS[a.getMonth()];
+    else if (a.getMonth() === b.getMonth()) label = a.getDate() + ' - ' + b.getDate() + ' ' + MONTHS[b.getMonth()];
+    else label = a.getDate() + ' ' + MONTHS[a.getMonth()] + ' - ' + b.getDate() + ' ' + MONTHS[b.getMonth()];
+
+    var slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return { label: label, dates: dates, rows: rows, fileName: 'jadwal-booking-' + slug + '-' + b.getFullYear() + '.png' };
+  }
+
+  /* ---------- Util gambar ---------- */
+  function rr(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function drawCover(ctx, img){
+    var ir = img.naturalWidth / img.naturalHeight, cr = W / H, w, h, x, y;
+    if (ir > cr) { h = H; w = H * ir; x = (W - w) / 2; y = 0; }
+    else { w = W; h = W / ir; x = 0; y = (H - h) / 2; }
+    ctx.drawImage(img, x, y, w, h);
+  }
+  /* Garis & label tabel sederhana: dipakai latar bawaan (bila belum ada upload)
+     dan file panduan posisi. */
+  function drawGrid(ctx, guide){
+    var tx = G.tableX, ty = G.tableY, tw = G.tableW, th = G.hh + JAMS.length * G.rowH;
+    ctx.save();
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    if (guide) {
+      ctx.fillStyle = 'rgba(255,0,140,.10)'; ctx.fillRect(G.x0, G.y0, 7 * G.colW, JAMS.length * G.rowH);
+      ctx.strokeStyle = 'rgba(255,0,140,.85)'; ctx.fillStyle = 'rgba(255,0,140,.95)';
+    } else {
+      ctx.fillStyle = 'rgba(8,10,14,.6)'; rr(ctx, tx, ty, tw, th, 12); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    }
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (var v = 0; v <= 7; v++) { ctx.moveTo(colX(v), ty); ctx.lineTo(colX(v), ty + th); }
+    ctx.moveTo(tx, ty); ctx.lineTo(tx + tw, ty);
+    for (var r = 0; r <= JAMS.length; r++) { ctx.moveTo(tx, rowY(r) - (r === 0 ? 0 : 0)); ctx.lineTo(tx + tw, rowY(r)); }
+    ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + th);
+    ctx.stroke();
+    ctx.font = 'italic 800 ' + (guide ? 20 : 24) + 'px ' + CON;
+    if (!guide) ctx.fillStyle = LIME;
+    DAYS.forEach(function(d, j){ ctx.fillText(d, colX(j) + G.colW / 2, ty + G.hh / 2); });
+    ctx.font = '800 ' + (guide ? 20 : 26) + 'px ' + CON;
+    if (!guide) ctx.fillStyle = '#fff';
+    JAMS.forEach(function(j, i){ ctx.fillText(j.replace(':', '.'), tx + (G.x0 - tx) / 2, rowY(i) + G.rowH / 2); });
+    ctx.restore();
+  }
+  function drawDefaultBg(ctx){
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0a1a3d'); g.addColorStop(0.4, '#183063');
+    g.addColorStop(0.72, '#12301f'); g.addColorStop(1, '#1f7a2e');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.scale(K, K);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fff'; ctx.font = '800 17px ' + MON;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '1.5px';
+    ctx.fillText('SANDAGA MINISOCCER 2', 450, 205);
+    ctx.fillStyle = LIME; ctx.font = 'italic 800 52px ' + CON;
+    ctx.fillText('BOOKING SCHEDULE', 450, 270);
+    ctx.restore();
+    ctx.save(); ctx.scale(K, K); drawGrid(ctx, false); ctx.restore();
+  }
+
+  /* Teks nama tim: 1 baris, kalau tidak muat dipecah 2 baris, terakhir dipotong */
+  function fitText(ctx, text, maxW, maxH){
+    var s, lines;
+    for (s = 11.5; s >= 9; s -= 0.5) {
+      ctx.font = '800 ' + s + 'px ' + MON;
+      if (ctx.measureText(text).width <= maxW) return { size: s, lines: [text] };
+    }
+    var words = text.split(/\s+/);
+    if (words.length > 1) {
+      for (s = 10.5; s >= 7.5; s -= 0.5) {
+        ctx.font = '800 ' + s + 'px ' + MON;
+        lines = [''];
+        var ok = true;
+        for (var i = 0; i < words.length; i++) {
+          var tryLine = lines[lines.length - 1] ? lines[lines.length - 1] + ' ' + words[i] : words[i];
+          if (ctx.measureText(tryLine).width <= maxW) lines[lines.length - 1] = tryLine;
+          else if (lines[lines.length - 1] && lines.length < 2 && ctx.measureText(words[i]).width <= maxW) lines.push(words[i]);
+          else { ok = false; break; }
+        }
+        if (ok && lines.length * s * 1.12 <= maxH) return { size: s, lines: lines };
+      }
+    }
+    for (s = 9; s >= 7; s -= 0.5) {
+      ctx.font = '800 ' + s + 'px ' + MON;
+      if (ctx.measureText(text).width <= maxW) return { size: s, lines: [text] };
+    }
+    ctx.font = '800 7px ' + MON;
+    var t = text;
+    while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return { size: 7, lines: [t + '…'] };
+  }
+
+  function drawPill(ctx, x, y, w, h, text, isOff){
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1;
+    var g = ctx.createLinearGradient(0, y, 0, y + h);
+    if (isOff) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#e5e7eb'); }
+    else { g.addColorStop(0, '#c9f850'); g.addColorStop(1, '#9fe32c'); }
+    ctx.fillStyle = g; rr(ctx, x, y, w, h, 8); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 0.8; ctx.strokeStyle = isOff ? 'rgba(100,100,100,.6)' : 'rgba(70,120,10,.75)'; ctx.stroke();
+    ctx.fillStyle = isOff ? '#7f1d1d' : '#10210a';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var f = fitText(ctx, text.toUpperCase(), w - 8, h - 5);
+    ctx.font = '800 ' + f.size + 'px ' + MON;
+    var lh = f.size * 1.12, top = y + h / 2 - (f.lines.length - 1) * lh / 2;
+    f.lines.forEach(function(ln, i){ ctx.fillText(ln, x + w / 2, top + i * lh + 0.5); });
+    ctx.restore();
+  }
+
+  /* ---------- Gambar poster: hanya periode + nama tim ---------- */
+  function draw(data, bgImg){
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    if (bgImg) drawCover(ctx, bgImg); else drawDefaultBg(ctx);
+
+    ctx.save();
+    ctx.scale(K, K);
+    ctx.textBaseline = 'middle';
+
+    /* PERIODE (teks saja, kotaknya dibuat di desain latar) */
+    ctx.save();
+    ctx.fillStyle = bgImg ? '#3b3b3b' : '#ffffff'; ctx.textAlign = 'center';
+    var ps = 27;
+    ctx.font = 'italic 800 ' + ps + 'px ' + CON;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
+    while (ps > 14 && ctx.measureText(data.label).width > PILL.w - 40) { ps -= 1; ctx.font = 'italic 800 ' + ps + 'px ' + CON; }
+    ctx.fillText(data.label, PILL.x + PILL.w / 2 + 1.5, PILL.y + PILL.h / 2 + 2);
+    ctx.restore();
+
+    /* NAMA TIM */
+    data.rows.forEach(function(row, ri){
+      if (row.jam === '18:00') return;   /* baris OFF 18.00 dibuat di desain latar */
+      row.cells.forEach(function(cell, ci){
+        var x = colX(ci) + 4.5, y = rowY(ri) + 3, w = G.colW - 9, h = G.rowH - 6;
+        if (cell.t === 'team') drawPill(ctx, x, y, w, h, cell.n, false);
+        else if (cell.t === 'off') drawPill(ctx, x, y, w, h, 'OFF', true);
+      });
+    });
+
+    /* STRIP DONE: satu pita vertikal utuh per kolom hari yang sudah lewat */
+    var top0 = rowY(0), hAll = JAMS.length * G.rowH;
+    data.dates.forEach(function(dt, ci){
+      if (!dt.done) return;
+      var sx = colX(ci) + G.colW * 0.3, sw = G.colW * 0.4;
+      ctx.save();
+      rr(ctx, sx, top0, sw, hAll, 6);
+      ctx.fillStyle = 'rgba(59,111,224,.22)'; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(59,111,224,.55)'; ctx.stroke();
+      ctx.clip();
+      ctx.fillStyle = '#2f5fd0';
+      ctx.font = '800 9px ' + MON;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+      ctx.translate(sx + sw / 2, top0 + hAll / 2);
+      ctx.rotate(-Math.PI / 2);
+      var unit = '• DONE ', str2 = '';
+      for (var k = 0; k < 40; k++) str2 += unit;
+      ctx.fillText(str2 + '•', 0, 0);
+      ctx.restore();
+    });
+
+    ctx.restore();
+    return c;
+  }
+
+  /* ---------- File panduan posisi (PNG transparan) ---------- */
+  function drawGuide(){
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.save(); ctx.scale(K, K);
+    /* kotak periode */
+    ctx.strokeStyle = 'rgba(255,0,140,.9)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    rr(ctx, PILL.x, PILL.y, PILL.w, PILL.h, PILL.h / 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,0,140,.10)'; rr(ctx, PILL.x, PILL.y, PILL.w, PILL.h, PILL.h / 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,0,140,.95)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '800 15px ' + MON; ctx.fillText('PERIODE (teks di tengah)', PILL.x + PILL.w / 2, PILL.y + PILL.h / 2);
+    drawGrid(ctx, true);
+    ctx.font = '800 12px ' + MON; ctx.textAlign = 'left';
+    ctx.fillText('PANDUAN POSISI - 19 baris x 7 kolom. Hapus layer ini setelah selesai mendesain.', G.tableX, G.tableY + G.hh + JAMS.length * G.rowH + 16);
+    ctx.restore();
+    return c;
+  }
+
+  /* ---------- Modal pratinjau ---------- */
+  function ensureModal(){
+    var m = $('jdp-modal');
+    if (m) return m;
+    m = document.createElement('div');
+    m.id = 'jdp-modal';
+    m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-label', 'Pratinjau poster jadwal');
+    m.innerHTML =
+      '<div class="jdp-box">' +
+        '<div class="jdp-head"><strong>Poster Jadwal</strong><button type="button" class="jdp-x" onclick="jdpClose()" aria-label="Tutup">✕</button></div>' +
+        '<div class="jdp-stage" id="jdp-stage"><div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div></div>' +
+        '<div class="jdp-note" id="jdp-note"></div>' +
+        '<div class="jdp-actions">' +
+          '<button type="button" class="jdp-btn jdp-primary" id="jdp-dl" onclick="jdpDownload()" disabled>⬇️ Download PNG</button>' +
+          '<button type="button" class="jdp-btn jdp-secondary" id="jdp-share" onclick="jdpShare()" disabled style="display:none">📤 Bagikan</button>' +
+        '</div>' +
+      '</div>';
+    m.addEventListener('click', function(e){ if (e.target === m) window.jdpClose(); });
+    document.body.appendChild(m);
+    return m;
+  }
+  function setNote(msg, isErr){
+    var n = $('jdp-note'); if (!n) return;
+    n.textContent = msg || ''; n.className = 'jdp-note' + (isErr ? ' err' : '');
+  }
+
+  window.jdpClose = function(){
+    var m = $('jdp-modal'); if (m) m.classList.remove('open');
+    document.documentElement.classList.remove('jdp-lock');
+    state.canvas = null; state.blob = null;
+    var st = $('jdp-stage'); if (st) st.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
+  };
+
+  window.jdpOpen = async function(){
+    if (state.busy) return;
+    state.busy = true;
+    var m = ensureModal();
+    m.classList.add('open');
+    document.documentElement.classList.add('jdp-lock');
+    var dl = $('jdp-dl'), sh = $('jdp-share');
+    dl.disabled = true; sh.disabled = true; sh.style.display = 'none';
+    var stage = $('jdp-stage');
+    stage.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
+    setNote('');
+    try {
+      var data = collect();
+      if (!data) throw new Error('Periode jadwal belum dipilih / tabel belum siap.');
+      var results = await Promise.all([loadFonts(), loadBackground()]);
+      var bg = results[1];
+      var canvas = draw(data, bg.img);
+      var blob = await new Promise(function(res){ canvas.toBlob(res, 'image/png'); });
+      if (!blob) throw new Error('Gagal membuat gambar.');
+      state.canvas = canvas; state.blob = blob; state.name = data.fileName;
+      var url = URL.createObjectURL(blob);
+      stage.innerHTML = '';
+      var img = new Image(); img.alt = 'Poster jadwal ' + data.label; img.className = 'jdp-img';
+      img.onload = function(){ setTimeout(function(){ URL.revokeObjectURL(url); }, 60000); };
+      img.src = url;
+      stage.appendChild(img);
+      dl.disabled = false;
+      try {
+        var f = new File([blob], data.fileName, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [f] })) { sh.style.display = ''; sh.disabled = false; }
+      } catch (e) {}
+      setNote(bg.note || (data.label + ' • ' + W + '×' + H + ' px'), !!bg.note);
+    } catch (e) {
+      console.error(e);
+      stage.innerHTML = '<div class="jdp-loading err">Gagal membuat poster.</div>';
+      setNote(e && e.message ? e.message : String(e), true);
+    } finally {
+      state.busy = false;
+    }
+  };
+
+  window.jdpDownload = function(){
+    if (!state.blob) return;
+    var url = URL.createObjectURL(state.blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = state.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  };
+
+  window.jdpShare = async function(){
+    if (!state.blob) return;
+    try {
+      var f = new File([state.blob], state.name, { type: 'image/png' });
+      await navigator.share({ files: [f], title: 'Jadwal Booking' });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      setNote('Tidak bisa membagikan, gunakan tombol Download.', true);
+    }
+  };
+
+  window.jdpGuide = async function(){
+    try {
+      await loadFonts();
+      var canvas = drawGuide();
+      var blob = await new Promise(function(res){ canvas.toBlob(res, 'image/png'); });
+      if (!blob) return;
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'panduan-posisi-jadwal-1080x1920.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    } catch (e) { console.error(e); alert('Gagal membuat panduan posisi.'); }
+  };
+
+  window.__jdpDraw = draw; /* dipakai untuk pengujian */
+  window.__jdpCollect = collect;
 })();
 </script>
 
@@ -48155,7 +48921,8 @@ body > header .admin-global-header-brand-title{
   const SPARING_MODE_TITLE={
     'form':'TAMBAH SPARING',
     'opponent':'LAWAN SPARING',
-    'list':'LIST SPARING'
+    'list':'LIST SPARING',
+    'background':'UPLOAD POSTER'
   };
 
   function resolvePageTitle(id){
@@ -50461,6 +51228,8 @@ html body {
 #page-more .more-page-grid button:last-child{
   grid-column: auto !important;
 }
+/* Menu Lainnya kini 14 item (genap): tombol terakhir tidak lagi dilebarkan, Gaji Admin & Upload Poster berdampingan. */
+html body #page-more .more-menu-page .more-page-grid>button:last-child{grid-column:auto !important}
 </style>
 
 <style id="header-dock-width-exact-match-v1">
