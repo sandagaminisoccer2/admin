@@ -13755,6 +13755,9 @@ window.__APP_FIREBASE_REMOVE__ = remove;
 window.__APP_FIREBASE_UPDATE__ = update;
 window.__APP_FIREBASE_GET__ = get;
 window.__APP_FIREBASE_GET_RAW__ = __fbGet; /* pembacaan murni, tidak memicu kartu "Menyimpan data" */
+/* PRIORITAS PERTAMA: begitu Firebase siap, data poster (versi latar + gambar + font) langsung DIMINTA
+   lebih dulu, sebelum data Jadwal Hari Ini, Member, dan data lain mulai diunduh. */
+try { if (typeof window.jdpPrefetch === 'function') window.jdpPrefetch(); } catch (_) {}
 
 /* =========================================================
    ANTI DOUBLE BOOKING / DOUBLE MEMBER + CEK BENTROK JADWAL
@@ -35499,6 +35502,15 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
 #jdp-modal .jdp-btn{border-radius:14px;font-weight:800}
 #jdp-modal .jdp-primary{background:#059669}
 #jdp-modal .jdp-secondary{background:#f1f5f9;color:#132a5e}
+/* ---- FIX HP: tab Nama tim/Tanggal/Periode/Done/Bulan lain tidak bentrok ----
+   Penyebab: aturan global mobile `button{font-size:16px!important}` membesarkan teks tab.
+   Di sini ukuran dikunci ulang (spesifisitas lebih tinggi) + lebar tombol menyesuaikan isi. */
+html body #jdp-modal .jdp-seg{display:flex;flex-wrap:nowrap;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+html body #jdp-modal .jdp-seg::-webkit-scrollbar{display:none}
+html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;padding:0 8px;font-size:12px!important;line-height:1.1;white-space:nowrap;text-align:center}
+@media (max-width:380px){
+  html body #jdp-modal .jdp-seg .jdp-seg-b{padding:0 6px;font-size:11px!important}
+}
 </style>
 <script id="jadwal-poster-script">
 (function(){
@@ -35699,10 +35711,12 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
   function warm(){
     var tries = 0;
     (function go(){
-      if (window.__APP_FIREBASE_DB__ && window.__APP_FIREBASE_GET__ && (window.__bgQueueDone || tries >= 20)) { window.jdpPrefetch(); return; }
-      if (++tries < 40) setTimeout(go, 1000);
+      if (window.__APP_FIREBASE_DB__ && window.__APP_FIREBASE_GET__) { window.jdpPrefetch(); return; }
+      if (++tries < 300) setTimeout(go, 100);   /* cek tiap 0,1 detik sampai Firebase siap (maks. 30 detik) */
     })();
   }
+  /* 0) PALING AWAL: tanpa menunggu halaman Booking Schedule dibuka atau data lain selesai dimuat */
+  warm();
   /* 1) begitu tombol "Download Jadwal" terlihat di layar (halaman Booking Schedule dibuka) */
   (function(){
     var done = false;
