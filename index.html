@@ -35417,7 +35417,11 @@ html.jdp-lock,html.jdp-lock body{overflow:hidden!important}
 
   /* ---------- Ambil data dari grid Booking Schedule ---------- */
   function collect(){
-    if (typeof window.renderGridJadwal === 'function') { try { window.renderGridJadwal(); } catch (e) {} }
+    /* Baca tabel yang SUDAH tampil. Jangan render ulang grid (render ulang membuat ulang
+       <img> stempel OFF/bulan lain dan memakan waktu). Render hanya jika tabel belum ada. */
+    if (!document.querySelector('#booking-schedule-periods tbody tr') && typeof window.renderGridJadwal === 'function') {
+      try { window.renderGridJadwal(); } catch (e) {}
+    }
     var sel = $('filter-periode-jadwal');
     var opt = sel && sel.options && sel.options[sel.selectedIndex];
     var sStr = (opt && opt.dataset && opt.dataset.periodStart) || (sel && sel.value) || '';
