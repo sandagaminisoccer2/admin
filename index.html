@@ -13592,6 +13592,7 @@ document.addEventListener('input', function(e){
         const __REV_TRUST_AGE = 24 * 3600 * 1000;      /* paling lama salinan dipercaya tanpa unduh ulang */
         const __REV_OK_KEY = 'sandaga-rev-ok', __REV_OFF_KEY = 'sandaga-rev-off', __REV_DAY = 24 * 3600 * 1000;
         const __revMap = {}, __revHeld = {};
+        const __dataPending = new Set();   /* nama data yang sudah diminta tetapi belum tiba (untuk indikator kanan atas) */
         let __revReadyResolve = null;
         const __revReady = new Promise(res => { __revReadyResolve = res; setTimeout(() => res(false), 3000); });
         function __lsNum(k) { try { return +localStorage.getItem(k) || 0; } catch (_) { return 0; } }
@@ -13645,12 +13646,17 @@ document.addEventListener('input', function(e){
         })();
         function cachedOnValue(name, target, cb, errCb, inc) {
             let real = false;
+            const __origErr = errCb;
+            errCb = (e) => { __dataPending.delete(name); if (__origErr) __origErr(e); else console.warn(name + ' tidak bisa dibaca:', e); };
+            __dataPending.add(name);
             if (__revGateOn(name)) {
                 let live = false;
                 const listen = () => {
                     if (live) return; live = true;
+                    __dataPending.add(name);
                     onValue(target, (snap) => {
                         real = true;
+                        __dataPending.delete(name);
                         __replayPending.delete(name); __refreshChip();
                         let r;
                         try { r = cb(snap); }
@@ -13670,6 +13676,7 @@ document.addEventListener('input', function(e){
                     if (revOk && rec.rev != null && rec.rev === __revCur(name) && Date.now() - rec.t <= __REV_TRUST_AGE && (!inc || incKeys.length)) {
                         /* Data belum berubah sejak salinan ini disimpan: pakai salinan, tidak perlu mengunduh. */
                         try { cb(__fakeSnap(rec.v)); } catch (e) { console.warn('Salinan ' + name + ' gagal dipakai:', e); listen(); return; }
+                        __dataPending.delete(name);
                         let offInc = null;
                         __revHeld[name] = { rev: rec.rev, attach: () => { if (offInc) { try { offInc(); } catch (_) {} offInc = null; } listen(); } };
                         if (inc) {
@@ -13712,6 +13719,7 @@ document.addEventListener('input', function(e){
             }).catch(() => {});
             onValue(target, (snap) => {
                 real = true;
+                __dataPending.delete(name);
                 __replayPending.delete(name); __refreshChip();
                 let r;
                 try { r = cb(snap); }
@@ -20279,6 +20287,62 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 };
                 next();
             }, 100);
+        })();
+
+        /* ---------- Indikator status data (kanan atas) ----------
+           Lingkaran berputar = masih ada data yang diminta/belum tiba. Lingkaran hijau = semua data sudah masuk.
+           Hanya penanda: tidak menghalangi klik apa pun, aplikasi tetap bisa dipakai selama berputar. */
+        (function dataStatusIndicator() {
+            if (!document.getElementById('data-status-style')) {
+                const st = document.createElement('style');
+                st.id = 'data-status-style';
+                st.textContent = '#data-status{position:fixed;z-index:99991;top:16px;right:18px;width:22px;height:22px;box-sizing:border-box;border-radius:50%;pointer-events:none;display:grid;place-items:center;transition:background .25s,box-shadow .25s}'
+                    + '#data-status[data-state="loading"]{border:2.5px solid rgba(37,99,235,.2);border-top-color:#2563eb;animation:dsspin .8s linear infinite}'
+                    + '#data-status[data-state="done"]{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.18)}'
+                    + '#data-status[data-state="done"]::after{content:"";width:5px;height:10px;margin-top:-2px;border:solid #fff;border-width:0 2.2px 2.2px 0;transform:rotate(45deg)}'
+                    + '#lz-refresh{display:none!important}'
+                    + '@keyframes dsspin{to{transform:rotate(360deg)}}'
+                    + '@media (prefers-reduced-motion:reduce){#data-status[data-state="loading"]{animation-duration:2s}}';
+                document.head.appendChild(st);
+            }
+            let el = document.getElementById('data-status');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'data-status'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+                el.setAttribute('data-state', 'loading'); el.setAttribute('aria-label', 'Memuat data');
+                document.body.appendChild(el);
+            }
+            function busy() {
+                if (!(globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded)) return true;
+                if (__dataPending.size) return true;
+                if (!window.__bgQueueDone) return true;
+                for (let i = 0; i < __LZ_BG_ORDER.length; i++) if (!__lzLoaded(__LZ_BG_ORDER[i])) return true;
+                const bf = __LZ.bookingFull;
+                if (bf && bf.started && !bf.loaded) return true;
+                return false;
+            }
+            function place() {
+                try {
+                    const h = document.querySelector('body > header');
+                    const r = h && h.getBoundingClientRect();
+                    if (r && r.height > 20 && r.bottom > 20) {
+                        el.style.top = Math.max(8, Math.round(r.top + r.height / 2 - 11)) + 'px';
+                        el.style.right = Math.max(12, Math.round(window.innerWidth - r.right + 18)) + 'px';
+                    }
+                } catch (_) {}
+            }
+            let calm = 0, state = 'loading';
+            setInterval(() => {
+                place();
+                let next;
+                if (busy()) { calm = 0; next = 'loading'; }
+                else { calm++; next = (calm >= 2 || state === 'done') ? 'done' : 'loading'; }   /* hijau hanya bila stabil ~1 detik, mencegah kedip */
+                if (next !== state) {
+                    state = next;
+                    el.setAttribute('data-state', state);
+                    el.setAttribute('aria-label', state === 'done' ? 'Semua data sudah masuk' : 'Memuat data');
+                }
+            }, 500);
         })();
 
         // Menentukan harga lapangan berdasarkan hari dan jam booking.
