@@ -13420,7 +13420,7 @@ document.addEventListener('input', function(e){
       var now = Date.now();
       var active = !!card || pending > 0;
       if(kind === 'r'){
-        if(!(active || now - lastSaveIntent < READ_WINDOW)) return;
+        if(!active) return;   // pembacaan data saja (mis. buka menu) tidak memunculkan kartu loading; hanya ikut bila sedang ada proses simpan
       } else if(now - lastAction > ACTION_WINDOW && !active){
         return;
       }
@@ -20198,8 +20198,10 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             'team-list': ['teamProfiles','memberTanpaJadwal','bookingFull','teamLogos'],
             'team-tanpa-logo': ['teamProfiles','memberTanpaJadwal','teamLogos']
         };
-        /* 'bookingFull' (seluruh riwayat booking) sengaja TIDAK diminta otomatis; hanya dimuat saat menu laporan/rekap/gaji/dst dibuka. */
-        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pelunasanMember','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','teamLogos'];
+        /* 'bookingFull' (seluruh riwayat booking) kini ikut dimuat di latar belakang, PALING TERAKHIR setelah data lain,
+           sehingga saat ceklis hijau muncul semua menu (laporan/rekap/gaji/pelunasan member/daftar tim) sudah siap
+           dan popup "Menyiapkan data..." tidak muncul lagi saat pindah menu. */
+        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pelunasanMember','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','teamLogos','bookingFull'];
         function __lzStart(key) {
             if (key === 'teamLogos') { try { startAdminTeamLogosListener(); } catch (_) {} return; }
             if (__LZ[key]) __LZ[key].start();
