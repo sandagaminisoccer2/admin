@@ -13413,10 +13413,16 @@ document.addEventListener('input', function(e){
     }
   }
 
+  /* Jendela Poster Jadwal (ubah warna nama tim / kepekatan strip) tidak menyimpan apa pun ke server,
+     jadi tidak boleh memunculkan kartu loading selama jendela itu terbuka. */
+  function posterOpen(){ var m = document.getElementById('jdp-modal'); return !!(m && m.classList.contains('open')); }
+  function inPoster(t){ return !!(t && t.closest && t.closest('#jdp-modal')); }
+
   /* Dipanggil dari pembungkus push/update/remove/get Firebase (lihat script module). */
   window.__saveProgressTrack = function(p, kind){
     try {
       if(!p) return;
+      if(posterOpen()) return;
       var now = Date.now();
       var active = !!card || pending > 0;
       if(kind === 'r'){
@@ -13448,6 +13454,7 @@ document.addEventListener('input', function(e){
 
   document.addEventListener('click', function(ev){
     var t = ev.target;
+    if(inPoster(t)) return;   // klik di jendela Poster Jadwal bukan aksi simpan
     lastAction = Date.now();
     if(!t || !t.closest) return;
     var b = t.closest('button,input[type="submit"],input[type="button"],[role="button"]');
@@ -13467,8 +13474,8 @@ document.addEventListener('input', function(e){
     lastAction = Date.now(); lastLabel = '';
     armGrace();
   }, true);
-  document.addEventListener('change', function(){ lastAction = Date.now(); }, true);
-  document.addEventListener('keydown', function(e){ if(e.key === 'Enter') lastAction = Date.now(); }, true);
+  document.addEventListener('change', function(e){ if(!inPoster(e.target)) lastAction = Date.now(); }, true);
+  document.addEventListener('keydown', function(e){ if(e.key === 'Enter' && !inPoster(e.target)) lastAction = Date.now(); }, true);
 })();
 </script>
 <script type="module">
@@ -20220,6 +20227,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             return n.filter(k => k !== 'teamLogos');
         }
         function __lzPill(show) {
+            if (show && document.querySelector('#jdp-modal.open')) show = false;   // jendela Poster Jadwal terbuka: jangan tampilkan pill
             let el = document.getElementById('lz-prep');
             if (!show) { if (el) el.classList.remove('is-on'); return; }
             if (!el) {
