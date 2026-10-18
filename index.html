@@ -37058,6 +37058,21 @@ body > main > #page-booking.sub-menu-modern > form{
 .bk-sheet-opt.is-active{background:#eff6ff;border-color:#173f78;color:#173f78;}
 .bk-sheet-opt:disabled{opacity:.4;cursor:not-allowed;}
 .bk-sheet-none{grid-column:1/-1;padding:18px;text-align:center;font-size:13px;color:#64748b;font-weight:700;}
+
+/* FIX HP: input tanggal (iOS/Safari) tidak boleh melebar keluar kartu */
+#page-booking input.bk-input[type="date"]{
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  display:block;width:100% !important;min-width:0 !important;max-width:100% !important;
+  box-sizing:border-box;margin:0;text-align:center;text-align-last:center;
+  line-height:1.2;overflow:hidden;
+}
+#page-booking input.bk-input[type="date"]::-webkit-date-and-time-value{
+  min-width:0;width:100%;text-align:center;margin:0;
+}
+#page-booking input.bk-input[type="date"]::-webkit-datetime-edit{
+  display:block;padding:0;min-width:0;max-width:100%;text-align:center;
+}
+#page-booking .bk-field{min-width:0;max-width:100%;}
 </style>
 
 <script id="booking-form-clean-v1-script">
