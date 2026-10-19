@@ -55156,3 +55156,165 @@ html body #page-laporan.lp-page .lp-empty small{font-size:11px !important;font-w
 })();
 </script>
 
+
+<!-- =====================================================================
+     DAILY RECAP — REDESAIN VISUAL (PALING AKHIR)
+     Kartu lebih solid (tidak kusam di atas foto), hierarki jelas:
+     Total Sisa Cash > Sisa Lapangan/Minuman > statistik > menu.
+     Hanya tampilan; tidak menyentuh data / Firebase / fungsi.
+     ===================================================================== -->
+<style id="daily-recap-redesign-clean-v1">
+html body main #page-daily-recap#page-daily-recap{
+  --dr-card:rgba(255,255,255,.94);
+  --dr-line:rgba(255,255,255,.95);
+  --dr-shadow:0 6px 18px rgba(15,23,42,.14), 0 1px 3px rgba(15,23,42,.08);
+}
+
+/* ---------- Bar tanggal ---------- */
+html body main #page-daily-recap#page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head{
+  background:var(--dr-card) !important;
+  border:1px solid var(--dr-line) !important;
+  box-shadow:var(--dr-shadow) !important;
+  -webkit-backdrop-filter:blur(10px) !important;
+  backdrop-filter:blur(10px) !important;
+}
+html body main #page-daily-recap#page-daily-recap .today-schedule-head.today-schedule-head.today-schedule-head > .today-date-picker-btn.today-date-picker-btn{
+  background:#f1f5f9 !important;
+  border:1px solid #e2e8f0 !important;
+  box-shadow:none !important;
+}
+html body main #page-daily-recap#page-daily-recap .today-schedule-head .today-history-btn{
+  background:#eff6ff !important;
+  border:1px solid #dbeafe !important;
+  color:#1d4ed8 !important;
+  box-shadow:none !important;
+}
+
+/* ---------- Kartu statistik (Pemasukan, Cash, QRIS, Pengeluaran) ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(-n+4){
+  position:relative !important;
+  background:var(--dr-card) !important;
+  border:1px solid var(--dr-line) !important;
+  border-radius:18px !important;
+  box-shadow:var(--dr-shadow), inset 4px 0 0 var(--dr-accent,#94a3b8) !important;
+  -webkit-backdrop-filter:blur(8px) !important;
+  backdrop-filter:blur(8px) !important;
+  padding-left:18px !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(1){--dr-accent:#2563eb}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(2){--dr-accent:#059669}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(3){--dr-accent:#0ea5e9}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(4){--dr-accent:#e11d48}
+
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(-n+4) > p:first-child{
+  color:#64748b !important;
+  font-weight:700 !important;
+  letter-spacing:.01em !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(-n+4) > p:last-child{
+  font-weight:900 !important;
+  letter-spacing:-.02em !important;
+  font-variant-numeric:tabular-nums !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-total-pemasukan{color:#0f172a !important}
+html body main #page-daily-recap#page-daily-recap #daily-total-cash{color:#047857 !important}
+html body main #page-daily-recap#page-daily-recap #daily-total-qris{color:#0369a1 !important}
+html body main #page-daily-recap#page-daily-recap #daily-total-keluar{color:#be123c !important}
+
+/* ---------- Sisa Cash Lapangan (hijau) & Minuman (ungu): warna penuh ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(5){
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(135deg,#047857 0%,#10b981 100%) !important;
+  border:1px solid rgba(255,255,255,.35) !important;
+  border-radius:20px !important;
+  box-shadow:0 10px 22px rgba(4,120,87,.30), inset 0 1px 0 rgba(255,255,255,.35) !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(6){
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 55%),
+    linear-gradient(135deg,#6d28d9 0%,#8b5cf6 100%) !important;
+  border:1px solid rgba(255,255,255,.35) !important;
+  border-radius:20px !important;
+  box-shadow:0 10px 22px rgba(91,33,182,.30), inset 0 1px 0 rgba(255,255,255,.35) !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(5) > p:first-child,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(6) > p:first-child{
+  color:rgba(255,255,255,.88) !important;
+  font-weight:700 !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-sisa-cash-lapangan,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-sisa-cash-minuman{
+  color:#fff !important;
+  font-weight:900 !important;
+  letter-spacing:-.02em !important;
+  font-variant-numeric:tabular-nums !important;
+  text-shadow:0 1px 2px rgba(0,0,0,.18) !important;
+}
+
+/* ---------- Total Sisa Cash (hero) ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(7){
+  background:
+    radial-gradient(90% 140% at 100% 0%, rgba(255,255,255,.20) 0%, rgba(255,255,255,0) 60%),
+    linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%) !important;
+  border:1px solid rgba(255,255,255,.35) !important;
+  border-radius:22px !important;
+  box-shadow:0 14px 28px rgba(30,64,175,.34), inset 0 1px 0 rgba(255,255,255,.35) !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:nth-child(7) > p:first-child{
+  color:rgba(255,255,255,.85) !important;
+  font-weight:700 !important;
+  letter-spacing:.02em !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-cash-seharusnya{
+  color:#fff !important;
+  font-weight:900 !important;
+  letter-spacing:-.03em !important;
+  font-variant-numeric:tabular-nums !important;
+  text-shadow:0 2px 6px rgba(0,0,0,.22) !important;
+}
+
+/* ---------- Tombol menu (Lapangan / Minuman / Keluar / Ringkasan) ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n){
+  background:var(--dr-card) !important;
+  border:1px solid var(--dr-line) !important;
+  border-radius:18px !important;
+  box-shadow:var(--dr-shadow) !important;
+  -webkit-backdrop-filter:blur(8px) !important;
+  backdrop-filter:blur(8px) !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n) .daily-mini-icon{
+  background:var(--m-bg) !important;
+  border:1px solid var(--m-bd) !important;
+  box-shadow:none !important;
+  color:var(--m-t) !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid button.daily-mini-card:nth-child(n):active{
+  transform:scale(.97) !important;
+  box-shadow:0 2px 8px rgba(15,23,42,.14) !important;
+}
+
+/* ---------- Header & dock halaman ini: tidak kusam/abu ---------- */
+html body:has(#page-daily-recap:not(.hidden)) > header{
+  background:rgba(255,255,255,.88) !important;
+  border:1px solid var(--dr-line, rgba(255,255,255,.95)) !important;
+  box-shadow:0 6px 18px rgba(15,23,42,.14) !important;
+}
+html body:has(#page-daily-recap:not(.hidden)) nav#quick-bottom-nav.quick-bottom-nav{
+  background:rgba(255,255,255,.90) !important;
+  border:1px solid rgba(255,255,255,.95) !important;
+  box-shadow:0 8px 22px rgba(15,23,42,.18) !important;
+}
+
+/* ---------- Desktop: jarak antar kartu sedikit lebih lega ---------- */
+@media (min-width:641px){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid,
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid{ gap:12px !important; }
+}
+</style>
