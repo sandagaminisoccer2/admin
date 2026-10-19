@@ -13489,10 +13489,58 @@ document.addEventListener('input', function(e){
 
         /* Pembungkus penulisan Firebase → memicu loading bar simpan (script global-save-progress-v1).
            Perilaku push/remove/update/get tidak berubah; hanya dipantau sampai server mengonfirmasi. */
+        /* =========================================================
+           PENYIMPANAN CEPAT (FAST-ACK)
+           Firebase menerapkan tulisan ke perangkat SEKETIKA, tetapi promise-nya baru selesai setelah
+           server mengonfirmasi (ack). Saat data besar sedang diunduh di latar belakang, ack bisa
+           sangat lama sehingga tombol Simpan terasa "tidak ada respon" padahal data sudah masuk
+           (terlihat di Daily Recap). Sekarang proses menunggu ack MAKSIMAL __FAST_ACK_MS; bila belum
+           datang, proses dilanjutkan dan pengirimannya dipantau chip "Mengirim data ke server"
+           (gagal = muncul peringatan). Selama menyimpan, render ulang berat & pengunduhan latar
+           ditahan sebentar agar koneksi + CPU fokus ke proses simpan. */
+        const __FAST_ACK_MS = 2000;
+        function __fastAck(orig, isPush) {
+            if (!orig || typeof orig.then !== 'function') return orig;
+            const origThen = orig.then.bind(orig);
+            let held = false;
+            try { if (typeof window.beginSaveHold === 'function') { window.beginSaveHold(); held = true; } } catch (_) {}
+            const release = () => {
+                if (!held) return; held = false;
+                try { if (typeof window.endSaveHold === 'function') window.endSaveHold(); } catch (_) {}
+            };
+            const plainRef = () => {
+                if (!isPush) return undefined;
+                try {
+                    const o = Object.create(Object.getPrototypeOf(orig));
+                    Object.keys(orig).forEach(k => { if (k !== 'then' && k !== 'catch') o[k] = orig[k]; });
+                    return o;
+                } catch (_) { return undefined; }
+            };
+            const fast = new Promise((resolve, reject) => {
+                let done = false;
+                const timer = setTimeout(() => {
+                    if (done) return; done = true;
+                    release();
+                    try { if (typeof window.trackPendingSync === 'function') window.trackPendingSync(new Promise((res, rej) => origThen(res, rej)), 'Data yang baru disimpan'); } catch (_) {}
+                    resolve(plainRef());
+                }, __FAST_ACK_MS);
+                origThen((v) => { release(); if (done) return; done = true; clearTimeout(timer); resolve(v); },
+                         (e) => { release(); if (done) return; done = true; clearTimeout(timer); reject(e); });
+            });
+            if (isPush) {   /* push() mengembalikan referensi yang juga thenable: .key tetap bisa dipakai langsung */
+                orig.then = fast.then.bind(fast);
+                orig.catch = fast.catch.bind(fast);
+                return orig;
+            }
+            return fast;
+        }
         const __trackFb = (fn, kind, op) => function(){
             const r = fn.apply(this, arguments);
             try { if (window.__saveProgressTrack) window.__saveProgressTrack(r, kind); } catch(_) {}
-            if (kind === 'w') { try { __revTouchWrite(arguments, op); } catch(_) {} }
+            if (kind === 'w') {
+                try { __revTouchWrite(arguments, op); } catch(_) {}
+                try { return __fastAck(r, op === 'push'); } catch(_) { return r; }
+            }
             return r;
         };
         const push = __trackFb(__fbPush, 'w', 'push');
@@ -13523,6 +13571,11 @@ document.addEventListener('input', function(e){
            - Setelah itu data lain diminta satu per satu di latar belakang.
            ========================================================= */
         const __LZ = {};
+        /* Catat kapan admin terakhir menyentuh layar/keyboard: pengunduhan data latar belakang
+           ditunda selama admin sedang aktif, supaya buka menu & simpan tidak berat/lambat. */
+        window.__lastUserInputAt = 0;
+        ['pointerdown', 'touchstart', 'keydown', 'click', 'wheel'].forEach(t =>
+            document.addEventListener(t, () => { window.__lastUserInputAt = Date.now(); }, { capture: true, passive: true }));
 
         /* ---------- Salinan data terakhir di perangkat (IndexedDB) ----------
            Bila halaman dibuka ulang (mis. tab dibuang HP), data terakhir langsung
@@ -13552,9 +13605,13 @@ document.addEventListener('input', function(e){
         function __cachePut(name, val, tKeep) {
             clearTimeout(__cacheTimers[name]);
             __cacheTimers[name] = setTimeout(() => {
-                const rec = { t: tKeep || Date.now(), v: val === undefined ? null : val };
-                if (__REV_NODES.has(name)) rec.rev = __revCur(name);   /* penanda versi data saat salinan ini disimpan */
-                __IDB.set('v1:' + name, rec);
+                const save = () => {
+                    const rec = { t: tKeep || Date.now(), v: val === undefined ? null : val };
+                    if (__REV_NODES.has(name)) rec.rev = __revCur(name);   /* penanda versi data saat salinan ini disimpan */
+                    __IDB.set('v1:' + name, rec);
+                };
+                /* kloning data besar ke IndexedDB memblokir layar → lakukan saat browser senggang */
+                if (window.requestIdleCallback) requestIdleCallback(save, { timeout: 8000 }); else save();
             }, 1500);
         }
         function __fakeSnap(v) {
@@ -16389,6 +16446,30 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if(document.getElementById('m-select-pilihan')) document.getElementById('m-select-pilihan').value = "";
             showPage('jadwal');
         }
+
+        /* Uang Masuk / Pelunasan Lapangan: tombol langsung berubah "Menyimpan..." (ada respon seketika),
+           terkunci agar tidak tersimpan dobel bila ditekan berulang, lalu kembali normal setelah selesai. */
+        (function wrapSubmitPemasukan() {
+            const __origSubmit = window.submitData;
+            window.submitData = async function(e, type) {
+                if (type !== 'pemasukan') return __origSubmit.apply(this, arguments);
+                try { e && e.preventDefault && e.preventDefault(); } catch (_) {}
+                if (window.__savingPemasukan) return;
+                window.__savingPemasukan = true;
+                const btn = document.getElementById('btn-simpan-pemasukan');
+                const oldHtml = btn ? btn.innerHTML : '';
+                if (btn) { btn.disabled = true; btn.classList.add('is-saving'); btn.innerHTML = '⏳ Menyimpan...'; }
+                const args = arguments, self = this;
+                try {
+                    /* beri browser satu frame untuk menggambar status "Menyimpan..." sebelum proses berat berjalan */
+                    await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+                    return await __origSubmit.apply(self, args);
+                } finally {
+                    window.__savingPemasukan = false;
+                    if (btn) { btn.disabled = false; btn.classList.remove('is-saving'); btn.innerHTML = oldHtml; }
+                }
+            };
+        })();
 
 
         window.renderMinumanSummary = () => {
@@ -20349,6 +20430,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 started = true; clearInterval(timer);
                 const next = () => {
                     if (window.__saveHoldCount > 0) { setTimeout(next, 500); return; }
+                    if (Date.now() - (window.__lastUserInputAt || 0) < 1000) { setTimeout(next, 350); return; }   // admin sedang aktif → tunda, beri prioritas ke layar
                     const queue = __lzNeeds(__lzCurrent).concat(__LZ_BG_ORDER);   // menu yang sedang dibuka didahulukan
                     const key = queue.find(k => !issued.has(k) && !__lzStarted(k));
                     if (!key) { window.__bgQueueDone = true; return; }
