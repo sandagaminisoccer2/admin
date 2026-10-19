@@ -18746,6 +18746,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         const INITIAL_LOADING_MAX_WAIT = 1700;   // popup loading awal ditutup maksimal ~2 detik (1,7 dtk + animasi tutup)
         window.__sandagaInitialLoadingT0 = Date.now();
 
+        function __setTxt(el, v) { if (el && el.textContent !== v) el.textContent = v; }   /* hanya tulis bila berubah: tulis ulang tiap 40 ms membuat ikon/teks di atas kartu berkedip */
         function finishInitialLoadingOverlay(timedOut = false) {
             const overlay = document.getElementById('app-initial-loading-overlay');
             if (!overlay) return;
@@ -18759,13 +18760,13 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             const text = overlay.querySelector('[data-app-loading-text]');
             const icon = overlay.querySelector('[data-app-loading-icon]');
             if (timedOut) {
-                if (title) title.textContent = 'Aplikasi siap digunakan';
-                if (text) text.textContent = 'Koneksi masih menyinkronkan data di latar belakang.';
-                if (icon) icon.textContent = '✓';
+                __setTxt(title, 'Aplikasi siap digunakan');
+                __setTxt(text, 'Koneksi masih menyinkronkan data di latar belakang.');
+                __setTxt(icon, '✓');
             } else {
-                if (title) title.textContent = 'Data berhasil dimuat';
-                if (text) text.textContent = 'Jadwal Hari Ini siap ditampilkan.';
-                if (icon) icon.textContent = '✓';
+                __setTxt(title, 'Data berhasil dimuat');
+                __setTxt(text, 'Jadwal Hari Ini siap ditampilkan.');
+                __setTxt(icon, '✓');
             }
             clearTimeout(window.__sandagaInitialLoadingHideTimer);
             window.__sandagaInitialLoadingHideTimer = setTimeout(() => {
@@ -18801,7 +18802,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 bar.style.width = safe + '%';
                 bar.style.transform = 'none';
             }
-            if (percent) percent.textContent = safe + '%';
+            __setTxt(percent, safe + '%');
         }
 
         function startInitialLoadingProgress() {
@@ -18868,17 +18869,17 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             startInitialLoadingProgress();
 
             if (!complete) {
-                overlay.classList.remove('is-success');
+                if (overlay.classList.contains('is-success')) overlay.classList.remove('is-success');
                 if (!memberLoaded && !bookingLoaded) {
-                    if (title) title.textContent = 'Memuat data...';
-                    if (text) text.textContent = 'Menghubungkan ke database dan mengambil data Jadwal Hari Ini.';
-                    if (icon) icon.textContent = '📅';
+                    __setTxt(title, 'Memuat data...');
+                    __setTxt(text, 'Menghubungkan ke database dan mengambil data Jadwal Hari Ini.');
+                    __setTxt(icon, '📅');
                 } else {
-                    if (title) title.textContent = 'Menyinkronkan data...';
-                    if (text) text.textContent = memberLoaded
+                    __setTxt(title, 'Menyinkronkan data...');
+                    __setTxt(text, memberLoaded
                         ? 'Data member sudah masuk. Menunggu data booking...'
-                        : 'Data booking sudah masuk. Menunggu data member...';
-                    if (icon) icon.textContent = '⏳';
+                        : 'Data booking sudah masuk. Menunggu data member...');
+                    __setTxt(icon, '⏳');
                 }
                 return;
             }
@@ -18889,9 +18890,9 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if (progress >= 100) {
                 finishInitialLoadingOverlay(false);
             } else {
-                if (title) title.textContent = 'Menyinkronkan data...';
-                if (text) text.textContent = 'Data utama sudah masuk. Menyelesaikan sinkronisasi...';
-                if (icon) icon.textContent = '⏳';
+                __setTxt(title, 'Menyinkronkan data...');
+                __setTxt(text, 'Data utama sudah masuk. Menyelesaikan sinkronisasi...');
+                __setTxt(icon, '⏳');
             }
         }
 
@@ -20671,6 +20672,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 try { if (window.__saveProgressBusy && window.__saveProgressBusy()) return true; } catch (_) {}
                 if (!(globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded)) return true;
                 if (__dataPending.size) return true;
+                if (typeof window.__dataDetailBusy === 'function' && window.__dataDetailBusy()) return true;   /* ceklis hijau baru muncul setelah SEMUA langkah di pill selesai ditampilkan */
                 if (!window.__bgQueueDone) return true;
                 for (let i = 0; i < __LZ_BG_ORDER.length; i++) if (!__lzLoaded(__LZ_BG_ORDER[i])) return true;
                 const bf = __LZ.bookingFull;
@@ -20799,6 +20801,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             const SRC = [
                 ['jadwal member', () => !globalCache.__initialMemberLoaded && !globalCache.__initialLoadingTimedOut],
                 ['booking', () => !globalCache.__initialBookingLoaded && !globalCache.__initialLoadingTimedOut],
+                ['poster jadwal', () => typeof window.__jdpBusy === 'function' && window.__jdpBusy()],
                 ['status lunas', pend('lunasDarurat')],
                 ['pembatalan booking', pend('bookingBatal')],
                 ['pemasukan', pend('pemasukan')],
@@ -20814,7 +20817,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 ['logo semua tim', () => !!window.__adminTeamLogosListenerStarted && !globalCache.__teamLogosFullLoaded && !window.__adminLogoGiveUp],
                 ['riwayat booking', lz('bookingFull')]
             ];
-            const NAMEMAP = { member: 'jadwal member', booking: 'booking', lunasDarurat: 'status lunas', bookingBatal: 'pembatalan booking', pemasukan: 'pemasukan', sparring: 'sparing', minuman: 'minuman', memberTanpaJadwal: 'member tanpa jadwal', pelunasanMember: 'pelunasan member', pengeluaran: 'uang keluar', teamProfiles: 'profil tim', pendingSparingNames: 'nama sparing', adminJaga: 'admin jaga', adminJagaNames: 'admin jaga', adminJagaDefault: 'admin jaga' };
+            const NAMEMAP = { poster: 'poster jadwal', member: 'jadwal member', booking: 'booking', lunasDarurat: 'status lunas', bookingBatal: 'pembatalan booking', pemasukan: 'pemasukan', sparring: 'sparing', minuman: 'minuman', memberTanpaJadwal: 'member tanpa jadwal', pelunasanMember: 'pelunasan member', pengeluaran: 'uang keluar', teamProfiles: 'profil tim', pendingSparingNames: 'nama sparing', adminJaga: 'admin jaga', adminJagaNames: 'admin jaga', adminJagaDefault: 'admin jaga' };
             const seen = {};      /* nama -> {since, gaveUp} untuk data yang antre/sedang tampil */
             const queue = [];     /* antrean nama data menurut urutan mulai dimuat */
             const lastShown = {}; /* nama -> waktu terakhir selesai tampil (cegah tampil dobel) */
@@ -20845,6 +20848,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     el.classList.add('is-on');
                 }
             }
+            window.__dataDetailBusy = () => !!cur || queue.length > 0;
             setInterval(() => {
                 place();
                 const now = Date.now();
@@ -20862,6 +20866,9 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     const s = seen[name];
                     if (s && !s.gaveUp && now - s.since > GIVE_UP_MS) s.gaveUp = true;   /* batas aman: jangan menempel selamanya */
                 });
+                /* Popup "Memuat data..." menutupi layar (z-index lebih tinggi dari pill): langkah yang sudah lewat
+                   di belakangnya TETAP antre, dan baru ditampilkan satu per satu setelah popup menutup. */
+                if (document.getElementById('app-initial-loading-overlay')) { render(); return; }
                 /* Antrean panjang → tampil lebih singkat agar semua data tetap kebagian giliran */
                 const fast = queue.length > 5;
                 const SHOW = fast ? 300 : 450, DONE = fast ? 180 : 300;
@@ -36250,7 +36257,9 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
     return { changed: true, img: null, note: 'Latar belum diupload, memakai latar bawaan.' };
   }
   var netP = null;   /* satu permintaan jaringan pada satu waktu (prefetch + klik tidak dobel unduh) */
+  window.__jdpBusy = function(){ return !!netP; };   /* dipakai pill status kanan atas */
   function fetchBackgroundOnce(){
+    try { if (!netP && window.__dataTouched) window.__dataTouched.push(['poster', Date.now()]); } catch (_) {}
     if (!netP) netP = fetchBackground().then(function(r){ netP = null; return r; }, function(e){ netP = null; throw e; });
     return netP;
   }
