@@ -3,6 +3,41 @@
 <html lang="id">
 <head>
 <meta charset="utf-8"/>
+<script>
+/* DIAGNOSA RELOAD (sementara) - mencatat kapan & kenapa halaman dimuat ulang. Tombol 🐞 kiri bawah membuka catatannya. */
+(function(){
+  var KEY='sandaga-reload-log';
+  function rd(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(_){return[]}}
+  function add(o){try{o.t=Date.now();var a=rd();a.push(o);localStorage.setItem(KEY,JSON.stringify(a.slice(-30)));}catch(_){}}
+  function heap(){try{return Math.round(performance.memory.usedJSHeapSize/1048576)}catch(_){return null}}
+  try{
+    var nav=(performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||{};
+    var last=+localStorage.getItem('sandaga-last-alive')||0;
+    add({e:'LOAD',type:nav.type||'?',gapDetik:last?Math.round((Date.now()-last)/1000):null,heapTerakhirMB:localStorage.getItem('sandaga-last-heap'),serviceWorker:!!(navigator.serviceWorker&&navigator.serviceWorker.controller),vis:document.visibilityState});
+  }catch(_){}
+  setInterval(function(){try{localStorage.setItem('sandaga-last-alive',String(Date.now()));var h=heap();if(h!=null)localStorage.setItem('sandaga-last-heap',String(h));}catch(_){}},5000);
+  window.addEventListener('pagehide',function(ev){add({e:'PAGEHIDE',persisted:ev.persisted,vis:document.visibilityState,heapMB:heap()});});
+  window.addEventListener('error',function(ev){add({e:'ERROR',msg:String(ev.message||'').slice(0,160)});});
+  try{if(window.navigation&&navigation.addEventListener){navigation.addEventListener('navigate',function(ev){add({e:'NAVIGATE',nt:ev.navigationType,userInitiated:ev.userInitiated,url:String(ev.destination&&ev.destination.url||'').slice(0,120),stack:(new Error().stack||'').split('\n').slice(1,7).join(' | ').slice(0,600)});});}}catch(_){}
+  document.addEventListener('DOMContentLoaded',function(){
+    var b=document.createElement('button');b.textContent='🐞';b.setAttribute('aria-label','Catatan reload');
+    b.style.cssText='position:fixed;left:8px;bottom:8px;z-index:2147483000;width:34px;height:34px;border-radius:50%;border:0;background:rgba(15,23,42,.75);color:#fff;font-size:16px;opacity:.7';
+    b.onclick=function(){
+      var o=document.createElement('div');o.style.cssText='position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.85);color:#e2e8f0;padding:12px;overflow:auto;font:11px/1.4 monospace';
+      var txt=rd().map(function(x){return new Date(x.t).toLocaleTimeString('id-ID')+' '+JSON.stringify(x)}).join('\n\n');
+      var pre=document.createElement('pre');pre.style.whiteSpace='pre-wrap';pre.textContent=txt||'(kosong)';
+      var bar=document.createElement('div');bar.style.cssText='position:sticky;top:0;display:flex;gap:8px;margin-bottom:8px';
+      function mk(l,f){var x=document.createElement('button');x.textContent=l;x.style.cssText='padding:8px 12px;border-radius:8px;border:0;background:#2563eb;color:#fff;font-weight:700';x.onclick=f;bar.appendChild(x);}
+      mk('Tutup',function(){o.remove()});
+      mk('Salin',function(){try{navigator.clipboard.writeText(txt);}catch(_){var r=document.createRange();r.selectNodeContents(pre);var s=getSelection();s.removeAllRanges();s.addRange(r);}});
+      mk('Hapus',function(){try{localStorage.removeItem(KEY)}catch(_){}pre.textContent='(kosong)';txt='';});
+      o.appendChild(bar);o.appendChild(pre);document.body.appendChild(o);
+    };
+    document.body.appendChild(b);
+  });
+})();
+</script>
+
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <title>ADMIN SANDAGA MINISOCCER</title>
 <!-- Penghubung Manifest untuk Android/Chrome -->
@@ -14190,8 +14225,8 @@ function waDaftarNamaTim(){
     }
 
     inpNama.addEventListener('focus', () => {
-        // Muat seluruh riwayat booking agar nomor lama ikut terbaca.
-        try { if(typeof startBookingFullHistoryListener === 'function') startBookingFullHistoryListener(); } catch(_) {}
+        // (Dinonaktifkan) Dulu: memuat seluruh riwayat booking tiap kali kolom nama difokus. Kini hanya data bulan ini ke depan
+        // + profil tim/member/sparring yang dipakai untuk mencari nomor WA.
         dl.innerHTML = waDaftarNamaTim().map(n => '<option value="' + bentrokEsc(n) + '"></option>').join('');
     });
     ['input', 'change', 'blur'].forEach(ev => inpNama.addEventListener(ev, terapkan));
@@ -20266,7 +20301,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         /* 'bookingFull' (seluruh riwayat booking) kini ikut dimuat di latar belakang, PALING TERAKHIR setelah data lain,
            sehingga saat ceklis hijau muncul semua menu (laporan/rekap/gaji/pelunasan member/daftar tim) sudah siap
            dan popup "Menyiapkan data..." tidak muncul lagi saat pindah menu. */
-        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pelunasanMember','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','teamLogos','bookingFull'];
+        const __LZ_BG_ORDER = ['minuman','memberTanpaJadwal','pelunasanMember','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','teamLogos'];   /* bookingFull (seluruh riwayat booking) TIDAK lagi dimuat otomatis di latar belakang: hanya dimuat saat menu yang membutuhkannya dibuka */
         function __lzStart(key) {
             if (key === 'teamLogos') { try { startAdminTeamLogosListener(); } catch (_) {} return; }
             if (__LZ[key]) __LZ[key].start();
