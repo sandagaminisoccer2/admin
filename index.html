@@ -15386,14 +15386,18 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             // Tambahan 30 menit = 50% tarif pada jam berikutnya.
             let hargaTotalLapangan = 0;
             let jamAkhirBooking = '';
+            // Pengurangan waktu (mis. -30 menit) = TANPA diskon member: seluruh jam
+            // dihitung dengan tarif Non-Member.
+            const hapusDiskonMemberKurangWaktu = tambahanMenit < 0;
+            const statusTarifLapangan = (isSparingPayment || hapusDiskonMemberKurangWaktu) ? 'Non-Member' : selectedStatus;
             if (effectiveJamList.length) {
                 hargaTotalLapangan = effectiveJamList.reduce((sum, jj) => {
-                    return sum + getHargaLapangan(tgl, jj, isSparingPayment ? 'Non-Member' : selectedStatus);
+                    return sum + getHargaLapangan(tgl, jj, statusTarifLapangan);
                 }, 0);
                 const lastJam = effectiveJamList[effectiveJamList.length - 1] || '';
                 if (lastJam) jamAkhirBooking = `${String((parseInt(lastJam.split(':')[0]) + 1) % 24).padStart(2,'0')}:00`;
             } else if (jam && tgl) {
-                hargaTotalLapangan = getHargaLapangan(tgl, jam, isSparingPayment ? 'Non-Member' : selectedStatus);
+                hargaTotalLapangan = getHargaLapangan(tgl, jam, statusTarifLapangan);
                 jamAkhirBooking = `${String((parseInt(jam.split(':')[0]) + 1) % 24).padStart(2,'0')}:00`;
             }
             // Penyesuaian waktu dihitung secara matematis berdasarkan DURASI EFEKTIF.
@@ -15438,7 +15442,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 if (!jamTerakhir) jamTerakhir = jam;
 
                 if (jamTerakhir) {
-                    const tarifJamTerakhir = getHargaLapangan(tgl, jamTerakhir, isSparingPayment ? 'Non-Member' : selectedStatus);
+                    const tarifJamTerakhir = getHargaLapangan(tgl, jamTerakhir, 'Non-Member');
                     biayaTambahanWaktu = -Math.round(tarifJamTerakhir * Math.abs(tambahanJam));
                 }
                 biayaTambahanWaktuNonMember = biayaTambahanWaktu;
@@ -15483,7 +15487,8 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 const tim2Member = normalizeStatus(second.status) === 'member';
                 // Diskon member Rp50.000 per jam. Tambahan 30 menit tidak diberi diskon,
                 // sedangkan tambahan jam penuh (1 jam, 1,5 jam, 2 jam) menambah diskon Rp50.000 per jamnya.
-                const diskonMemberTotalSparing = 50000 * (1 + jamPenuhTambahan);
+                // Pengurangan waktu (-30 menit): diskon member dihilangkan.
+                const diskonMemberTotalSparing = hapusDiskonMemberKurangWaktu ? 0 : 50000 * (1 + jamPenuhTambahan);
 
                 if (tim1Member && tim2Member) {
                     if (diskonMemberAlokasi === 'tim1') {
@@ -20388,7 +20393,40 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if (typeof renderRekapHarian === 'function') scheduleRender(renderRekapHarian);
         });
 
-        cachedOnValue('sparring', ref(db, 'sparring'), async (snapshot) => {
+        // DATA SPARING: diminta LANGSUNG setelah data Jadwal Hari Ini (member + booking)
+        // diminta, lalu muncul notifikasi begitu data sparing berhasil dimuat.
+        function showSparingLoadedToast() {
+            try {
+                if (!document.getElementById('sparing-toast-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'sparing-toast-style';
+                    st.textContent = '#sparing-toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-20px);z-index:99992;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:rgba(5,150,105,.96);color:#fff;font:700 12px/1.2 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}'
+                        + '#sparing-toast.is-on{opacity:1;transform:translate(-50%,0)}';
+                    document.head.appendChild(st);
+                }
+                let el = document.getElementById('sparing-toast');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'sparing-toast'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+                    el.textContent = '✓ Data sparing berhasil dimuat';
+                    document.body.appendChild(el);
+                    void el.offsetWidth;
+                }
+                el.classList.add('is-on');
+                clearTimeout(window.__sparingToastTimer);
+                window.__sparingToastTimer = setTimeout(() => el.classList.remove('is-on'), 2600);
+            } catch (_) {}
+        }
+        let __sparingToastShown = false;
+        lazyOnValue('sparring', ref(db, 'sparring'), async (snapshot) => {
+            // Notifikasi hanya setelah data sparing benar-benar tiba (bukan salinan lama di perangkat).
+            if (!__sparingToastShown) {
+                setTimeout(() => {
+                    if (__sparingToastShown || __dataPending.has('sparring')) return;
+                    __sparingToastShown = true;
+                    showSparingLoadedToast();
+                }, 0);
+            }
             globalCache.sparring = snapshot.val() || {};
             // Reconcile data manual yang mungkin tersimpan sebelum booking
             // berhasil dibuat. Setelah sinkron, semua tampilan dirender ulang.
@@ -20410,6 +20448,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if (typeof window.renderTeamList === 'function') scheduleRender(window.renderTeamList);
         });
 
+        try { __LZ.sparring.start(); } catch (e) { console.warn('Gagal meminta data sparing:', e); }
         lazyOnValue('pendingSparingNames', ref(db, 'pendingSparingNames'), (snapshot) => { globalCache.pendingSparingNames = snapshot.val() || {}; });
         cachedOnValue('pemasukan', ref(db, 'pemasukan'), (snapshot) => {
             globalCache.pemasukan = snapshot.val() || {};
