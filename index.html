@@ -13910,6 +13910,7 @@ window.__APP_FIREBASE_PUSH__ = push;
 window.__APP_FIREBASE_REMOVE__ = remove;
 window.__APP_FIREBASE_UPDATE__ = update;
 window.__APP_FIREBASE_GET__ = get;
+window.__APP_FIREBASE_ONVALUE__ = onValue;
 window.__APP_FIREBASE_GET_RAW__ = __fbGet; /* pembacaan murni, tidak memicu kartu "Menyimpan data" */
 /* PRIORITAS PERTAMA: begitu Firebase siap, data poster (versi latar + gambar + font) langsung DIMINTA
    lebih dulu, sebelum data Jadwal Hari Ini, Member, dan data lain mulai diunduh. */
@@ -25247,10 +25248,13 @@ return;
                     else { member1 = 0; member2 = 0; }
                 }
 
-                if (isMemberStatus(status1) && member1 > 0) {
+                // Pengurangan waktu (mis. -30 menit) = TANPA diskon member, jadi
+                // keterangan diskon member tidak ditampilkan di Daily Recap.
+                const kurangWaktuTanpaDiskonMember = Number(data.tambahanWaktuMenit || 0) < 0;
+                if (!kurangWaktuTanpaDiskonMember && isMemberStatus(status1) && member1 > 0) {
                     details.push(`🏷️ Diskon Member Tim 1: ${rupiah(member1)}`);
                 }
-                if (isMemberStatus(status2) && member2 > 0) {
+                if (!kurangWaktuTanpaDiskonMember && isMemberStatus(status2) && member2 > 0) {
                     details.push(`🏷️ Diskon Member Tim 2: ${rupiah(member2)}`);
                 }
 
@@ -33220,9 +33224,14 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
 
 
     const getHistoryCache = () => window.__sandagaGlobalCache || {booking:{},member:{},pemasukan:{},pelunasanMember:{},lunasDarurat:{},bookingBatal:{},riwayatStatusManual:{}};
-    if(typeof onValue==='function' && typeof ref==='function' && typeof db!=='undefined'){
+    const __rsmDb=()=>window.__APP_FIREBASE_DB__, __rsmRef=()=>window.__APP_FIREBASE_REF__, __rsmUpdate=()=>window.__APP_FIREBASE_UPDATE__, __rsmOnValue=()=>window.__APP_FIREBASE_ONVALUE__;
+    (function attachRiwayatStatusManualListener(tries){
+        if(!(typeof __rsmOnValue()==='function' && typeof __rsmRef()==='function' && __rsmDb())){
+            if(tries<100) setTimeout(()=>attachRiwayatStatusManualListener(tries+1),300);
+            return;
+        }
         try {
-            onValue(ref(db,'riwayatStatusManual'),snapshot=>{
+            __rsmOnValue()(__rsmRef()(__rsmDb(),'riwayatStatusManual'),snapshot=>{
                 const cache=getHistoryCache();
                 cache.riwayatStatusManual=snapshot.val()||{};
                 if(historySelectedDate){
@@ -33232,7 +33241,7 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
         } catch(e) {
             console.warn('Listener status manual riwayat gagal dipasang:',e);
         }
-    }
+    })(0);
     const historyGetNamaHari = dateStr => { const d=new Date(String(dateStr)+'T00:00:00'); return ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()]; };
     const historyMemberScheduled = (member,dateStr) => {
         if(!member || !dateStr) return false;
@@ -33682,7 +33691,8 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
         if(!dateKey || !nama || !slotTimes.length || !['LUNAS','TIDAK LUNAS'].includes(status)) return;
 
         try {
-            if(typeof update!=='function' || typeof ref!=='function' || typeof db==='undefined'){
+            const updateFn=__rsmUpdate(), refFn=__rsmRef(), dbRef=__rsmDb();
+            if(typeof updateFn!=='function' || typeof refFn!=='function' || !dbRef){
                 throw new Error('Koneksi database tidak tersedia.');
             }
 
@@ -33693,7 +33703,7 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
                 const key=historyManualStatusKey(dateKey,nama,jam);
                 const data={dateKey,nama:normName(nama),jam:String(jam).substring(0,5),status,updatedAt:Date.now()};
                 cache.riwayatStatusManual[key]=data;
-                return update(ref(db,'riwayatStatusManual/'+key),data);
+                return updateFn(refFn(dbRef,'riwayatStatusManual/'+key),data);
             }));
 
             document.getElementById('modal-edit-status-riwayat')?.remove();
