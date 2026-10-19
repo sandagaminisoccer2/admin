@@ -20395,26 +20395,33 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
 
         // DATA SPARING: diminta LANGSUNG setelah data Jadwal Hari Ini (member + booking)
         // diminta, lalu muncul notifikasi begitu data sparing berhasil dimuat.
-        function showSparingLoadedToast() {
+        function showSparingLoadedToast(state) {
+            state = state || 'done';
             try {
                 if (!document.getElementById('sparing-toast-style')) {
                     const st = document.createElement('style');
                     st.id = 'sparing-toast-style';
                     st.textContent = '#sparing-toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-20px);z-index:99992;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:rgba(5,150,105,.96);color:#fff;font:700 12px/1.2 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}'
-                        + '#sparing-toast.is-on{opacity:1;transform:translate(-50%,0)}';
+                        + '#sparing-toast.is-on{opacity:1;transform:translate(-50%,0)}'
+                        + '#sparing-toast[data-state="loading"]{background:rgba(30,64,175,.96)}'
+                        + '#sparing-toast i{width:12px;height:12px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:sptspin .7s linear infinite}'
+                        + '@keyframes sptspin{to{transform:rotate(360deg)}}';
                     document.head.appendChild(st);
                 }
                 let el = document.getElementById('sparing-toast');
                 if (!el) {
                     el = document.createElement('div');
                     el.id = 'sparing-toast'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
-                    el.textContent = '✓ Data sparing berhasil dimuat';
                     document.body.appendChild(el);
                     void el.offsetWidth;
                 }
+                el.setAttribute('data-state', state);
+                if (state === 'loading') el.innerHTML = '<i></i><span>Memuat data sparing...</span>';
+                else el.textContent = '✓ Data sparing berhasil dimuat';
                 el.classList.add('is-on');
                 clearTimeout(window.__sparingToastTimer);
-                window.__sparingToastTimer = setTimeout(() => el.classList.remove('is-on'), 2600);
+                // Notifikasi "memuat" tetap tampil sampai data tiba (maks. 15 dtk); "selesai" hilang sendiri.
+                window.__sparingToastTimer = setTimeout(() => el.classList.remove('is-on'), state === 'loading' ? 15000 : 2600);
             } catch (_) {}
         }
         let __sparingToastShown = false;
@@ -20448,7 +20455,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if (typeof window.renderTeamList === 'function') scheduleRender(window.renderTeamList);
         });
 
-        try { __LZ.sparring.start(); } catch (e) { console.warn('Gagal meminta data sparing:', e); }
+        try { showSparingLoadedToast('loading'); __LZ.sparring.start(); } catch (e) { console.warn('Gagal meminta data sparing:', e); }
         lazyOnValue('pendingSparingNames', ref(db, 'pendingSparingNames'), (snapshot) => { globalCache.pendingSparingNames = snapshot.val() || {}; });
         cachedOnValue('pemasukan', ref(db, 'pemasukan'), (snapshot) => {
             globalCache.pemasukan = snapshot.val() || {};
