@@ -39004,6 +39004,7 @@ html body #page-minuman .minuman-sales-summary{ margin-top:14px !important; }
 (function(){
   var busy=false;
   function sync(){
+    if(window.__mobileFitGapOwner) return;
     if(busy) return; busy=true;
     try{
       var page=document.getElementById('page-minuman');
@@ -54903,7 +54904,8 @@ html body #page-laporan.lp-page .lp-empty small{font-size:11px !important;font-w
   var mq   = window.matchMedia('(max-width:640px)');
   var root = document.documentElement;
   var busy = false, hTimer = null, lastW = window.innerWidth;
-  var dirty = {}, clsObs = [];
+  var dirty = {}, clsObs = [], userTouched = false;
+  window.__mobileFitGapOwner = true;   /* skrip jarak Minuman yang lama dimatikan; jarak dihitung di sini */
 
   function el(id){ return document.getElementById(id); }
 
@@ -54935,6 +54937,19 @@ html body #page-laporan.lp-page .lp-empty small{font-size:11px !important;font-w
 
   /* jarak header -> card pertama dibuat sama dengan jarak antar card */
   function adjustGap(pg){
+    if (pg.id === 'page-minuman'){
+      /* jarak header -> bar tanggal = jarak bar tanggal -> kartu (dulu dikoreksi belakangan oleh skrip lain
+         tiap 400 ms sehingga tampilan bergeser setelah menu terbuka; sekarang ikut pengukuran awal) */
+      var mh = pg.querySelector('.today-schedule-head'), mhdr = document.querySelector('body > header');
+      var mn = mh && mh.nextElementSibling;
+      if (!mh || !mhdr || !mn) return;
+      var g0 = Math.round(docTop(mh) - mhdr.getBoundingClientRect().bottom);
+      if (g0 < 6 || g0 > 40) return;
+      mh.style.setProperty('margin-bottom','0px','important');
+      var nat = Math.round(docTop(mn) - docBottom(mh));
+      mh.style.setProperty('margin-bottom', Math.max(0, g0 - nat) + 'px', 'important');
+      return;
+    }
     var c = GAPCFG[pg.id];
     if (!c) return;
     pg.style.setProperty('margin-top','0px','important');
@@ -55075,7 +55090,7 @@ html body #page-laporan.lp-page .lp-empty small{font-size:11px !important;font-w
     clearTimeout(hTimer);
     hTimer = setTimeout(function(){
       var ids = Object.keys(dirty).filter(function(k){ return dirty[k]; });
-      if (ids.length) measureHidden(ids, force);
+      if (ids.length) measureHidden(ids, force || !userTouched);   /* sebelum layar disentuh: aman diukur kapan saja */
     }, 200);
   }
 
@@ -55127,8 +55142,10 @@ html body #page-laporan.lp-page .lp-empty small{font-size:11px !important;font-w
       }).observe(ov, {attributes:true, attributeFilter:['class']});
     }
 
+    window.addEventListener('pointerdown', function(){ userTouched = true; }, {capture:true, once:true, passive:true});
     markAll();
     onShown();
+    try { measureHidden(ALL_IDS, true); } catch(e) {}   /* ukur semua menu SEKARANG, tanpa menunggu */
     scheduleHidden(false);
     setTimeout(function(){ scheduleHidden(false); }, 500);
     setTimeout(function(){ scheduleHidden(false); }, 1500);
