@@ -8,7 +8,7 @@
 (function(){
   var KEY='sandaga-reload-log';
   function rd(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(_){return[]}}
-  function add(o){try{o.t=Date.now();var a=rd();a.push(o);localStorage.setItem(KEY,JSON.stringify(a.slice(-30)));}catch(_){}}
+  function add(o){try{o.t=Date.now();var a=rd();a.push(o);localStorage.setItem(KEY,JSON.stringify(a.slice(-60)));}catch(_){}}
   function heap(){try{return Math.round(performance.memory.usedJSHeapSize/1048576)}catch(_){return null}}
   try{
     var nav=(performance.getEntriesByType&&performance.getEntriesByType('navigation')[0])||{};
@@ -17,7 +17,7 @@
   }catch(_){}
   setInterval(function(){try{localStorage.setItem('sandaga-last-alive',String(Date.now()));var h=heap();if(h!=null)localStorage.setItem('sandaga-last-heap',String(h));}catch(_){}},5000);
   window.addEventListener('pagehide',function(ev){add({e:'PAGEHIDE',persisted:ev.persisted,vis:document.visibilityState,heapMB:heap()});});
-  window.addEventListener('error',function(ev){add({e:'ERROR',msg:String(ev.message||'').slice(0,160)});});
+  var seenErr={};window.addEventListener('error',function(ev){var m=String(ev.message||'').slice(0,160);if(seenErr[m])return;seenErr[m]=1;add({e:'ERROR',msg:m});});
   try{if(window.navigation&&navigation.addEventListener){navigation.addEventListener('navigate',function(ev){add({e:'NAVIGATE',nt:ev.navigationType,userInitiated:ev.userInitiated,url:String(ev.destination&&ev.destination.url||'').slice(0,120),stack:(new Error().stack||'').split('\n').slice(1,7).join(' | ').slice(0,600)});});}}catch(_){}
   document.addEventListener('DOMContentLoaded',function(){
     var b=document.createElement('button');b.textContent='🐞';b.setAttribute('aria-label','Catatan reload');
