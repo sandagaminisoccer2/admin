@@ -18486,6 +18486,16 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         window.hapusDataKeuangan = async (node, key) => {
             if(await window.appConfirm("Yakin ingin menghapus data ini?")) {
                 await remove(ref(db, node + '/' + key));
+                if(node === 'pemasukan') {
+                    // Status lunas kartu Jadwal Hari Ini dihitung dari data pemasukan.
+                    // Hapus juga dari cache lokal lalu render ulang SEKARANG, supaya kartu
+                    // langsung kembali ke jadwal (belum lunas) tanpa menunggu listener.
+                    try { if(globalCache && globalCache.pemasukan) delete globalCache.pemasukan[key]; } catch(e) {}
+                    try { if(typeof window.renderTodaySchedule === 'function') window.renderTodaySchedule(); } catch(e) { console.warn(e); }
+                    try { renderRekapHarian(); } catch(e) { console.warn(e); }
+                    try { renderMonthlyRecap(); } catch(e) { console.warn(e); }
+                    try { if(typeof window.renderSetorTunai === 'function') window.renderSetorTunai(); } catch(e) { console.warn(e); }
+                }
                 if(node === 'minuman') {
                     renderMinumanHistory();
                     renderRekapHarian();
@@ -33303,7 +33313,7 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
     }
 
     function historyManualStatusKey(dateKey,name,jam){
-        return `${String(dateKey||'')}__${encodeURIComponent(normName(name))}__${String(jam||'').substring(0,5)}`;
+        return `${String(dateKey||'')}__${encodeURIComponent(normName(name)).replace(/\./g,'%2E')}__${String(jam||'').substring(0,5)}`;
     }
 
     function getHistoryPayment(name,dateKey,slots,totalTagihan){
@@ -33315,13 +33325,13 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
         // Admin dapat mengunci status histori secara manual. Jika ada override,
         // status tersebut menjadi sumber kebenaran untuk kartu riwayat.
         const manualStatuses = cache.riwayatStatusManual || {};
-        let manualStatus = '';
+        let manualStatus = '', manualAt = -1;
         for(const jam of slotTimes){
             const item = manualStatuses[historyManualStatusKey(dateKey,target,jam)];
             const status = String(item?.status || '').toUpperCase();
             if(status === 'LUNAS' || status === 'TIDAK LUNAS'){
-                manualStatus = status;
-                break;
+                const at = Number(item?.updatedAt || 0);
+                if(at >= manualAt){ manualStatus = status; manualAt = at; }
             }
         }
 
@@ -33437,6 +33447,12 @@ body.jadwal-uang-masuk-modal-active #page-masuk {
                 });
             });
         }
+
+        // Status manual dari admin (Edit Status) adalah sumber kebenaran tertinggi,
+        // termasuk mengalahkan Lunas Darurat. Sebelumnya Lunas Darurat dicek lebih dulu
+        // sehingga perubahan ke TIDAK LUNAS tidak pernah tampil.
+        if(manualStatus === 'LUNAS') return {status:'LUNAS',className:'lunas',paid:effectiveTotal,total:effectiveTotal,free:false,found:true,manual:true};
+        if(manualStatus === 'TIDAK LUNAS') return {status:'TIDAK LUNAS',className:'belum',paid:Math.min(paid,effectiveTotal),total:effectiveTotal,free:false,found:true,manual:true};
 
         const hasEmergency=slots.some(slot=>slot.item?.lunasDarurat===true) ||
             Object.values(cache.lunasDarurat||{}).some(x=>x && x.aktif!==false && dateOnly(x.tanggal)===dateKey && normName(x.nama)===target && slotTimes.has(String(x.jam||'').substring(0,5)));
