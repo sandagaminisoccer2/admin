@@ -15918,11 +15918,64 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     });
                 }
 
-                for(const record of bookingRecords) {
-                    await push(ref(db, 'booking'), record);
+                /* PRIORITAS SIMPAN BOOKING:
+                   - Tahan semua proses latar (unduh data lain, logo, render ulang) selama menyimpan,
+                     supaya koneksi & CPU fokus ke penyimpanan booking.
+                   - Semua slot jam dikirim SEKALIGUS (paralel), bukan menunggu satu per satu.
+                   - Progress bar mengikuti konfirmasi server per slot. */
+                if(typeof window.beginSaveHold === 'function') window.beginSaveHold();
+                const __bkBtns = Array.from(document.querySelectorAll('#page-booking button[type="submit"]'));
+                __bkBtns.forEach(b => { b.disabled = true; b.classList.add('is-saving'); });
+                const __bkTotal = bookingRecords.length;
+                let __bkDone = 0, __bkPct = 8, __bkProgress = null, __bkEnded = false, __bkHoldOff = false;
+                if(typeof window.showAppProgress === 'function') {
+                    __bkProgress = window.showAppProgress('Menyimpan booking...', 'Mohon tunggu, data booking sedang disimpan.');
+                    __bkProgress.set(__bkPct);
                 }
+                const __bkTimer = setInterval(() => {
+                    const cap = Math.min(92, 8 + 84 * (__bkDone / __bkTotal) + (84 / __bkTotal) * 0.85);
+                    __bkPct = Math.min(cap, __bkPct + (cap - __bkPct) * 0.15);
+                    if(window.__fbConnected === false) __bkProgress?.set(__bkPct, null, 'Tidak terhubung ke server. Data disimpan di perangkat dan dikirim otomatis saat tersambung.');
+                    else __bkProgress?.set(__bkPct, null, __bkTotal > 1 ? `Menyimpan ${Math.min(__bkDone + 1, __bkTotal)} dari ${__bkTotal} jam...` : 'Mohon tunggu, data booking sedang disimpan.');
+                }, 150);
+                const __bkCleanup = () => {
+                    if(__bkEnded) return; __bkEnded = true;
+                    clearInterval(__bkTimer);
+                    try { __bkProgress?.remove(); } catch(_) {}
+                    __bkBtns.forEach(b => { b.disabled = false; b.classList.remove('is-saving'); });
+                };
+                const __bkReleaseHold = () => {
+                    if(__bkHoldOff) return; __bkHoldOff = true;
+                    if(typeof window.endSaveHold === 'function') window.endSaveHold();
+                };
+                let __bkAcked = false;
+                const __bkAckPromise = Promise.all(bookingRecords.map(record =>
+                    Promise.resolve(push(ref(db, 'booking'), record)).then(() => { __bkDone++; })
+                )).then(() => { __bkAcked = true; });
+                __bkAckPromise.catch(() => {});
+                try {
+                    // Tulisan sudah langsung berlaku di perangkat; tunggu konfirmasi server maksimal 5 detik,
+                    // lalu lanjut tanpa membuat admin menunggu (status tampil di chip "Mengirim data").
+                    await Promise.race([__bkAckPromise, new Promise(r => setTimeout(r, 5000))]);
+                } catch(saveError) {
+                    __bkCleanup(); __bkReleaseHold();
+                    window.__savingBookingLock = false;
+                    alert('Gagal menyimpan booking: ' + ((saveError && saveError.message) || saveError));
+                    return;
+                }
+                if(__bkAcked) {
+                    __bkProgress?.set(100, 'Berhasil disimpan', '');
+                    __bkReleaseHold();
+                } else if(typeof window.trackPendingSync === 'function') {
+                    window.trackPendingSync(__bkAckPromise, 'Booking ' + namaBooking, __bkReleaseHold);
+                } else {
+                    __bkReleaseHold();
+                }
+                __bkCleanup();
                 window.__savingBookingLock = false;
-                showSuccessPopup(`Booking ${namaBooking} berhasil disimpan untuk ${durasi} jam (${jamInput}–${__jamAkhir}).`);
+                showSuccessPopup(__bkAcked
+                    ? `Booking ${namaBooking} berhasil disimpan untuk ${durasi} jam (${jamInput}–${__jamAkhir}).`
+                    : `Booking ${namaBooking} tersimpan (${durasi} jam, ${jamInput}–${__jamAkhir}) dan sedang dikirim ke server. Jangan tutup halaman sampai muncul tanda "Terkirim ke server".`);
                 e.target.reset();
                 setDefaultDates();
                 if(document.getElementById('m-select-pilihan')) document.getElementById('m-select-pilihan').value = "";
