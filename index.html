@@ -55522,3 +55522,28 @@ html body:has(#page-daily-recap:not(.hidden)) nav#quick-bottom-nav.quick-bottom-
   html body main #page-daily-recap#page-daily-recap #daily-menu-grid{ gap:12px !important; }
 }
 </style>
+
+<style id="daily-recap-no-stretch-mobile-v1">
+/* FIX HP: Daily Recap tidak boleh "dipaksa mengisi" tinggi layar lagi.
+   Sistem lama (--dr-fill) memberi min-height pada dashboard + meregangkan card,
+   sehingga setelah loading script penyesuaian --fit mengukur tinggi yang salah
+   (selalu dianggap kelebihan -> --fit turun ke minimum): jarak antar card jadi
+   sempit dan card melar kosong. Di HP, tinggi kini hanya diatur oleh --fit
+   (skala seragam padding/font/jarak) -> tampilan sama dengan saat awal dibuka.
+   Desktop tidak diubah. */
+@media (max-width:640px){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard{
+    min-height:0 !important;
+    height:auto !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section{
+    flex:0 0 auto !important;
+  }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid{
+    flex:0 0 auto !important;
+    grid-template-rows:none !important;
+    grid-auto-rows:auto !important;
+    align-content:start !important;
+  }
+}
+</style>
