@@ -10571,6 +10571,89 @@ body > header {
 .setor-tunai-mode-buttons button{padding:9px 6px;border-radius:11px;border:1.5px solid rgba(148,163,184,.5);background:#fff;color:#334155;font-size:10px;font-weight:950;cursor:pointer;transition:all .15s ease}
 .setor-tunai-mode-buttons button.active{background:linear-gradient(135deg,#173f78,#102a56);border-color:#102a56;color:#fff;box-shadow:0 6px 16px rgba(8,20,45,.2)}
 </style>
+
+<style id="edit-uang-lapangan-modern">
+/* ===== EDIT UANG LAPANGAN: rapi seperti Pelunasan Lapangan, tombol simpan selalu terlihat ===== */
+.ep-overlay{
+  position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;
+  background:rgba(2,6,23,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));
+  box-sizing:border-box;
+}
+.ep-sheet{
+  --ep-line:#e2e8f0;--ep-ink:#0f172a;--ep-mute:#64748b;--ep-blue:#2563eb;
+  width:100%;max-width:520px;display:flex;flex-direction:column;overflow:hidden;
+  max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);
+  background:#fff;border-radius:26px;box-shadow:0 24px 60px rgba(2,6,23,.45);
+  color:var(--ep-ink);box-sizing:border-box;
+}
+.ep-sheet *{box-sizing:border-box}
+.ep-head{
+  position:relative;flex:none;padding:20px 64px 14px 18px;background:#fff;border-bottom:1px solid #eef2f7;
+}
+.ep-head::after{content:"";position:absolute;left:18px;bottom:-1px;width:56px;height:3px;border-radius:3px;background:linear-gradient(90deg,#2563eb,#60a5fa)}
+.ep-head h3{margin:0;font-size:14px;font-weight:900;letter-spacing:.05em;line-height:1.3;color:var(--ep-ink)}
+.ep-head p{margin:3px 0 0;font-size:11px;font-weight:700;color:var(--ep-mute);line-height:1.35}
+.ep-close{
+  position:absolute;top:12px;right:12px;width:42px;height:42px;border:0;border-radius:14px;background:#f1f5f9;
+  color:#475569;font-size:24px;line-height:1;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.ep-close:active{background:#e2e8f0}
+.ep-body{
+  flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding:14px 16px 8px;display:flex;flex-direction:column;gap:10px;
+}
+.ep-field{min-width:0;display:flex;flex-direction:column;gap:4px}
+.ep-field > label{font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#475569;padding-left:2px}
+.ep-row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.ep-mixed.hidden{display:none !important}
+#modal-edit-pemasukan .hidden{display:none !important}
+.ep-sheet input[type="text"],.ep-sheet input[type="date"],.ep-sheet select{
+  display:block;width:100% !important;min-width:0 !important;max-width:100% !important;height:50px;margin:0;
+  padding:0 14px;border:1.5px solid var(--ep-line) !important;border-radius:14px !important;background-color:#fff !important;
+  color:var(--ep-ink) !important;font-size:15px !important;font-weight:800 !important;line-height:1.2;text-align:left !important;
+  -webkit-appearance:none;appearance:none;box-shadow:0 1px 2px rgba(15,23,42,.04);outline:none;
+}
+.ep-sheet input[type="date"]{padding-right:10px}
+.ep-sheet input[type="date"]::-webkit-date-and-time-value{text-align:left;min-width:0}
+.ep-sheet input[type="date"]::-webkit-datetime-edit{padding:0}
+.ep-sheet select{padding-right:34px !important}
+.ep-sheet input:focus,.ep-sheet select:focus{border-color:var(--ep-blue) !important;box-shadow:0 0 0 4px rgba(37,99,235,.13)}
+.ep-sheet input:disabled,.ep-sheet select:disabled{opacity:.6;cursor:not-allowed;background-color:#f1f5f9 !important}
+.ep-team{
+  display:flex;flex-direction:column;gap:10px;padding:12px;background:#fff;border:1px solid #dbeafe;border-left:5px solid var(--ep-blue);
+  border-radius:18px;box-shadow:0 8px 22px rgba(37,99,235,.08);
+}
+.ep-team-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.ep-team-title{flex:none;padding:4px 11px;border-radius:999px;background:var(--ep-blue);color:#fff;font-size:10.5px;font-weight:900;letter-spacing:.05em}
+.ep-team-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:900;color:var(--ep-ink);text-align:right}
+.ep-check{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;color:#334155;cursor:pointer;margin:0}
+.ep-check input{width:18px;height:18px;margin:0;accent-color:var(--ep-blue)}
+.ep-note{padding:10px 12px;border-radius:14px;border:1px solid #dbeafe;background:#eff6ff;color:#1e40af;font-size:11px;font-weight:800;line-height:1.4}
+.ep-foot{
+  flex:none;display:flex;gap:10px;padding:12px 16px calc(18px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #eef2f7;
+}
+.ep-btn-save,.ep-btn-cancel{height:52px;border:0;border-radius:16px;font-size:15px !important;font-weight:900;cursor:pointer}
+.ep-btn-save{flex:1;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);box-shadow:0 10px 22px rgba(37,99,235,.28)}
+.ep-btn-save:active{transform:scale(.985)}
+.ep-btn-cancel{flex:none;padding:0 22px;background:#f1f5f9;color:#0f172a}
+@media (max-width:380px){.ep-row2{gap:8px}.ep-body{padding:12px 12px 6px}}
+
+/* ===== PELUNASAN LAPANGAN: kolom Keterangan Khusus di bawah pilihan tim ===== */
+html #page-masuk .masuk-ket-card{
+  display:flex;flex-direction:column;gap:3px;padding:8px 14px 9px;background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);box-sizing:border-box;min-height:56px;
+  transition:border-color .15s,box-shadow .15s;
+}
+html #page-masuk .masuk-ket-card:focus-within{border-color:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.13)}
+html #page-masuk .masuk-ket-label{font-size:10px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:#065f46;margin:0}
+html #page-masuk .masuk-ket-card input{
+  width:100%;border:0 !important;outline:none !important;background:transparent !important;box-shadow:none !important;
+  padding:0 !important;margin:0;height:24px;font-size:14px !important;font-weight:800;color:#0f172a;
+}
+html #page-masuk .masuk-ket-card input::placeholder{color:#94a3b8;font-weight:700}
+html #page-masuk > form > [data-control="in-ket-khusus"]{grid-column:1 / -1;order:3}
+</style>
 </head>
 <body class="min-h-screen p-2 sm:p-4 pt-4 sm:pt-6 flex flex-col items-center text-slate-900 font-medium">
 
@@ -11813,6 +11896,10 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
   <select class="masuk-native-control" id="in-tim" onchange="if(typeof resetStatusManualFlags==='function') resetStatusManualFlags(); updateJamMainMasuk()" required="">
     <option value="">-- Pilih Tanggal Terlebih Dahulu --</option>
   </select>
+</div>
+<div class="masuk-ket-card" data-control="in-ket-khusus">
+  <label class="masuk-ket-label" for="in-ket-khusus">Keterangan Khusus</label>
+  <input id="in-ket-khusus" type="text" maxlength="120" autocomplete="off" placeholder="Opsional, contoh: turnamen, titip bayar, dll"/>
 </div>
 <input class="w-full p-2 rounded mb-3 text-sm glass-input font-bold hidden" id="in-keterangan-manual" placeholder="Ketik keterangan / sumber pemasukan..." type="text"/>
 <div class="masuk-field-card" data-control="in-jam-main" aria-label="Jam main">
@@ -14840,6 +14927,8 @@ function scheduleRender(fn) {
             const tambahanWaktuEl = document.getElementById('in-tambahan-waktu');
             if (tambahanWaktuEl) tambahanWaktuEl.value = "0";
             window.__pelunasanCalc = null;
+            const ketKhususResetEl = document.getElementById('in-ket-khusus');
+            if (ketKhususResetEl) ketKhususResetEl.value = '';
             document.getElementById('in-sewa-bola').checked = false;
             document.getElementById('in-sewa-rompi-1').checked = false;
              document.getElementById('in-sewa-rompi-2').checked = false;
@@ -16206,6 +16295,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 data = { 
                     ket: `Pelunasan ${tim} (${jamMain})${ketTambahanStr}`, 
                     timNamaBersih: tim.replace(/\s*\(.*\)/g, '').trim(),
+                    ketKhusus: String(document.getElementById('in-ket-khusus')?.value || '').trim().slice(0, 120),
                     timNama2: timNama2,
                     // Simpan status kedua tim agar Daily Recap dan hasil download
                     // selalu bisa menjelaskan MEMBER / NON-MEMBER per tim.
@@ -18431,36 +18521,61 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
 
             const modal = document.createElement('div');
             modal.id = 'modal-edit-pemasukan';
-            modal.className = 'fixed inset-0 z-[2147483646] flex items-start sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto';
+            modal.className = 'ep-overlay';
+            const escA = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const ketKhususVal = String(item.ketKhusus || '');
+            const timNama2Edit = String(item.timNama2 || '').trim();
+            const optMetode = (cur) => `<option value="Cash" ${cur==='Cash'?'selected':''}>Cash</option><option value="QRIS" ${cur==='QRIS'?'selected':''}>QRIS</option><option value="Transfer" ${cur==='Transfer'?'selected':''}>Transfer</option><option value="Free" ${cur==='Free'?'selected':''}>Free / Gratis</option><option value="Campuran" ${cur==='Campuran'?'selected':''}>Campuran (2 Metode)</option>`;
+            const optMetodeB = (cur) => `<option value="QRIS" ${cur==='QRIS'?'selected':''}>QRIS</option><option value="Cash" ${cur==='Cash'?'selected':''}>Cash</option><option value="Transfer" ${cur==='Transfer'?'selected':''}>Transfer</option>`;
+            const isMem1 = String(item.status1 || item.status || '').toLowerCase() === 'member';
+            const isMem2 = String(item.status2 || '').toLowerCase() === 'member';
             modal.innerHTML = `
-                <div class="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-blue-100 overflow-hidden my-auto flex flex-col max-h-[calc(100vh-2rem)]">
-                    <div class="bg-gradient-to-r from-blue-950 to-blue-700 px-5 py-4 text-white shrink-0">
-                        <div class="flex items-center justify-between gap-3">
-                            <div><h3 class="font-black text-lg">Edit Uang Lapangan</h3><p class="text-xs text-blue-100">Perbarui data pemasukan tanpa mengubah fungsi lainnya.</p></div>
-                            <button type="button" onclick="document.getElementById('modal-edit-pemasukan')?.remove()" class="text-white/80 hover:text-white text-xl font-black">×</button>
-                        </div>
+                <div class="ep-sheet" role="dialog" aria-modal="true" aria-label="Edit Uang Lapangan">
+                    <div class="ep-head">
+                        <div class="ep-head-txt"><h3>EDIT UANG LAPANGAN</h3><p>Perbarui data pemasukan tanpa mengubah fungsi lainnya.</p></div>
+                        <button type="button" class="ep-close" aria-label="Tutup" onclick="document.getElementById('modal-edit-pemasukan')?.remove()">×</button>
                     </div>
-                    <div class="p-5 space-y-3 overflow-y-auto">
-                        <div><label class="text-xs font-black text-slate-700">Nama Tim</label><input id="edit-in-tim" value="${namaTim.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"></div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div><label class="text-xs font-black text-slate-700">Jam Main</label><input id="edit-in-jam" value="${jamMain.replace(/"/g,'&quot;')}" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"></div>
-                            <div><label class="text-xs font-black text-slate-700">Tanggal</label><input id="edit-in-tgl" type="date" value="${tgl}" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"></div>
+                    <div class="ep-body">
+                        <div class="ep-field"><label for="edit-in-tim">Nama Tim</label><input id="edit-in-tim" type="text" autocomplete="off" value="${escA(namaTim)}"></div>
+                        <div class="ep-field"><label for="edit-in-ket-khusus">Keterangan Khusus</label><input id="edit-in-ket-khusus" type="text" maxlength="120" autocomplete="off" placeholder="Opsional, contoh: turnamen, titip bayar, dll" value="${escA(ketKhususVal)}"></div>
+                        <div class="ep-row2">
+                            <div class="ep-field"><label for="edit-in-tgl">Tanggal</label><input id="edit-in-tgl" type="date" value="${escA(tgl)}"></div>
+                            <div class="ep-field"><label for="edit-in-jam">Jam Main</label><input id="edit-in-jam" type="text" autocomplete="off" value="${escA(jamMain)}"></div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div><label class="text-xs font-black text-slate-700">Status Tim 1</label><select id="edit-in-status1" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><option value="Member" ${String(item.status1 || item.status || '').toLowerCase() === 'member' ? 'selected' : ''}>Member</option><option value="Non-Member" ${String(item.status1 || item.status || '').toLowerCase() !== 'member' ? 'selected' : ''}>Non-Member</option></select></div>
-                            <div><label class="text-xs font-black text-slate-700">Status Tim 2</label><select id="edit-in-status2" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900" ${item.timNama2 ? '' : 'disabled'}><option value="Member" ${String(item.status2 || '').toLowerCase() === 'member' ? 'selected' : ''}>Member</option><option value="Non-Member" ${String(item.status2 || '').toLowerCase() === 'member' ? '' : 'selected'}>Non-Member</option></select></div>
+
+                        <div class="ep-team">
+                            <div class="ep-team-head"><span class="ep-team-title">TIM 1</span><span class="ep-team-name">${escA(namaTim) || '-'}</span></div>
+                            <div class="ep-field"><label for="edit-in-status1">Status Tim 1</label><select id="edit-in-status1"><option value="Member" ${isMem1 ? 'selected' : ''}>Member</option><option value="Non-Member" ${isMem1 ? '' : 'selected'}>Non-Member</option></select></div>
+                            <div class="ep-row2">
+                                <div class="ep-field"><label for="edit-in-jml1">Jumlah Tim 1</label><input id="edit-in-jml1" type="text" inputmode="numeric" oninput="formatNominalInput(this)" value="${formatNominalInputValue(jml1)}"></div>
+                                <div class="ep-field"><label for="edit-in-met1">Metode Tim 1</label><select id="edit-in-met1" onchange="toggleEditFreePaymentInput(1)">${optMetode(met1)}</select></div>
+                            </div>
+                            <label class="ep-check"><input id="edit-in-campuran-1" type="checkbox" ${mixed1?'checked':''} onchange="toggleEditMixedPayment(1)"> Bayar dengan 2 metode</label>
+                            <div id="edit-in-campuran-box-1" class="${mixed1?'':'hidden '}ep-row2 ep-mixed">
+                                <div class="ep-field"><label for="edit-in-jml1b">Nominal metode 2</label><input id="edit-in-jml1b" type="text" inputmode="numeric" oninput="formatNominalInput(this)" value="${formatNominalInputValue(jml1b)}"></div>
+                                <div class="ep-field"><label for="edit-in-met1b">Metode 2</label><select id="edit-in-met1b">${optMetodeB(met1b)}</select></div>
+                            </div>
                         </div>
-                        <div class="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] font-bold text-blue-800">ℹ️ Jika status diubah menjadi <b>Member</b>, diskon member otomatis dicatat pada keterangan Daily.</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div><label class="text-xs font-black text-slate-700">Jumlah Tim 1</label><input id="edit-in-jml1" type="text" inputmode="numeric" oninput="formatNominalInput(this)" min="0" value="${formatNominalInputValue(jml1)}" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"></div>
-                            <div><label class="text-xs font-black text-slate-700">Metode Tim 1</label><select id="edit-in-met1" onchange="toggleEditFreePaymentInput(1)" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><option value="Cash" ${met1==='Cash'?'selected':''}>Cash</option><option value="QRIS" ${met1==='QRIS'?'selected':''}>QRIS</option><option value="Transfer" ${met1==='Transfer'?'selected':''}>Transfer</option><option value="Free" ${met1==='Free'?'selected':''}>Free / Gratis</option><option value="Campuran" ${mixed1?'selected':''}>Campuran (2 Metode)</option></select><label class="flex items-center gap-2 text-[10px] font-black text-slate-700 mt-1"><input id="edit-in-campuran-1" type="checkbox" ${mixed1?'checked':''} onchange="toggleEditMixedPayment(1)"> Bayar dengan 2 metode</label><div id="edit-in-campuran-box-1" class="${mixed1?'':'hidden '}grid grid-cols-2 gap-2 mt-1"><input id="edit-in-jml1b" type="text" inputmode="numeric" oninput="formatNominalInput(this)" min="0" value="${formatNominalInputValue(jml1b)}" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><select id="edit-in-met1b" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><option value="QRIS" ${met1b==='QRIS'?'selected':''}>QRIS</option><option value="Cash" ${met1b==='Cash'?'selected':''}>Cash</option><option value="Transfer" ${met1b==='Transfer'?'selected':''}>Transfer</option></select></div></div>
-                            <div><label class="text-xs font-black text-slate-700">Jumlah Tim 2</label><input id="edit-in-jml2" type="text" inputmode="numeric" oninput="formatNominalInput(this)" min="0" value="${formatNominalInputValue(jml2)}" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"></div>
-                            <div><label class="text-xs font-black text-slate-700">Metode Tim 2</label><select id="edit-in-met2" onchange="toggleEditFreePaymentInput(2)" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><option value="Cash" ${met2==='Cash'?'selected':''}>Cash</option><option value="QRIS" ${met2==='QRIS'?'selected':''}>QRIS</option><option value="Transfer" ${met2==='Transfer'?'selected':''}>Transfer</option><option value="Free" ${met2==='Free'?'selected':''}>Free / Gratis</option><option value="Campuran" ${mixed2?'selected':''}>Campuran (2 Metode)</option></select><label class="flex items-center gap-2 text-[10px] font-black text-slate-700 mt-1"><input id="edit-in-campuran-2" type="checkbox" ${mixed2?'checked':''} onchange="toggleEditMixedPayment(2)"> Bayar dengan 2 metode</label><div id="edit-in-campuran-box-2" class="${mixed2?'':'hidden '}grid grid-cols-2 gap-2 mt-1"><input id="edit-in-jml2b" type="text" inputmode="numeric" oninput="formatNominalInput(this)" min="0" value="${formatNominalInputValue(jml2b)}" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><select id="edit-in-met2b" class="w-full border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-900"><option value="QRIS" ${met2b==='QRIS'?'selected':''}>QRIS</option><option value="Cash" ${met2b==='Cash'?'selected':''}>Cash</option><option value="Transfer" ${met2b==='Transfer'?'selected':''}>Transfer</option></select></div></div>
+
+                        <div class="ep-team">
+                            <div class="ep-team-head"><span class="ep-team-title">TIM 2</span><span class="ep-team-name">${escA(timNama2Edit) || '-'}</span></div>
+                            <div class="ep-field"><label for="edit-in-status2">Status Tim 2</label><select id="edit-in-status2" ${timNama2Edit ? '' : 'disabled'}><option value="Member" ${isMem2 ? 'selected' : ''}>Member</option><option value="Non-Member" ${isMem2 ? '' : 'selected'}>Non-Member</option></select></div>
+                            <div class="ep-row2">
+                                <div class="ep-field"><label for="edit-in-jml2">Jumlah Tim 2</label><input id="edit-in-jml2" type="text" inputmode="numeric" oninput="formatNominalInput(this)" value="${formatNominalInputValue(jml2)}"></div>
+                                <div class="ep-field"><label for="edit-in-met2">Metode Tim 2</label><select id="edit-in-met2" onchange="toggleEditFreePaymentInput(2)">${optMetode(met2)}</select></div>
+                            </div>
+                            <label class="ep-check"><input id="edit-in-campuran-2" type="checkbox" ${mixed2?'checked':''} onchange="toggleEditMixedPayment(2)"> Bayar dengan 2 metode</label>
+                            <div id="edit-in-campuran-box-2" class="${mixed2?'':'hidden '}ep-row2 ep-mixed">
+                                <div class="ep-field"><label for="edit-in-jml2b">Nominal metode 2</label><input id="edit-in-jml2b" type="text" inputmode="numeric" oninput="formatNominalInput(this)" value="${formatNominalInputValue(jml2b)}"></div>
+                                <div class="ep-field"><label for="edit-in-met2b">Metode 2</label><select id="edit-in-met2b">${optMetodeB(met2b)}</select></div>
+                            </div>
                         </div>
+
+                        <div class="ep-note">ℹ️ Jika status diubah menjadi <b>Member</b>, diskon member otomatis dicatat pada keterangan Daily.</div>
                     </div>
-                    <div class="flex gap-2 p-4 border-t border-slate-200 shrink-0 bg-white">
-                        <button type="button" onclick="simpanEditDataKeuangan('pemasukan','${key}')" class="flex-1 bg-blue-700 hover:bg-blue-800 text-white px-4 py-2.5 rounded-xl font-black shadow">Simpan Perubahan</button>
-                        <button type="button" onclick="document.getElementById('modal-edit-pemasukan')?.remove()" class="bg-slate-200 hover:bg-slate-300 text-slate-900 px-4 py-2.5 rounded-xl font-black">Batal</button>
+                    <div class="ep-foot">
+                        <button type="button" class="ep-btn-save" onclick="simpanEditDataKeuangan('pemasukan','${key}')">💾 Simpan Perubahan</button>
+                        <button type="button" class="ep-btn-cancel" onclick="document.getElementById('modal-edit-pemasukan')?.remove()">Batal</button>
                     </div>
                 </div>`;
             document.body.appendChild(modal);
@@ -18527,6 +18642,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     ...oldItem,
                     ket: `Pelunasan ${tim} (${jam})${rentalText}`,
                     timNamaBersih: tim,
+                    ketKhusus: String(document.getElementById('edit-in-ket-khusus')?.value || '').trim().slice(0, 120),
                     timNama2: String(oldItem.timNama2 || '').trim(),
                     status1,
                     status2: oldItem.timNama2 ? status2 : '',
@@ -25096,6 +25212,12 @@ return;
                 const manualTotal = num('diskonManual', 'diskonPromo', 'diskonKhusus', 'diskon');
                 if (manualTotal > 0 && manual1 + manual2 === 0) {
                     details.push(`🎁 Diskon Promo/Manual${ketManual}: ${rupiah(manualTotal)}`);
+                }
+
+                // Keterangan khusus (opsional) yang diisi admin di Uang Masuk / Edit Uang Lapangan.
+                const ketKhususRaw = String(data.ketKhusus || '').trim();
+                if (ketKhususRaw) {
+                    details.unshift(`📝 Ket. Khusus: ${ketKhususRaw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}`);
                 }
 
                 return details.length
