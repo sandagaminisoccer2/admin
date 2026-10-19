@@ -3115,8 +3115,8 @@ body > *, main, #app, .app, .page, .page-content {
 }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <style id="daily-report-admin-jpg-style">
 .daily-report-jpg-button {
@@ -10669,6 +10669,21 @@ html #page-masuk > form > [data-control="in-ket-khusus"]{grid-column:1 / -1;orde
     <div class="app-initial-loading-percent" data-app-loading-percent>0%</div>
   </div>
 </div>
+<script id="initial-loading-hard-cap-v1">
+/* BATAS KERAS 2 DETIK: popup loading awal ditutup paling lambat ~1,85 dtk setelah halaman mulai dibuka
+   (dihitung dari awal navigasi, bukan dari saat script utama selesai dimuat), apa pun status datanya.
+   Data yang belum lengkap tetap dimuat di latar belakang; aplikasi sudah bisa dipakai. */
+(function(){
+  var CAP = 1850;
+  var since = 0; try { since = performance.now(); } catch(_) {}
+  setTimeout(function(){
+    var o = document.getElementById('app-initial-loading-overlay');
+    if (!o) return;
+    o.classList.add('is-hidden');
+    setTimeout(function(){ var x = document.getElementById('app-initial-loading-overlay'); if (x && x.parentNode) x.parentNode.removeChild(x); }, 200);
+  }, Math.max(0, CAP - since));
+})();
+</script>
 
 <!-- Header -->
 <header class="w-full max-w-6xl flex flex-col items-center justify-center gap-2 mb-6 text-center">
@@ -13753,7 +13768,7 @@ document.addEventListener('input', function(e){
         window.__dataTouched = [];
         (function () { const o = __dataPending.add.bind(__dataPending); __dataPending.add = function (n) { try { window.__dataTouched.push([n, Date.now()]); } catch (_) {} return o(n); }; })();   /* nama data yang sudah diminta tetapi belum tiba (untuk indikator kanan atas) */
         let __revReadyResolve = null;
-        const __revReady = new Promise(res => { __revReadyResolve = res; setTimeout(() => res(false), 3000); });
+        const __revReady = new Promise(res => { __revReadyResolve = res; setTimeout(() => res(false), 1200); });
         function __lsNum(k) { try { return +localStorage.getItem(k) || 0; } catch (_) { return 0; } }
         function __revOffNow() { const t = __lsNum(__REV_OFF_KEY); return !!t && Date.now() - t < __REV_DAY; }
         function __revOkFresh() { const t = __lsNum(__REV_OK_KEY); return !!t && Date.now() - t < __REV_DAY && !__revOffNow(); }
@@ -18744,7 +18759,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         window.__sandagaInitialLoadingHideTimer = null;
         window.__sandagaInitialLoadingFallbackTimer = null;
         const INITIAL_LOADING_MAX_WAIT = 1700;   // popup loading awal ditutup maksimal ~2 detik (1,7 dtk + animasi tutup)
-        window.__sandagaInitialLoadingT0 = Date.now();
+        window.__sandagaInitialLoadingT0 = (function(){ try { return Date.now() - performance.now(); } catch(_) { return Date.now(); } })();   /* dihitung sejak halaman mulai dibuka */
 
         function __setTxt(el, v) { if (el && el.textContent !== v) el.textContent = v; }   /* hanya tulis bila berubah: tulis ulang tiap 40 ms membuat ikon/teks di atas kartu berkedip */
         function finishInitialLoadingOverlay(timedOut = false) {
