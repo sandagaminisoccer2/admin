@@ -15509,11 +15509,15 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             let diskonNormalMemberTim2 = 0;
             let diskonManualTim1 = 0;
             let diskonManualTim2 = 0;
+            let hargaKotorTim1 = 0;
+            let hargaKotorTim2 = 0;
             if (isSparingPayment) {
                 const hargaNormalPerJam = hargaTotalLapangan;
                 const hargaDasarPerTim = Math.round(hargaNormalPerJam / 2);
                 hargaTim1 = hargaDasarPerTim;
                 hargaTim2 = hargaDasarPerTim;
+                hargaKotorTim1 = hargaDasarPerTim;
+                hargaKotorTim2 = hargaDasarPerTim;
                 // ATURAN DISKON MEMBER SPARING:
                 // Tim 1 MEMBER + Tim 2 NON-MEMBER  -> Tim 1 diskon Rp50.000
                 // Tim 1 MEMBER + Tim 2 MEMBER      -> Tim 1 Rp25.000 + Tim 2 Rp25.000
@@ -15571,6 +15575,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     ? effectiveJamList.reduce((sum, jj) => sum + getHargaLapangan(tgl, jj, 'Non-Member'), 0)
                     : ((jam && tgl) ? getHargaLapangan(tgl, jam, 'Non-Member') : 0);
                 let hargaTanpaMemberDisesuaikan = hargaTanpaMember + biayaTambahanWaktuNonMember;
+                hargaKotorTim1 = hargaTanpaMemberDisesuaikan;
                 diskonNormalMemberTim1 = Math.max(0, hargaTanpaMemberDisesuaikan - hargaTim1);
 // Pada transaksi internal hanya Tim 1 yang tersedia. Jika admin memilih Tim 2,
                 // arahkan otomatis ke Tim 1 agar diskon tidak hilang.
@@ -15613,7 +15618,13 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 diskonManualTim1,
                 diskonManualTim2,
                 diskonMemberAlokasi,
-                statusTim2: String(second.status || 'Non-Member').trim() || 'Non-Member'
+                statusTim2: String(second.status || 'Non-Member').trim() || 'Non-Member',
+                // Rincian untuk gambar tagihan customer (Uang Masuk > Harga Customer)
+                isSparing: isSparingPayment,
+                nama2: timNama2,
+                hargaKotorTim1, hargaKotorTim2,
+                hargaSewaTim1: hargaTim1, hargaSewaTim2: hargaTim2,
+                bolaTim1, bolaTim2, rompiTim1, rompiTim2
             };
 
             let dp1 = 0;
@@ -15647,6 +15658,10 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             if (window.__pelunasanCalc) {
                 window.__pelunasanCalc.sisa1 = sisa1;
                 window.__pelunasanCalc.sisa2 = sisa2;
+                window.__pelunasanCalc.dp1 = dp1;
+                window.__pelunasanCalc.dp2 = Number(second.dp || 0);
+                window.__pelunasanCalc.terbayar1 = totalTerbayar1;
+                window.__pelunasanCalc.terbayar2 = totalTerbayar2;
             }
 
             if (info) {
@@ -33007,6 +33022,14 @@ window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=docum
 }
 </style>
 
+<style id="customer-tagihan-save-image-css">
+.customer-tagihan-save-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:14px}
+.customer-tagihan-save-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 20px;border:1px solid rgba(255,255,255,.28);border-radius:13px;background:rgba(255,255,255,.14);color:#fff;font-size:13px;font-weight:900;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:transform .15s ease,background .15s ease;touch-action:manipulation}
+.customer-tagihan-save-btn:hover:not(:disabled){background:rgba(255,255,255,.24)}
+.customer-tagihan-save-btn:active:not(:disabled){transform:scale(.97)}
+.customer-tagihan-save-btn:disabled{opacity:.6;cursor:wait}
+</style>
+
 <style id="customer-tagihan-cap-images">
 .customer-tagihan-status{
   width:86px !important;
@@ -33042,6 +33065,7 @@ window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=docum
     <h2 class="customer-tagihan-title">Jumlah Tagihan</h2>
     <div id="customer-tagihan-list" class="customer-tagihan-list"></div>
     <p class="customer-tagihan-note">Silakan melakukan pembayaran sesuai jumlah tagihan di atas.</p>
+    <div id="customer-tagihan-save-row" class="customer-tagihan-save-row"></div>
     <button type="button" class="customer-tagihan-close" aria-label="Tutup" title="Tutup" onclick="tutupTagihanUntukCustomer()">✕</button>
   </div>
 </div>
@@ -33135,14 +33159,317 @@ window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=docum
       </div>
     `).join('');
 
+    const saveRow=document.getElementById('customer-tagihan-save-row');
+    if(saveRow){
+      saveRow.innerHTML='<button type="button" id="customer-tagihan-share-btn" class="customer-tagihan-save-btn" onclick="bagikanTagihanCustomer()" disabled>⏳ Menyiapkan gambar…</button>'
+        + '<div id="customer-tagihan-share-note" style="width:100%;text-align:center;font-size:11px;font-weight:700;line-height:1.4;color:rgba(255,255,255,.75)"></div>';
+    }
+
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden','false');
     document.body.style.overflow='hidden';
+    setTimeout(siapkanGambarTagihan, 60);
+  };
+
+  // ======================================================================
+  // BAGIKAN TAGIHAN CUSTOMER (satu tombol, beberapa gambar sekaligus)
+  // - Sparing  : 3 gambar → Tim 1, Tim 2, dan gabungan keduanya
+  // - Internal : 1 gambar → tim yang membayar
+  // Gambar dibuat di latar belakang begitu jendela dibuka; tombol aktif saat semua siap
+  // (supaya share sheet HP tetap dianggap klik langsung, sama seperti Download Jadwal).
+  // ======================================================================
+  const shareState = { token:0, files:[], ready:false, busy:false };
+
+  const escC = v => (typeof escapeHtmlSparing==='function')
+    ? escapeHtmlSparing(String(v ?? ''))
+    : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const numC = v => Number(v)||0;
+  const waitFrames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  function setShareUI(label, disabled, note){
+    const b = document.getElementById('customer-tagihan-share-btn');
+    if(b){ b.textContent = label; b.disabled = !!disabled; }
+    const n = document.getElementById('customer-tagihan-share-note');
+    if(n && typeof note === 'string') n.textContent = note;
+  }
+
+  // Kumpulkan semua angka untuk satu tim
+  function infoTagihanTim(data, idx){
+    const calc = window.__pelunasanCalc || {};
+    const item = data[idx];
+    if(!item) return null;
+    const t = idx===1 ? 2 : 1;
+    const sparing = !!calc.isSparing && data.length>1;
+    const durasi = numC(calc.durasiEfektif) || numC(calc.durasiJam) || 1;
+    const durasiTxt = (Number.isInteger(durasi) ? String(durasi) : durasi.toLocaleString('id-ID',{maximumFractionDigits:1})) + ' jam';
+
+    const gross = numC(t===1 ? calc.hargaKotorTim1 : calc.hargaKotorTim2);
+    const sewaBersih = numC(t===1 ? calc.hargaSewaTim1 : calc.hargaSewaTim2);
+    const diskonMemberRaw = numC(t===1 ? calc.diskonNormalMemberTim1 : calc.diskonNormalMemberTim2);
+    const diskonMember = Math.min(diskonMemberRaw, gross);
+    const diskonManual = Math.max(0, gross - sewaBersih - diskonMember);
+    const bola = numC(t===1 ? calc.bolaTim1 : calc.bolaTim2);
+    const rompi = numC(t===1 ? calc.rompiTim1 : calc.rompiTim2);
+    const totalTagihan = sewaBersih + bola + rompi;
+    const terbayar = numC(t===1 ? calc.terbayar1 : calc.terbayar2);
+    const sisa = Math.max(0, numC(item.sisa));
+    const ketManual = String(calc.diskonManualKet||'').trim();
+
+    const tgl = String(calc.tgl||'');
+    let tglLabel = '';
+    try { if(tgl) tglLabel = new Date(tgl+'T00:00:00').toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); } catch(e){}
+    let jamLabel = '';
+    const jamStart = String(calc.jamMain||'').substring(0,5);
+    if(/^\d{1,2}:\d{2}$/.test(jamStart)){
+      const startMin = parseInt(jamStart.split(':')[0],10)*60 + parseInt(jamStart.split(':')[1],10);
+      const endMin = startMin + Math.round(durasi*60);
+      const f = m => String(Math.floor(m/60)%24).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+      jamLabel = f(startMin) + ' – ' + f(endMin);
+    }
+
+    const rows = [];
+    if(gross > 0 || sewaBersih > 0){
+      const ket = sparing ? `Sewa Lapangan (${durasiTxt}, dibagi 2 tim)` : `Sewa Lapangan (${durasiTxt})`;
+      rows.push({ket, sub: [tglLabel, jamLabel].filter(Boolean).join(' • '), amt: gross, color:'#0f2344'});
+    }
+    if(bola > 0) rows.push({ket: sparing ? 'Sewa Bola (dibagi 2 tim)' : 'Sewa Bola', sub: sparing ? `${durasiTxt} × Rp25.000 ÷ 2 tim` : `${durasiTxt} × Rp25.000`, amt: bola, color:'#0f2344'});
+    if(rompi > 0) rows.push({ket: 'Sewa Rompi', sub: `${durasiTxt} × Rp30.000`, amt: rompi, color:'#0f2344'});
+    if(diskonMember > 0) rows.push({ket: 'Diskon Member', sub: '', amt: -diskonMember, color:'#047857'});
+    if(diskonManual > 0) rows.push({ket: 'Diskon' + (ketManual ? ' (' + ketManual + ')' : ''), sub: '', amt: -diskonManual, color:'#047857'});
+    if(!rows.length) rows.push({ket: 'Pembayaran', sub: [tglLabel, jamLabel].filter(Boolean).join(' • '), amt: totalTagihan, color:'#0f2344'});
+
+    return {
+      item, idx, t, sparing, rows, totalTagihan, terbayar, sisa, lunas: sisa<=0,
+      isMember: String(item.status||'').toLowerCase()==='member',
+      tgl, tglLabel, jamLabel
+    };
+  }
+
+  const cellStyle = 'vertical-align:middle;line-height:1.35;padding:12px 10px;border-bottom:1px solid #e2e8f0;';
+  const rp = n => rupiahCustomer(n);
+
+  function pillStatus(info){
+    return info.isMember
+      ? '<span style="display:inline-block;line-height:1.2;padding:5px 12px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800;">MEMBER</span>'
+      : '<span style="display:inline-block;line-height:1.2;padding:5px 12px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:12px;font-weight:800;">NON-MEMBER</span>';
+  }
+
+  function htmlTabelDanRingkasan(info){
+    const rowsHtml = info.rows.map((r,i) => `<tr style="background:${i%2?'#f8fafc':'#ffffff'};">
+      <td style="${cellStyle}text-align:center;color:#64748b;font-weight:700;">${i+1}</td>
+      <td style="${cellStyle}"><div style="font-weight:800;color:#0f2344;font-size:14px;">${escC(r.ket)}</div>${r.sub ? `<div style="font-size:11.5px;font-weight:700;color:#64748b;margin-top:3px;">${escC(r.sub)}</div>` : ''}</td>
+      <td style="${cellStyle}text-align:right;font-weight:800;color:${r.color};white-space:nowrap;">${r.amt<0 ? '− ' + rp(Math.abs(r.amt)) : rp(r.amt)}</td>
+    </tr>`).join('');
+    return `
+      <div style="padding:14px 34px 6px;">
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:13.5px;border:1px solid #e2e8f0;">
+          <colgroup><col style="width:9%"><col style="width:61%"><col style="width:30%"></colgroup>
+          <thead>
+            <tr style="background:#173f78;color:#fff;">
+              <th style="padding:12px 8px;font-size:12px;font-weight:800;">NO</th>
+              <th style="padding:12px 10px;font-size:12px;font-weight:800;text-align:left;">KETERANGAN</th>
+              <th style="padding:12px 10px;font-size:12px;font-weight:800;text-align:right;">JUMLAH</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div style="padding:16px 34px 8px;">
+        <div style="margin-left:auto;width:360px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px 18px;">
+          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#334155;margin-bottom:8px;"><span>Total Tagihan</span><b style="color:#0f2344;">${rp(info.totalTagihan)}</b></div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#334155;margin-bottom:10px;"><span>Sudah Dibayar / DP</span><b style="color:#047857;">${rp(info.terbayar)}</b></div>
+          <div style="border-top:1px dashed #cbd5e1;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;font-weight:900;color:#0f2344;">${info.lunas ? 'Status' : 'Sisa Tagihan'}</span>
+            <b style="font-size:${info.lunas ? '20px' : '22px'};color:${info.lunas ? '#047857' : '#be123c'};">${info.lunas ? 'LUNAS' : rp(info.sisa)}</b>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Logo + nama brand (diambil sekali per sesi gambar)
+  async function siapkanMeta(){
+    const brand = (document.querySelector('body > header .admin-global-header-brand-title')?.textContent || 'SANDAGA MINISOCCER').trim();
+    const logoSrc = document.querySelector('body > header img')?.src || '';
+    const logoH = 88;
+    let logoW = 0;
+    if(logoSrc){
+      await new Promise(r => {
+        const im = new Image();
+        im.onload = () => { if(im.naturalWidth && im.naturalHeight) logoW = Math.round(logoH * im.naturalWidth / im.naturalHeight); r(); };
+        im.onerror = r; im.src = logoSrc; setTimeout(r, 2500);
+      });
+      if(!logoW) logoW = logoH;
+    }
+    const tglCetak = new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'});
+    return {brand, logoSrc, logoH, logoW, tglCetak};
+  }
+
+  // infos: 1 tim = tagihan biasa; 2 tim = gambar gabungan
+  function htmlGambarTagihan(infos, meta){
+    const gabungan = infos.length > 1;
+    const first = infos[0];
+    const header = `
+      <div style="background:linear-gradient(135deg,#0f2f66,#1e5aa8);padding:28px 34px;display:flex;align-items:center;gap:18px;">
+        ${meta.logoSrc && meta.logoW>0 ? `<img src="${meta.logoSrc}" style="display:block;width:${meta.logoW}px;height:${meta.logoH}px;">` : ''}
+        <div style="color:#fff;">
+          <div style="position:relative;top:-1px;font-size:13px;font-weight:700;letter-spacing:.16em;opacity:.85;">TAGIHAN PEMBAYARAN</div>
+          <div style="position:relative;top:-3px;font-size:26px;font-weight:900;letter-spacing:.03em;margin-top:4px;">${escC(meta.brand)}</div>
+        </div>
+      </div>`;
+    const jadwalHtml = `
+      <td style="vertical-align:top;text-align:right;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:#64748b;">JADWAL MAIN</div>
+        <div style="font-size:16px;font-weight:900;color:#0f2344;margin-top:4px;">${escC(first.tglLabel || '-')}</div>
+        ${first.jamLabel ? `<div style="font-size:14px;font-weight:800;color:#334155;margin-top:4px;">${escC(first.jamLabel)}</div>` : ''}
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-top:6px;">Dicetak ${meta.tglCetak}</div>
+      </td>`;
+    const sparTag = '<span style="display:inline-block;line-height:1.2;padding:5px 12px;border-radius:999px;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:800;margin-left:6px;">SPARING</span>';
+    let body = '';
+    if(!gabungan){
+      body = `
+      <div style="padding:28px 34px 8px;">
+        <table style="width:100%;border-collapse:collapse;"><tr>
+          <td style="vertical-align:top;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:#64748b;">DITAGIHKAN KEPADA</div>
+            <div style="font-size:24px;font-weight:900;color:#0f2344;margin-top:4px;">${escC(first.item.nama)}</div>
+            <div style="margin-top:8px;">${pillStatus(first)}${first.sparing ? ' ' + sparTag : ''}</div>
+          </td>
+          ${jadwalHtml}
+        </tr></table>
+      </div>
+      ${htmlTabelDanRingkasan(first)}`;
+    } else {
+      body = `
+      <div style="padding:28px 34px 6px;">
+        <table style="width:100%;border-collapse:collapse;"><tr>
+          <td style="vertical-align:top;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.1em;color:#64748b;">DITAGIHKAN KEPADA</div>
+            <div style="font-size:22px;font-weight:900;color:#0f2344;margin-top:4px;line-height:1.3;">${infos.map(i => escC(i.item.nama)).join(' <span style="color:#94a3b8;font-weight:800;">vs</span> ')}</div>
+            <div style="margin-top:8px;">${sparTag.replace('margin-left:6px;','')}</div>
+          </td>
+          ${jadwalHtml}
+        </tr></table>
+      </div>
+      ${infos.map((inf,i) => `
+        <div style="padding:${i===0?'18px':'26px'} 34px 0;">
+          <div style="display:flex;align-items:center;gap:10px;border-top:${i===0?'0':'2px dashed #cbd5e1'};padding-top:${i===0?'0':'22px'};">
+            <span style="display:inline-block;line-height:1.2;padding:6px 14px;border-radius:10px;background:#173f78;color:#fff;font-size:13px;font-weight:900;letter-spacing:.06em;">TIM ${inf.t}</span>
+            <span style="font-size:20px;font-weight:900;color:#0f2344;">${escC(inf.item.nama)}</span>
+            ${pillStatus(inf)}
+          </div>
+        </div>
+        ${htmlTabelDanRingkasan(inf)}`).join('')}`;
+    }
+    const footer = `
+      <div style="padding:18px 34px 28px;text-align:center;color:#64748b;font-size:12px;font-weight:700;line-height:1.6;">
+        Silakan melakukan pembayaran sesuai sisa tagihan di atas.<br>Terima kasih telah bermain di ${escC(meta.brand)}
+      </div>`;
+    return header + body + footer;
+  }
+
+  async function renderTagihanBlob(infos, meta){
+    const root = document.createElement('div');
+    root.style.cssText = 'position:fixed;left:-100000px;top:0;width:760px;box-sizing:border-box;background:#ffffff;color:#0f2344;font-family:Arial,Helvetica,sans-serif;';
+    root.innerHTML = htmlGambarTagihan(infos, meta);
+    document.body.appendChild(root);
+    try{
+      const imgs = [...root.querySelectorAll('img')];
+      await Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; setTimeout(r,2500); })));
+      await waitFrames();
+      if(typeof window.__dailyReportLiftText==='function') window.__dailyReportLiftText(root);
+      await waitFrames();
+      const canvas = await html2canvas(root,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false,width:760,windowWidth:760});
+      const blob = await new Promise(res => canvas.toBlob(res,'image/jpeg',.95));
+      if(!blob) throw new Error('Gagal membuat gambar');
+      return blob;
+    } finally {
+      root.remove();
+    }
+  }
+
+  const namaFile = s => String(s).replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim() + '.jpg';
+
+  async function siapkanGambarTagihan(){
+    const my = ++shareState.token;
+    shareState.files = []; shareState.ready = false; shareState.busy = true;
+    if(typeof html2canvas==='undefined'){
+      shareState.busy = false;
+      setShareUI('⚠ Butuh internet — ketuk untuk coba lagi', false, '');
+      return;
+    }
+    setShareUI('⏳ Menyiapkan gambar…', true, '');
+    try{
+      try { if(typeof window.hitungOtomatisBiaya==='function') window.hitungOtomatisBiaya(); } catch(e){}
+      const data = getCustomerTagihanData();
+      if(!data.length) throw new Error('Data tagihan belum tersedia');
+      const infos = data.map((_,i) => infoTagihanTim(data,i));
+      const meta = await siapkanMeta();
+      const tgl = infos[0].tgl;
+      const jobs = infos.length > 1
+        ? [
+            {infos:[infos[0]], name:`Tagihan Tim 1 ${infos[0].item.nama} ${tgl}`},
+            {infos:[infos[1]], name:`Tagihan Tim 2 ${infos[1].item.nama} ${tgl}`},
+            {infos:[infos[0],infos[1]], name:`Tagihan Tim 1 dan Tim 2 ${tgl}`}
+          ]
+        : [{infos:[infos[0]], name:`Tagihan ${infos[0].item.nama} ${tgl}`}];
+      const files = [];
+      for(let i=0;i<jobs.length;i++){
+        if(my !== shareState.token) return;      // jendela ditutup / dibuka ulang
+        setShareUI(`⏳ Menyiapkan ${i+1}/${jobs.length}…`, true, '');
+        const blob = await renderTagihanBlob(jobs[i].infos, meta);
+        files.push({blob, name: namaFile(jobs[i].name)});
+      }
+      if(my !== shareState.token) return;
+      shareState.files = files; shareState.ready = true; shareState.busy = false;
+      setShareUI(files.length>1 ? `📤 Bagikan (${files.length} gambar)` : '📤 Bagikan', false,
+        files.length>1 ? 'Tersimpan sekaligus: Tim 1, Tim 2, dan gabungan keduanya' : '');
+    }catch(e){
+      console.error('Gagal menyiapkan gambar tagihan customer:', e);
+      if(my !== shareState.token) return;
+      shareState.busy = false;
+      setShareUI('⚠ Gagal — ketuk untuk coba lagi', false, '');
+    }
+  }
+
+  function unduhBerurutan(files){
+    let i = 0;
+    (function next(){
+      if(i >= files.length) return;
+      const url = URL.createObjectURL(files[i].blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = files[i].name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      i++;
+      setTimeout(next, 500);   // jeda kecil agar browser tidak menolak unduhan beruntun
+    })();
+  }
+
+  window.bagikanTagihanCustomer = async function(){
+    if(!shareState.ready){
+      if(!shareState.busy) siapkanGambarTagihan();   // tombol "coba lagi"
+      return;
+    }
+    // File dibuat sinkron dari gambar yang SUDAH siap, agar share sheet HP tetap dianggap klik langsung
+    const files = shareState.files.map(f => new File([f.blob], f.name, {type:'image/jpeg'}));
+    try{
+      if(navigator.share && navigator.canShare && navigator.canShare({files})){
+        await navigator.share({files, title:'Tagihan Customer'});
+        return;
+      }
+    }catch(e){
+      if(e && e.name==='AbortError') return;
+    }
+    // Perangkat/browser tanpa fitur bagikan file: unduh semua gambar berurutan
+    unduhBerurutan(shareState.files);
+    const n = document.getElementById('customer-tagihan-share-note');
+    if(n) n.textContent = shareState.files.length + ' gambar diunduh. Jika hanya sebagian yang tersimpan, izinkan unduhan beberapa file di browser lalu coba lagi.';
   };
 
   window.tutupTagihanUntukCustomer = function(){
     const overlay=document.getElementById('customer-tagihan-overlay');
     if(!overlay) return;
+    shareState.token++; shareState.files=[]; shareState.ready=false; shareState.busy=false;
     overlay.classList.remove('is-open');
     overlay.setAttribute('aria-hidden','true');
     document.body.style.overflow='';
