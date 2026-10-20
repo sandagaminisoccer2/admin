@@ -19615,7 +19615,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                         : '<span style="display:inline-block;line-height:1.2;padding:5px 10px;border-radius:999px;background:#ffe4e6;color:#be123c;font-size:12px;font-weight:800;">BELUM BAYAR</span>');
                 return `<tr style="background:${i % 2 ? '#f8fafc' : '#ffffff'};">
                     <td style="vertical-align:middle;line-height:1.3;padding:11px 8px;text-align:center;color:#64748b;font-weight:700;border-bottom:1px solid #e2e8f0;">${i + 1}</td>
-                    <td style="vertical-align:middle;line-height:1.3;padding:11px 8px;font-weight:800;color:#0f2344;border-bottom:1px solid #e2e8f0;">${shortDate(d.tanggal)}</td>
+                    <td style="vertical-align:middle;line-height:1.3;padding:11px 8px;text-align:center;font-weight:800;color:#0f2344;border-bottom:1px solid #e2e8f0;">${shortDate(d.tanggal)}</td>
                     <td style="vertical-align:middle;line-height:1.3;padding:11px 8px;text-align:center;font-weight:700;color:#334155;border-bottom:1px solid #e2e8f0;">${escapeHtmlSparing(d.jam)}</td>
                     <td style="vertical-align:middle;line-height:1.3;padding:11px 8px;text-align:right;font-weight:800;color:#0f2344;border-bottom:1px solid #e2e8f0;">${rp(d.nominal)}</td>
                     <td style="vertical-align:middle;line-height:1.3;padding:11px 8px;text-align:right;font-weight:700;color:#047857;border-bottom:1px solid #e2e8f0;">${rp(d.terbayar)}</td>
@@ -19629,8 +19629,8 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 <div style="background:linear-gradient(135deg,#0f2f66,#1e5aa8);padding:28px 34px;display:flex;align-items:center;gap:18px;">
                     ${logoSrc && logoW > 0 ? `<img src="${logoSrc}" style="display:block;width:${logoW}px;height:${logoH}px;">` : ''}
                     <div style="color:#fff;">
-                        <div style="font-size:13px;font-weight:700;letter-spacing:.16em;opacity:.85;">TAGIHAN MEMBER</div>
-                        <div style="font-size:26px;font-weight:900;letter-spacing:.03em;margin-top:4px;">${escapeHtmlSparing(brand)}</div>
+                        <div style="position:relative;top:-1px;font-size:13px;font-weight:700;letter-spacing:.16em;opacity:.85;">TAGIHAN MEMBER</div>
+                        <div style="position:relative;top:-3px;font-size:26px;font-weight:900;letter-spacing:.03em;margin-top:4px;">${escapeHtmlSparing(brand)}</div>
                     </div>
                 </div>
                 <div style="padding:28px 34px 8px;">
@@ -19654,7 +19654,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                         <thead>
                             <tr style="background:#173f78;color:#fff;">
                                 <th style="padding:12px 8px;font-size:12px;font-weight:800;">NO</th>
-                                <th style="padding:12px 8px;font-size:12px;font-weight:800;text-align:left;">TANGGAL</th>
+                                <th style="padding:12px 8px;font-size:12px;font-weight:800;text-align:center;">TANGGAL</th>
                                 <th style="padding:12px 8px;font-size:12px;font-weight:800;">JAM</th>
                                 <th style="padding:12px 8px;font-size:12px;font-weight:800;text-align:right;">TAGIHAN</th>
                                 <th style="padding:12px 8px;font-size:12px;font-weight:800;text-align:right;">DIBAYAR</th>
@@ -19670,18 +19670,22 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                         <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;color:#334155;margin-bottom:10px;"><span>Sudah Dibayar</span><b style="color:#047857;">${rp(paid)}</b></div>
                         <div style="border-top:1px dashed #cbd5e1;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:14px;font-weight:900;color:#0f2344;">${lunas ? 'Status' : 'Sisa Tagihan'}</span>
-                            <b style="font-size:${lunas ? '20px' : '22px'};color:${lunas ? '#047857' : '#be123c'};">${lunas ? 'LUNAS ✓' : rp(sisa)}</b>
+                            <b style="font-size:${lunas ? '20px' : '22px'};color:${lunas ? '#047857' : '#be123c'};">${lunas ? 'LUNAS' : rp(sisa)}</b>
                         </div>
                     </div>
                 </div>
                 <div style="padding:18px 34px 28px;text-align:center;color:#64748b;font-size:12px;font-weight:700;line-height:1.6;">
-                    Tagihan dihitung dari jadwal member pada periode di atas.<br>Terima kasih telah menjadi member ${escapeHtmlSparing(brand)} ⚽
+                    Tagihan dihitung dari jadwal member pada periode di atas.<br>Terima kasih telah menjadi member ${escapeHtmlSparing(brand)}
                 </div>`;
             document.body.appendChild(root);
 
             try {
                 const imgs = [...root.querySelectorAll('img')];
                 await Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; setTimeout(r, 2500); })));
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                // html2canvas menggambar teks sedikit lebih turun: pakai perbaikan yang sama dengan Daily Recap
+                // (nilai angkatnya diatur di window.DAILY_REPORT_TEXT_LIFT_EM) agar teks pas di tengah sel & pil status.
+                if(typeof window.__dailyReportLiftText === 'function') window.__dailyReportLiftText(root);
                 await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
                 const canvas = await html2canvas(root, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false, width: 760, windowWidth: 760 });
                 const dataUrl = canvas.toDataURL('image/jpeg', .95);
@@ -36128,6 +36132,45 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
   html body #jdp-modal .jdp-seg .jdp-seg-b{padding:0 6px;font-size:11px!important}
 }
 </style>
+<style id="jdp-multi-style">
+/* Poster Jadwal: unduh / bagikan BEBERAPA PERIODE sekaligus */
+#jdp-modal .jdp-multi{padding:12px 16px 0}
+#jdp-modal .jdp-multi-toggle{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:#f1f5f9;color:#132a5e;text-align:left;cursor:pointer;transition:background .15s}
+html body #jdp-modal .jdp-multi-toggle .jdp-mt-txt{font-size:12px!important;font-weight:800;line-height:1.1}
+html body #jdp-modal .jdp-multi-toggle .jdp-mt-sub{margin-left:auto;font-size:11px!important;font-weight:700;color:#64748b}
+#jdp-modal .jdp-multi-toggle .jdp-mt-ico,#jdp-modal .jdp-multi-toggle .jdp-mt-chev{flex:none;display:block}
+#jdp-modal .jdp-multi-toggle .jdp-mt-chev{transition:transform .2s;color:#64748b}
+#jdp-modal .jdp-multi-toggle.on{background:#e8f0ff}
+#jdp-modal .jdp-multi-toggle.on .jdp-mt-chev{transform:rotate(180deg)}
+#jdp-modal .jdp-multi-toggle.on .jdp-mt-sub{color:#132a5e}
+#jdp-modal .jdp-multi-panel{display:none;margin-top:8px;max-height:min(32vh,230px);max-height:min(32dvh,230px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+#jdp-modal .jdp-multi-panel.open{display:block}
+#jdp-modal .jdp-mm{margin:0 0 10px}
+#jdp-modal .jdp-mm:last-child{margin-bottom:2px}
+#jdp-modal .jdp-mm-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 6px}
+html body #jdp-modal .jdp-mm-head span{font-size:11px!important;font-weight:800;color:#475569}
+html body #jdp-modal .jdp-mm-all{border:0;background:transparent;color:#2563eb;font-size:11px!important;font-weight:800;padding:4px 6px;min-height:0;cursor:pointer}
+#jdp-modal .jdp-mm-chips{display:flex;flex-wrap:wrap;gap:6px}
+html body #jdp-modal .jdp-pc{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;padding:0 13px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#475569;font-size:12px!important;font-weight:800;line-height:1;white-space:nowrap;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+html body #jdp-modal .jdp-pc.on{border-color:#132a5e;background:#132a5e;color:#fff}
+html body #jdp-modal .jdp-pc.on::before{content:"✓";font-size:11px;font-weight:900}
+/* pratinjau banyak poster = deretan thumbnail yang bisa digeser */
+#jdp-modal .jdp-stage.jdp-multi-stage{display:block;place-items:start;justify-items:start;text-align:center}
+#jdp-modal .jdp-strip{display:flex;align-items:flex-start;gap:12px;width:max-content;min-width:100%;padding:2px}
+#jdp-modal .jdp-strip>:first-child{margin-left:auto}
+#jdp-modal .jdp-strip>:last-child{margin-right:auto}
+#jdp-modal .jdp-thumb{flex:none;margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+#jdp-modal .jdp-thumb-box{height:clamp(150px,calc(100vh - 600px),420px);height:clamp(150px,calc(100dvh - 600px),420px);aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#1e293b;display:grid;place-items:center;color:#94a3b8;font-size:20px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#jdp-modal .jdp-thumb-box img{display:block;width:100%;height:100%}
+html body #jdp-modal .jdp-thumb figcaption{font-size:11px!important;font-weight:800;color:#cbd5e1;line-height:1.1}
+/* layar pendek: isi jendela bisa digulir, tombol Download / Bagikan selalu menempel di bawah */
+html body #jdp-modal .jdp-box{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+html body #jdp-modal .jdp-box>*{flex-shrink:0}
+html body #jdp-modal .jdp-stage{flex:0 1 auto}
+html body #jdp-modal .jdp-stage.jdp-multi-stage{min-height:0}
+html body #jdp-modal .jdp-actions{position:sticky;bottom:0;z-index:5;background:#fff;box-shadow:0 -8px 14px -10px rgba(15,23,42,.22)}
+html body #jdp-modal .jdp-multi-panel{max-height:min(28vh,190px);max-height:min(28dvh,190px)}
+</style>
 <script id="jadwal-poster-script">
 (function(){
   'use strict';
@@ -36777,6 +36820,15 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
       '<div class="jdp-box">' +
         '<div class="jdp-head"><strong>Poster Jadwal</strong><button type="button" class="jdp-x" onclick="jdpClose()" aria-label="Tutup">✕</button></div>' +
         '<div class="jdp-stage" id="jdp-stage"><div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div></div>' +
+        '<div class="jdp-multi" id="jdp-multi">' +
+          '<button type="button" class="jdp-multi-toggle" id="jdp-multi-toggle" aria-expanded="false" aria-controls="jdp-multi-panel">' +
+            '<svg class="jdp-mt-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="15" rx="2.5"/><path d="M4 7.5v10A3.5 3.5 0 0 0 7.5 21H15"/></svg>' +
+            '<span class="jdp-mt-txt">Beberapa periode</span>' +
+            '<span class="jdp-mt-sub" id="jdp-multi-sub">Pilih periode</span>' +
+            '<svg class="jdp-mt-chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' +
+          '</button>' +
+          '<div class="jdp-multi-panel" id="jdp-multi-panel"><div id="jdp-multi-list"></div></div>' +
+        '</div>' +
         '<div class="jdp-colors">' +
           '<div class="jdp-seg"><button type="button" class="jdp-seg-b on" data-target="tim">Nama tim</button><button type="button" class="jdp-seg-b" data-target="tgl">Tanggal</button><button type="button" class="jdp-seg-b" data-target="per">Periode</button><button type="button" class="jdp-seg-b" data-target="done">Done</button><button type="button" class="jdp-seg-b" data-target="lain">Bulan lain</button></div>' +
           '<div class="jdp-sws" id="jdp-sws">' + swatchesHtml(state.target) + '</div>' +
@@ -36790,6 +36842,12 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
       '</div>';
     m.addEventListener('click', function(e){
       if (e.target === m) { window.jdpClose(); return; }
+      var mtg = e.target.closest && e.target.closest('.jdp-multi-toggle');
+      if (mtg) { setMultiOpen(!multi.open); return; }
+      var mpc = e.target.closest && e.target.closest('.jdp-pc');
+      if (mpc) { toggleStart(mpc.getAttribute('data-start')); return; }
+      var mma = e.target.closest && e.target.closest('.jdp-mm-all');
+      if (mma) { toggleMonth(mma.getAttribute('data-mk')); return; }
       var sg = e.target.closest && e.target.closest('.jdp-seg-b');
       if (sg) { setTarget(sg.getAttribute('data-target')); return; }
       var b = e.target.closest && e.target.closest('.jdp-sw[data-pal]');
@@ -36817,11 +36875,256 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
     n.textContent = msg || ''; n.className = 'jdp-note' + (isErr ? ' err' : '');
   }
 
+  /* =====================================================================
+     BEBERAPA PERIODE SEKALIGUS
+     - Tombol "Beberapa periode" membuka daftar periode (sama dengan pilihan periode di halaman
+       Booking Schedule). Admin mencentang periode yang diinginkan.
+     - Semua poster dibuat lebih dulu di belakang layar (thumbnail tampil satu per satu), baru tombol
+       Download / Bagikan aktif. Dengan begitu tombol Bagikan (iPhone) langsung bisa dipakai tanpa
+       menunggu, dan semua poster terkirim dalam SATU kali bagikan.
+     - Pilihan periode di halaman Booking Schedule tidak berubah: grid hanya dipindah sebentar
+       (sinkron, tanpa jeda) untuk membaca datanya lalu dikembalikan.
+     ===================================================================== */
+  var multi = { open: false, sel: [], cache: {}, gen: 0, running: false, again: false, origStart: '' };
+
+  function periodList(){
+    var s = $('filter-periode-jadwal'), out = [], i, o, st, en;
+    if (!s || !s.options) return out;
+    for (i = 0; i < s.options.length; i++) {
+      o = s.options[i];
+      st = (o.dataset && o.dataset.periodStart) || o.value;
+      en = (o.dataset && o.dataset.periodEnd) || st;
+      if (!st) continue;
+      out.push({ idx: i, start: st, end: en, mk: (o.dataset && o.dataset.monthKey) || st.slice(0, 7) });
+    }
+    return out;
+  }
+  function sortedSel(){ return periodList().filter(function(p){ return multi.sel.indexOf(p.start) >= 0; }); }
+  function shortLabel(st, en){
+    var a = new Date(st + 'T00:00:00'), b = new Date(en + 'T00:00:00');
+    if (st === en) return a.getDate() + ' ' + MON3[a.getMonth()];
+    if (a.getMonth() === b.getMonth()) return a.getDate() + '–' + b.getDate() + ' ' + MON3[b.getMonth()];
+    return a.getDate() + ' ' + MON3[a.getMonth()] + ' – ' + b.getDate() + ' ' + MON3[b.getMonth()];
+  }
+  function monthTitle(mk){
+    var m = parseInt(mk.slice(5, 7), 10) - 1, nm = MONTHS[m] || '';
+    return nm.charAt(0) + nm.slice(1).toLowerCase() + ' ' + mk.slice(0, 4);
+  }
+  function renderPeriodPanel(){
+    var box = $('jdp-multi-list'); if (!box) return;
+    var groups = [], map = {};
+    periodList().forEach(function(p){
+      if (!map[p.mk]) { map[p.mk] = { mk: p.mk, items: [] }; groups.push(map[p.mk]); }
+      map[p.mk].items.push(p);
+    });
+    box.innerHTML = groups.map(function(g){
+      return '<div class="jdp-mm"><div class="jdp-mm-head"><span>' + monthTitle(g.mk) + '</span>' +
+        '<button type="button" class="jdp-mm-all" data-mk="' + g.mk + '">Pilih semua</button></div>' +
+        '<div class="jdp-mm-chips">' + g.items.map(function(p){
+          return '<button type="button" class="jdp-pc" data-start="' + p.start + '" aria-pressed="false">' + shortLabel(p.start, p.end) + '</button>';
+        }).join('') + '</div></div>';
+    }).join('');
+    markChips();
+  }
+  function markChips(){
+    var m = $('jdp-modal'); if (!m) return;
+    Array.prototype.forEach.call(m.querySelectorAll('.jdp-pc'), function(b){
+      var on = multi.sel.indexOf(b.getAttribute('data-start')) >= 0;
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    var all = periodList();
+    Array.prototype.forEach.call(m.querySelectorAll('.jdp-mm-all'), function(b){
+      var mk = b.getAttribute('data-mk');
+      var ps = all.filter(function(p){ return p.mk === mk; });
+      var every = ps.length > 0 && ps.every(function(p){ return multi.sel.indexOf(p.start) >= 0; });
+      b.textContent = every ? 'Batal pilih' : 'Pilih semua';
+    });
+  }
+  function updateMultiCount(){
+    var sub = $('jdp-multi-sub');
+    if (sub) sub.textContent = multi.open ? (multi.sel.length ? multi.sel.length + ' dipilih' : 'Belum dipilih') : 'Pilih periode';
+  }
+  function multiFiles(){
+    return sortedSel().map(function(p){ return multi.cache[p.start]; }).filter(function(c){ return c && !c.fail && c.blob; });
+  }
+  function makeThumb(canvas){
+    var t = document.createElement('canvas'); t.width = 360; t.height = 640;
+    var c = t.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(canvas, 0, 0, 360, 640);
+    var url = t.toDataURL('image/jpeg', 0.84);
+    t.width = t.height = 0;
+    return url;
+  }
+  function canvasBlob(c){ return new Promise(function(res){ c.toBlob(function(b){ res(b); }, 'image/png'); }); }
+
+  function renderStrip(){
+    var stage = $('jdp-stage'); if (!stage || !multi.open) return;
+    var keepX = stage.scrollLeft, list = sortedSel();
+    stage.classList.add('jdp-multi-stage');
+    if (!list.length) { stage.innerHTML = '<div class="jdp-loading">Pilih minimal 1 periode.</div>'; return; }
+    stage.innerHTML = '<div class="jdp-strip">' + list.map(function(p){
+      var c = multi.cache[p.start], cap = shortLabel(p.start, p.end), inner;
+      if (!c) inner = '<span>⏳</span>';
+      else if (c.fail) inner = '<span>⚠️</span>';
+      else inner = '<img alt="Poster jadwal ' + cap + '" src="' + c.thumb + '">';
+      return '<figure class="jdp-thumb"><div class="jdp-thumb-box">' + inner + '</div><figcaption>' + cap + '</figcaption></figure>';
+    }).join('') + '</div>';
+    stage.scrollLeft = keepX;
+  }
+  function updateMultiButtons(){
+    var dl = $('jdp-dl'), sh = $('jdp-share'); if (!dl || !sh || !multi.open) return;
+    var list = sortedSel(), n = list.length, done = 0, ok = 0;
+    list.forEach(function(p){ var c = multi.cache[p.start]; if (c) { done++; if (!c.fail) ok++; } });
+    var bgNote = (state.bg && state.bg.note) ? state.bg.note + ' • ' : '';
+    var bgWarn = !!(state.bg && state.bg.note);
+    sh.disabled = true; sh.style.display = 'none';
+    if (!n) { dl.disabled = true; dl.textContent = '⬇️ Download PNG'; setNote('Pilih minimal 1 periode.', true); return; }
+    if (!state.bg || (state.bg.late && !state.bg.img)) { dl.disabled = true; dl.textContent = '⏳ Menunggu latar…'; setNote(bgNote, bgWarn); return; }
+    if (done < n) { dl.disabled = true; dl.textContent = '⏳ Menyiapkan ' + done + '/' + n + '…'; setNote(bgNote + 'Menyiapkan ' + n + ' poster…', bgWarn); return; }
+    if (!ok) { dl.disabled = true; dl.textContent = '⬇️ Download PNG'; setNote('Gagal membuat poster.', true); return; }
+    dl.disabled = false; dl.textContent = ok > 1 ? '⬇️ Download (' + ok + ')' : '⬇️ Download PNG';
+    setNote(bgNote + ok + ' poster siap • ' + W + '×' + H + ' px' + (ok < n ? ' • ' + (n - ok) + ' gagal' : ''), bgWarn || ok < n);
+    try {
+      var files = multiFiles().map(function(c){ return new File([c.blob], c.name, { type: 'image/png' }); });
+      if (navigator.canShare && navigator.canShare({ files: files })) {
+        sh.style.display = ''; sh.disabled = false; sh.textContent = ok > 1 ? '📤 Bagikan (' + ok + ')' : '📤 Bagikan';
+      }
+    } catch (e) {}
+  }
+
+  /* Satu proses pada satu waktu. Langkah 1 (sinkron): pindahkan grid ke tiap periode yang belum ada,
+     baca datanya, lalu kembalikan ke periode semula. Langkah 2 (bertahap): gambar poster satu per satu. */
+  async function multiPass(){
+    var token = state.token, gen = multi.gen;
+    if (!multi.open || !state.bg) return;
+    if (!state.bg.img && state.bg.late) return;
+    var sel = $('filter-periode-jadwal'); if (!sel) return;
+    var need = sortedSel().filter(function(p){ return !multi.cache[p.start]; });
+    if (!need.length) { updateMultiButtons(); return; }
+    var datas = {}, keep = sel.selectedIndex;
+    try {
+      need.forEach(function(p){
+        sel.selectedIndex = p.idx;
+        try { window.renderGridJadwal(); } catch (e) {}
+        datas[p.start] = collect();
+      });
+    } finally {
+      sel.selectedIndex = keep;
+      try { window.renderGridJadwal(); } catch (e) {}
+      try { if (typeof window.bsSyncPeriode === 'function') window.bsSyncPeriode(); } catch (e) {}
+    }
+    var bgImg = state.bg.img;
+    for (var i = 0; i < need.length; i++) {
+      var p = need[i], entry;
+      if (token !== state.token || gen !== multi.gen || !multi.open) return;
+      if (multi.sel.indexOf(p.start) < 0) continue;
+      try {
+        var d = datas[p.start];
+        if (!d) throw new Error('data periode kosong');
+        var cv = draw(d, bgImg);
+        var blob = await canvasBlob(cv);
+        if (!blob) throw new Error('gagal membuat file');
+        entry = { start: p.start, name: d.fileName, blob: blob, thumb: makeThumb(cv) };
+        cv.width = cv.height = 0;
+      } catch (e) { console.error(e); entry = { start: p.start, fail: true }; }
+      if (token !== state.token || gen !== multi.gen || !multi.open) return;
+      multi.cache[p.start] = entry;
+      renderStrip(); updateMultiButtons();
+      await new Promise(function(r){ setTimeout(r, 20); });
+    }
+  }
+  function multiKick(){
+    if (multi.running) { multi.again = true; return; }
+    multi.running = true;
+    (async function(){
+      try { do { multi.again = false; await multiPass(); } while (multi.again); }
+      catch (e) { console.error(e); }
+      finally { multi.running = false; }
+    })();
+  }
+  function afterSelChange(){ markChips(); updateMultiCount(); renderStrip(); updateMultiButtons(); multiKick(); }
+  function toggleStart(st){
+    var i = multi.sel.indexOf(st);
+    if (i >= 0) multi.sel.splice(i, 1); else multi.sel.push(st);
+    afterSelChange();
+  }
+  function toggleMonth(mk){
+    var ps = periodList().filter(function(p){ return p.mk === mk; });
+    var every = ps.length > 0 && ps.every(function(p){ return multi.sel.indexOf(p.start) >= 0; });
+    ps.forEach(function(p){
+      var i = multi.sel.indexOf(p.start);
+      if (every) { if (i >= 0) multi.sel.splice(i, 1); } else if (i < 0) multi.sel.push(p.start);
+    });
+    afterSelChange();
+  }
+  function setMultiOpen(on){
+    var pn = $('jdp-multi-panel'), tg = $('jdp-multi-toggle');
+    multi.open = !!on; multi.gen++; multi.cache = {};
+    if (pn) pn.classList.toggle('open', !!on);
+    if (tg) { tg.classList.toggle('on', !!on); tg.setAttribute('aria-expanded', on ? 'true' : 'false'); }
+    if (on) {
+      multi.sel = multi.origStart ? [multi.origStart] : [];
+      afterSelChange();
+    } else {
+      multi.sel = []; updateMultiCount();
+      if (state.data && state.bg) renderPreview(state.data, state.bg, state.token);
+    }
+  }
+  function multiReset(){
+    multi.open = false; multi.sel = []; multi.cache = {}; multi.gen++;
+    var pn = $('jdp-multi-panel'), tg = $('jdp-multi-toggle'), st = $('jdp-stage'), sh = $('jdp-share');
+    if (pn) pn.classList.remove('open');
+    if (tg) { tg.classList.remove('on'); tg.setAttribute('aria-expanded', 'false'); }
+    if (st) st.classList.remove('jdp-multi-stage');
+    if (sh) sh.textContent = '📤 Bagikan';
+    updateMultiCount();
+  }
+  function multiInit(){
+    var s = $('filter-periode-jadwal'), o = s && s.options && s.options[s.selectedIndex];
+    multi.origStart = (o && ((o.dataset && o.dataset.periodStart) || o.value)) || '';
+    renderPeriodPanel();
+    var row = $('jdp-multi'); if (row) row.style.display = periodList().length > 1 ? '' : 'none';
+  }
+  function saveBlob(blob, name){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+  }
+  function multiDownload(){
+    var items = multiFiles(); if (!items.length) return;
+    if (items.length === 1) { saveBlob(items[0].blob, items[0].name); return; }
+    var dl = $('jdp-dl'), i = 0;
+    if (dl) dl.disabled = true;
+    (function next(){
+      if (i >= items.length) {
+        if (dl) dl.disabled = false;
+        setNote(items.length + ' poster diunduh. Jika hanya sebagian yang tersimpan, izinkan unduhan beberapa file di browser lalu coba lagi.');
+        return;
+      }
+      saveBlob(items[i].blob, items[i].name);
+      setNote('Mengunduh ' + (i + 1) + ' dari ' + items.length + '…');
+      i++;
+      setTimeout(next, 500);   /* jeda kecil agar browser (Chrome/Edge) tidak menolak unduhan beruntun */
+    })();
+  }
+  async function multiShare(){
+    /* File dibuat sinkron dari poster yang SUDAH siap, supaya share sheet iPhone tetap dianggap klik langsung */
+    var files = multiFiles().map(function(c){ return new File([c.blob], c.name, { type: 'image/png' }); });
+    if (!files.length) return;
+    try { await navigator.share({ files: files, title: 'Jadwal Booking' }); }
+    catch (e) {
+      if (e && e.name === 'AbortError') return;
+      setNote('Tidak bisa membagikan, gunakan tombol Download.', true);
+    }
+  }
+
   window.jdpClose = function(){
     state.token++;
     var m = $('jdp-modal'); if (m) m.classList.remove('open');
     document.documentElement.classList.remove('jdp-lock');
     state.canvas = null; state.blob = null; state.data = null; state.bg = null;
+    multiReset();
     var st = $('jdp-stage'); if (st) st.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
   };
 
@@ -36831,6 +37134,14 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
     var stage = $('jdp-stage'), dl = $('jdp-dl'), sh = $('jdp-share');
     if (!stage || !dl || !sh) return;
     state.data = data; state.bg = bg;
+    if (multi.open) {   /* mode beberapa periode: warna / latar berubah -> buat ulang semua poster terpilih */
+      state.canvas = null; state.blob = null;
+      multi.gen++; multi.cache = {};
+      renderStrip(); updateMultiButtons(); multiKick();
+      return;
+    }
+    stage.classList.remove('jdp-multi-stage');
+    sh.textContent = '📤 Bagikan';
     var canvas = draw(data, bg.img);
     state.canvas = canvas; state.blob = null; state.name = data.fileName;
     canvas.className = 'jdp-img';
@@ -36860,6 +37171,7 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
     state.busy = true;
     var token = ++state.token;
     var m = ensureModal();
+    multiReset();
     markSwatches();
     m.classList.add('open');
     document.documentElement.classList.add('jdp-lock');
@@ -36871,6 +37183,7 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
     try {
       var data = collect();
       if (!data) throw new Error('Periode jadwal belum dipilih / tabel belum siap.');
+      multiInit();
       var results = await Promise.all([loadFonts(), loadBackground()]);
       if (token !== state.token) return;          /* modal sudah ditutup */
       var bg = results[1];
@@ -36879,6 +37192,7 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
         if (token !== state.token) return;
         var mm = $('jdp-modal'); if (!mm || !mm.classList.contains('open')) return;
         if (bg.img && !nb.changed) {   /* salinan di perangkat sudah yang terbaru: poster tidak diganggu */
+          if (multi.open) { updateMultiButtons(); return; }
           setNote(nb.note || (data.label + ' • ' + W + '×' + H + ' px'), !!nb.note);
           return;
         }
@@ -36894,6 +37208,7 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
   };
 
   window.jdpDownload = function(){
+    if (multi.open) { multiDownload(); return; }
     if (!state.blob) return;
     var url = URL.createObjectURL(state.blob);
     var a = document.createElement('a');
@@ -36903,6 +37218,7 @@ html body #jdp-modal .jdp-seg .jdp-seg-b{flex:1 1 auto;min-width:max-content;pad
   };
 
   window.jdpShare = async function(){
+    if (multi.open) { return multiShare(); }
     if (!state.blob) return;
     try {
       var f = new File([state.blob], state.name, { type: 'image/png' });
