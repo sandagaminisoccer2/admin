@@ -37002,7 +37002,7 @@ html body #jdp-modal .jdp-multi-panel{max-height:min(28vh,190px);max-height:min(
     var sel = $('filter-periode-jadwal'); if (!sel) return;
     var need = sortedSel().filter(function(p){ return !multi.cache[p.start]; });
     if (!need.length) { updateMultiButtons(); return; }
-    var datas = {}, keep = sel.selectedIndex;
+    var datas = {}, keep = sel.selectedIndex, keepVal = sel.value;
     try {
       need.forEach(function(p){
         sel.selectedIndex = p.idx;
@@ -37011,8 +37011,10 @@ html body #jdp-modal .jdp-multi-panel{max-height:min(28vh,190px);max-height:min(
       });
     } finally {
       sel.selectedIndex = keep;
+      if (sel.selectedIndex < 0 && keepVal) sel.value = keepVal;
       try { window.renderGridJadwal(); } catch (e) {}
       try { if (typeof window.bsSyncPeriode === 'function') window.bsSyncPeriode(); } catch (e) {}
+      healGrid();
     }
     var bgImg = state.bg.img;
     for (var i = 0; i < need.length; i++) {
@@ -37128,7 +37130,33 @@ html body #jdp-modal .jdp-multi-panel{max-height:min(28vh,190px);max-height:min(
     state.canvas = null; state.blob = null; state.data = null; state.bg = null;
     multiReset();
     var st = $('jdp-stage'); if (st) st.innerHTML = '<div class="jdp-loading" id="jdp-loading">Menyiapkan poster…</div>';
+    healGrid();
   };
+
+  /* Pengaman: jendela poster tidak boleh membuat grid Booking Schedule jadi kosong.
+     Dicek saat jendela dibuka & ditutup (beberapa kali, kalau-kalau ada render yang telat);
+     bila tabel hilang atau pilihan periode kosong, dipulihkan dan digambar ulang otomatis. */
+  function healGrid(){
+    var run = function(){
+      try {
+        var sel = $('filter-periode-jadwal');
+        if (!sel || !sel.options || !sel.options.length) return;
+        if (sel.selectedIndex < 0) {
+          var idx = 0, i, o, st;
+          for (i = 0; i < sel.options.length; i++) {
+            o = sel.options[i]; st = (o.dataset && o.dataset.periodStart) || o.value;
+            if (st && st === multi.origStart) { idx = i; break; }
+          }
+          sel.selectedIndex = idx;
+        }
+        if (!document.querySelector('#booking-schedule-periods tbody tr') && typeof window.renderGridJadwal === 'function') {
+          window.renderGridJadwal();
+          if (typeof window.bsSyncPeriode === 'function') window.bsSyncPeriode();
+        }
+      } catch (e) { console.warn('healGrid:', e); }
+    };
+    run(); setTimeout(run, 150); setTimeout(run, 700);
+  }
 
   /* Tampilkan canvas langsung sebagai pratinjau (tanpa menunggu encode PNG).
      File PNG-nya dibuat sesudahnya; tombol Download aktif begitu file siap. */
@@ -37206,6 +37234,7 @@ html body #jdp-modal .jdp-multi-panel{max-height:min(28vh,190px);max-height:min(
       setNote(e && e.message ? e.message : String(e), true);
     } finally {
       state.busy = false;
+      healGrid();
     }
   };
 
