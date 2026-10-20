@@ -11992,10 +11992,6 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
     </div>
   </div>
   <p id="info-diskon-manual" class="text-[10px] text-violet-800 font-black">Diskon tambahan tidak aktif</p>
-  <button type="button" onclick="simpanDiskonManualTersimpan()" class="w-full flex items-center justify-center gap-2 bg-violet-700 hover:bg-violet-800 text-white px-4 py-2 rounded-xl text-xs font-black shadow">
-    <span>💾</span><span>SIMPAN DISKON UNTUK NANTI</span>
-  </button>
-  <p class="text-[9px] text-violet-700 font-bold text-center">Diskon ini bisa disimpan lebih dulu meski jadwal masih Belum Bayar. Saat admin membuka jadwal ini lagi untuk pelunasan, diskon akan otomatis terisi ulang.</p>
 </div>
 
 <!-- Pilihan pembagian DISKON MEMBER khusus saat Tim 1 dan Tim 2 sama-sama Member -->
@@ -12107,7 +12103,8 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
     <span class="customer-label-desktop">👁️ Harga Customer</span>
     <span class="customer-label-mobile">👁️ Harga Customer</span>
   </button>
-  <button type="submit" id="btn-simpan-pemasukan" class="uang-masuk-action-btn uang-masuk-action-save relative z-[100] touch-manipulation">💾 <span>Simpan</span></button>
+  <button type="submit" id="btn-simpan-pemasukan" class="uang-masuk-action-btn uang-masuk-action-save relative z-[100] touch-manipulation">✅ <span>Lunas</span></button>
+  <button type="button" id="btn-simpan-belum-bayar" class="uang-masuk-action-btn uang-masuk-action-unpaid touch-manipulation" onclick="simpanBelumBayar()">⏳ <span>Simpan Belum Bayar</span></button>
 </div>
 </form>
 </div>
@@ -15942,23 +15939,47 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         // dengan cara DP Manual disimpan di atas), tidak mengubah kalkulasi
         // pembayaran yang sudah ada — hanya mengisi ulang form saat dibuka.
         function loadDiskonManualTersimpan(nama,tgl,jam){
-            const n=getSparingTeamNamesForPayment(nama,tgl,jam);
-            const f=getBookingForPaymentTeam(n.tim1,tgl,jam);
-            const data=f?.[1]||null;
             const nominalEl=document.getElementById('in-diskon-manual');
             const tim1El=document.getElementById('in-diskon-manual-tim1-nominal');
             const tim2El=document.getElementById('in-diskon-manual-tim2-nominal');
             const berbedaWrap=document.getElementById('in-diskon-manual-berbeda-wrap');
-            const alokasi=String(data?.diskonManualAlokasiTersimpan||'tim1');
-            if(nominalEl) nominalEl.value=formatNominalInputValue(Number(data?.diskonManualTersimpan||0));
             const ketEl=document.getElementById('in-diskon-manual-ket');
-            if(ketEl) ketEl.value=String(data?.diskonManualKetTersimpan||'');
-            if(tim1El) tim1El.value=formatNominalInputValue(Number(data?.diskonManualTim1NominalTersimpan||0));
-            if(tim2El) tim2El.value=formatNominalInputValue(Number(data?.diskonManualTim2NominalTersimpan||0));
-            const radioAktif=document.querySelector(`input[name="diskon-manual-alokasi"][value="${alokasi}"]`);
-            if(radioAktif) radioAktif.checked=true;
-            if(berbedaWrap) berbedaWrap.classList.toggle('hidden', alokasi!=='berbeda');
-            if(typeof hitungOtomatisBiaya==='function') hitungOtomatisBiaya();
+            const terapkan=function(data){
+                const alokasi=String(data?.diskonManualAlokasiTersimpan||'tim1');
+                if(nominalEl) nominalEl.value=formatNominalInputValue(Number(data?.diskonManualTersimpan||0));
+                if(ketEl) ketEl.value=String(data?.diskonManualKetTersimpan||'');
+                if(tim1El) tim1El.value=formatNominalInputValue(Number(data?.diskonManualTim1NominalTersimpan||0));
+                if(tim2El) tim2El.value=formatNominalInputValue(Number(data?.diskonManualTim2NominalTersimpan||0));
+                const radioAktif=document.querySelector(`input[name="diskon-manual-alokasi"][value="${alokasi}"]`);
+                if(radioAktif) radioAktif.checked=true;
+                if(berbedaWrap) berbedaWrap.classList.toggle('hidden', alokasi!=='berbeda');
+                if(typeof hitungOtomatisBiaya==='function') hitungOtomatisBiaya();
+            };
+            const n=getSparingTeamNamesForPayment(nama,tgl,jam);
+            const f=getBookingForPaymentTeam(n.tim1,tgl,jam);
+            const dataBooking=f?.[1]||null;
+            // 1) Diskon yang tersimpan langsung pada booking (cara lama).
+            if(dataBooking && dataBooking.diskonManualTersimpan!==undefined){
+                terapkan(dataBooking);
+                return;
+            }
+            terapkan(null);
+            // 2) Draft "Simpan Belum Bayar" (berlaku untuk booking maupun jadwal member).
+            const key=getPendingSparingKey(getUangMasukTeamName()||nama,tgl,getUangMasukJam()||String(jam||'').substring(0,5));
+            if(!key) return;
+            const dariCache=globalCache.pendingSparingNames?.[key];
+            if(dariCache && dariCache.diskonManualTersimpan!==undefined){
+                terapkan(dariCache);
+                return;
+            }
+            get(ref(db,'pendingSparingNames/'+key)).then(function(snap){
+                const val=snap.val();
+                if(val && val.diskonManualTersimpan!==undefined){
+                    globalCache.pendingSparingNames=globalCache.pendingSparingNames||{};
+                    globalCache.pendingSparingNames[key]=val;
+                    terapkan(val);
+                }
+            }).catch(function(err){ console.warn('Draft diskon belum dapat dimuat:',err); });
         }
         window.simpanDiskonManualTersimpan = async function(){
             const nama=document.getElementById('in-tim')?.value||'';
@@ -21437,6 +21458,83 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             }
         }
         window.simpanNamaTim2Sementara=simpanNamaTim2Sementara;
+
+        // ===== SIMPAN BELUM BAYAR =====
+        // Menyimpan isian form (diskon manual + nama Tim 2) sebagai draft tanpa mencatat
+        // pemasukan sama sekali. Jadwal tetap berstatus belum bayar. Saat jadwal dibuka
+        // lagi untuk pelunasan, isian otomatis muncul kembali. Draft disimpan per
+        // tanggal|jam|tim sehingga bekerja untuk jadwal booking maupun jadwal member.
+        window.simpanBelumBayar = async function(){
+            if(window.__savingBelumBayar) return;
+            const nama1=getUangMasukTeamName();
+            const tgl=String(document.getElementById('in-tgl')?.value || '').substring(0,10);
+            const jam=getUangMasukJam();
+            if(!nama1 || !tgl || !jam){
+                alert('Pilih tanggal, tim, dan jam main terlebih dahulu.');
+                return;
+            }
+            const key=getPendingSparingKey(nama1,tgl,jam);
+            if(!key){
+                alert('Data jadwal belum lengkap sehingga belum bisa disimpan.');
+                return;
+            }
+            const mode=document.getElementById('in-jenis-pembayaran')?.value || 'internal';
+            const nama2=String(document.getElementById('in-tim-2-nama')?.value || '').trim();
+            const nominalInput=parseNominalInputValue(document.getElementById('in-diskon-manual')?.value||'');
+            const tim1Input=parseNominalInputValue(document.getElementById('in-diskon-manual-tim1-nominal')?.value||'');
+            const tim2Input=parseNominalInputValue(document.getElementById('in-diskon-manual-tim2-nominal')?.value||'');
+            const alokasi=document.querySelector('input[name="diskon-manual-alokasi"]:checked')?.value||'tim1';
+            const diskon={
+                diskonManualTersimpan: Math.max(0, Number.isFinite(nominalInput)?nominalInput:0),
+                diskonManualAlokasiTersimpan: alokasi,
+                diskonManualKetTersimpan: String(document.getElementById('in-diskon-manual-ket')?.value||'').trim().slice(0,80),
+                diskonManualTim1NominalTersimpan: Math.max(0, Number.isFinite(tim1Input)?tim1Input:0),
+                diskonManualTim2NominalTersimpan: Math.max(0, Number.isFinite(tim2Input)?tim2Input:0)
+            };
+            const adaDiskon=diskon.diskonManualTersimpan>0 || diskon.diskonManualTim1NominalTersimpan>0 || diskon.diskonManualTim2NominalTersimpan>0 || !!diskon.diskonManualKetTersimpan;
+            const adaTim2=(mode==='sparing' && !!nama2);
+            if(!adaDiskon && !adaTim2){
+                alert('Belum ada diskon atau nama Tim 2 yang diisi untuk disimpan.');
+                return;
+            }
+            const payload={
+                namaTim1:nama1,
+                tanggal:tgl,
+                jam:jam,
+                ...diskon,
+                updatedAt:Date.now()
+            };
+            if(adaTim2){
+                payload.namaTim2=nama2;
+                payload.jenisPembayaran='sparing';
+            }
+            const btn=document.getElementById('btn-simpan-belum-bayar');
+            const oldHtml=btn?btn.innerHTML:'';
+            window.__savingBelumBayar=true;
+            if(btn){ btn.disabled=true; btn.innerHTML='⏳ Menyimpan...'; }
+            try{
+                await update(ref(db,'pendingSparingNames/'+key),payload);
+                globalCache.pendingSparingNames=globalCache.pendingSparingNames||{};
+                globalCache.pendingSparingNames[key]={...(globalCache.pendingSparingNames[key]||{}),...payload};
+                // Jika jadwal ini booking biasa, selaraskan juga ke data booking (kompatibel dengan versi lama).
+                try{
+                    const f=getBookingForPaymentTeam(getSparingTeamNamesForPayment(nama1,tgl,String(jam).substring(0,5)).tim1,tgl,String(jam).substring(0,5));
+                    if(f){
+                        await update(ref(db,'booking/'+f[0]),diskon);
+                        globalCache.booking[f[0]]={...f[1],...diskon};
+                    }
+                }catch(errBooking){ console.warn('Sinkron diskon ke booking dilewati:',errBooking); }
+                const pesan='Tersimpan sebagai belum bayar.';
+                if(typeof window.showSuccessPopup==='function') window.showSuccessPopup(pesan);
+                else alert(pesan);
+            }catch(error){
+                console.error(error);
+                alert('Gagal menyimpan: '+error.message);
+            }finally{
+                window.__savingBelumBayar=false;
+                if(btn){ btn.disabled=false; btn.innerHTML=oldHtml; }
+            }
+        };
 
         async function muatNamaTim2Tersimpan(){
             const mode=document.getElementById('in-jenis-pembayaran')?.value || 'internal';
@@ -39579,6 +39677,34 @@ html body #page-more .more-menu-page .more-page-grid>button small{align-self:sta
   }
 }
 </style>
+
+<style id="uang-masuk-belum-bayar-btn-v1">
+/* Tombol "Simpan Belum Bayar": baris sendiri di bawah Hapus + Lunas, penuh lebar. */
+html body #page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar{
+  grid-area:auto !important;
+  grid-column:1 / -1 !important;
+  grid-row:auto !important;
+  flex:0 0 100% !important;
+  width:100% !important;
+  min-width:0 !important;
+  min-height:46px !important;
+  position:relative !important;
+  z-index:2 !important;
+  background:#fffbeb !important;
+  color:#b45309 !important;
+  border:1.5px solid #fcd34d !important;
+  box-shadow:none !important;
+  font-size:14px !important;
+  font-weight:900 !important;
+  border-radius:16px !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+}
+html body #page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar:hover{filter:brightness(.97)}
+html body #page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar:disabled{opacity:.6 !important}
+</style>
 </body>
 
 <style id="FINAL_FIX_UANG_KELUAR_ONE_BIG_GLASS_CARD">
@@ -54630,10 +54756,6 @@ html #page-masuk [class*="border-violet-400"] .grid.lg\:grid-cols-4,
 html #page-masuk [class*="border-violet-400"] .grid.sm\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
 html #page-masuk [class*="border-violet-400"] label.cursor-pointer:has(input:checked){
   background:#f5f3ff !important;border-color:#7c3aed !important;box-shadow:0 0 0 3px rgba(124,58,237,.14) !important;
-}
-html #page-masuk [class*="border-violet-400"] button[onclick*="simpanDiskonManualTersimpan"]{
-  min-height:48px !important;border-radius:14px !important;font-size:13px !important;
-  background:linear-gradient(135deg,#7c3aed,#6d28d9) !important;
 }
 /* diskon member (biru): 3 pilihan sejajar */
 html #page-masuk #member-discount-allocation-wrap{background:#f5f9ff !important;border-color:#bfdbfe !important}
