@@ -11878,8 +11878,8 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
   <div class="bk-card">
     <div class="bk-label">3 · Pembayaran</div>
     <div class="bk-field">
-      <span class="bk-sub">Jumlah DP / bayar</span>
-      <input class="bk-input" id="b-dp" min="0" placeholder="Rp 0" required type="text" inputmode="numeric" oninput="formatNominalInput(this)">
+      <span class="bk-sub">Jumlah DP / bayar <em>(opsional, kosong = Rp 0)</em></span>
+      <input class="bk-input" id="b-dp" min="0" placeholder="Rp 0" type="text" inputmode="numeric" oninput="formatNominalInput(this)">
     </div>
     <div class="bk-field">
       <span class="bk-sub">Tanggal DP / bayar</span>
@@ -14276,6 +14276,27 @@ window.cekBentrokJadwal = (scope) => {
 function waNorm(v){ return String(v == null ? '' : v).trim().toLowerCase().replace(/[^a-z0-9]+/g, ''); }
 function waAmbil(o){ return String((o && (o.wa ?? o.noHp ?? o.whatsapp)) ?? '').trim(); }
 
+/* Indeks nama tim → nomor WA booking terbaru. Dibangun sekali per pembaruan data booking,
+   jadi mengetik nama tim di form Booking tidak lagi memindai seluruh riwayat booking di tiap ketikan. */
+let __waIdxSrc = null, __waIdx = null;
+function waIndexBooking(){
+    const src = globalCache.booking;
+    if(__waIdx && __waIdxSrc === src) return __waIdx;
+    const idx = new Map();
+    Object.values(src || {}).forEach(b => {
+        if(!b) return;
+        const wa = waAmbil(b);
+        if(!wa) return;
+        const key = waNorm(b.nama);
+        if(!key) return;
+        const urut = String(b.tgl || '') + '|' + String(b.timestamp || 0).padStart(15, '0');
+        const cur = idx.get(key);
+        if(!cur || urut > cur.urut) idx.set(key, { urut, wa });
+    });
+    __waIdxSrc = src; __waIdx = idx;
+    return idx;
+}
+
 function waCariTersimpan(nama){
     const t = waNorm(nama);
     if(!t) return null;
@@ -14284,14 +14305,7 @@ function waCariTersimpan(nama){
         if(p && (waNorm(p.nama) === t || waNorm(p.normalizedNama) === t) && waAmbil(p)) return { wa: waAmbil(p), sumber: 'profil tim' };
     }
 
-    let terbaru = null;
-    Object.values(globalCache.booking || {}).forEach(b => {
-        if(!b || waNorm(b.nama) !== t) return;
-        const wa = waAmbil(b);
-        if(!wa) return;
-        const urut = String(b.tgl || '') + '|' + String(b.timestamp || 0).padStart(15, '0');
-        if(!terbaru || urut > terbaru.urut) terbaru = { urut, wa };
-    });
+    const terbaru = waIndexBooking().get(t) || null;
     if(terbaru) return { wa: terbaru.wa, sumber: 'booking sebelumnya' };
 
     for(const m of (globalCache.memberRawEntries || [])){
@@ -14483,8 +14497,32 @@ try {
     });
 } catch (e) { console.warn('Gagal memantau status koneksi:', e); }
 
+/* MODE FOKUS BOOKING: selama menu Booking terbuka, render halaman lain (Jadwal Hari Ini, rekap, grid, dst) DITAHAN
+   karena tidak terlihat dan hanya membebani layar. Semuanya dijalankan sekali begitu keluar dari menu Booking
+   (mis. setelah Simpan → kembali ke Jadwal Hari Ini). */
+window.__bookingDeferredRenders = new Set();
+function __bookingFocusOn() {
+    const el = document.getElementById('page-booking');
+    return !!(el && !el.classList.contains('hidden'));
+}
+(function watchBookingFocusFlush() {
+    function arm() {
+        const el = document.getElementById('page-booking');
+        if (!el || typeof MutationObserver === 'undefined') return false;
+        new MutationObserver(() => {
+            if (__bookingFocusOn() || !window.__bookingDeferredRenders.size) return;
+            const fns = Array.from(window.__bookingDeferredRenders);
+            window.__bookingDeferredRenders.clear();
+            fns.forEach(f => scheduleRender(f));
+        }).observe(el, { attributes: true, attributeFilter: ['class'] });
+        return true;
+    }
+    if (!arm()) document.addEventListener('DOMContentLoaded', arm);
+})();
+
 function scheduleRender(fn) {
     if (typeof fn !== 'function') return;
+    if (__bookingFocusOn()) { window.__bookingDeferredRenders.add(fn); return; }
     window.__pendingRenderFns.add(fn);
     if (window.__saveHoldCount > 0) {
         if (!window.__renderHoldQueued) {
@@ -16074,7 +16112,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 const namaBooking = document.getElementById('b-nama').value.trim();
                 const waBooking = document.getElementById('b-wa')?.value.trim() || '';
 
-                const dpInput = parseNominalInputValue(document.getElementById("b-dp").value || "");
+                const dpInput = Number(parseNominalInputValue(document.getElementById("b-dp")?.value || "")) || 0;   // DP dikosongkan admin = otomatis Rp 0
                 const tanggalDp = document.getElementById('b-tanggal-dp').value || getLocalDateString();
 
                 if(dpInput > 0 && !tanggalDp) {
@@ -18748,6 +18786,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         // Cache data tetap memakai struktur lama agar seluruh fungsi aplikasi tidak berubah.
         // Tambahan flag timeout hanya dipakai untuk mencegah halaman awal terkunci terlalu lama
         // saat koneksi tertentu lambat menerima snapshot Firebase.
+        window.__bkDataRefs = () => [globalCache.booking, globalCache.memberRawEntries, globalCache.sparring, globalCache.bookingBatal];
         let globalCache = { member: {}, booking: {}, pemasukan: {}, minuman: {}, pengeluaran: {}, adminJaga: {}, sparring: {}, teamLogos: {}, pelunasanMember: {}, lunasDarurat: {}, bookingBatal: {}, pendingSparingNames: {}, __initialMemberLoaded: false, __initialBookingLoaded: false, __initialLoadingTimedOut: false };
         // Riwayat Jadwal berada di scope script terpisah, sehingga cache utama diekspos secara read-only ke modul riwayat.
         window.__sandagaGlobalCache = globalCache;
@@ -19897,13 +19936,18 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             return !!(el && !el.classList.contains('hidden'));
         }
         window.isOnMinumanPage = isOnMinumanPage;
+        /* Form Booking tidak memakai logo → daftar logo (Base64, besar) juga ditunda selama menu Booking terbuka. */
+        function isOnBookingPage() {
+            const el = document.getElementById('page-booking');
+            return !!(el && !el.classList.contains('hidden'));
+        }
         function startAdminTeamLogosListener() {
             if(window.__adminTeamLogosListenerStarted) return;
             // Sedang menyimpan data penting -> tunda unduhan logo lengkap.
             if(window.__saveHoldCount > 0) { window.runAfterSaveHold(startAdminTeamLogosListener); return; }
             // Halaman Minuman tidak memakai logo -> JANGAN unduh daftar logo (besar, Base64)
             // selama admin berada di sana. Dilanjutkan otomatis saat pindah halaman.
-            if(isOnMinumanPage()) { window.__logoListenerWaitingForPage = true; return; }
+            if(isOnMinumanPage() || isOnBookingPage()) { window.__logoListenerWaitingForPage = true; return; }
             window.__adminTeamLogosListenerStarted = true;
             onValue(ref(db, 'teamLogos'), (snapshot) => {
                 globalCache.teamLogos = snapshot.val() || {};
@@ -19919,15 +19963,18 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         }
         // Begitu admin KELUAR dari halaman Minuman, lanjutkan pengambilan logo yang tertunda.
         (function watchMinumanPageForLogos() {
-            const el = document.getElementById('page-minuman');
-            if(!el || typeof MutationObserver === 'undefined') return;
-            new MutationObserver(() => {
-                if(isOnMinumanPage() || !window.__logoListenerWaitingForPage) return;
+            if(typeof MutationObserver === 'undefined') return;
+            const onChange = () => {
+                if(isOnMinumanPage() || isOnBookingPage() || !window.__logoListenerWaitingForPage) return;
                 window.__logoListenerWaitingForPage = false;
                 // Prioritaskan logo Jadwal Hari Ini dulu (bertahap), lalu daftar lengkap menyusul.
                 if(typeof renderTodaySchedule === 'function') scheduleRender(renderTodaySchedule);
-                setTimeout(() => { if(!isOnMinumanPage()) startAdminTeamLogosListener(); }, 2500);
-            }).observe(el, { attributes: true, attributeFilter: ['class'] });
+                setTimeout(() => { if(!isOnMinumanPage() && !isOnBookingPage()) startAdminTeamLogosListener(); }, 2500);
+            };
+            ['page-minuman', 'page-booking'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) new MutationObserver(onChange).observe(el, { attributes: true, attributeFilter: ['class'] });
+            });
         })();
         function refreshAllTeamLogoViews() {
             scheduleRender(renderTodaySchedule);
@@ -20670,6 +20717,13 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 const next = () => {
                     if (window.__saveHoldCount > 0) { setTimeout(next, 500); return; }
                     if (Date.now() - (window.__lastUserInputAt || 0) < 1000) { setTimeout(next, 350); return; }   // admin sedang aktif → tunda, beri prioritas ke layar
+                    /* MENU BOOKING = MODE FOKUS: hanya data yang dipakai form Booking (sudah dimulai oleh __lzOnPage) yang diunduh.
+                       Unduhan latar belakang lain (minuman, pengeluaran, admin jaga, logo, dst) DITAHAN dan dilanjutkan otomatis begitu keluar dari menu Booking. */
+                    if (__lzCurrent === 'booking') {
+                        __lzNeeds('booking').forEach(k => { if (!__lzStarted(k)) __lzStart(k); });
+                        setTimeout(next, 400);
+                        return;
+                    }
                     const queue = __lzNeeds(__lzCurrent).concat(__LZ_BG_ORDER);   // menu yang sedang dibuka didahulukan
                     const key = queue.find(k => !issued.has(k) && !__lzStarted(k));
                     if (!key) { window.__bgQueueDone = true; return; }
@@ -38759,7 +38813,7 @@ input[type="date"],input[type="time"],input[type="month"]{-webkit-tap-highlight-
   };
 
   const $ = id => document.getElementById(id);
-  let lastSig = '';
+  let lastSig = '', lastTgl = '', lastRefs = null;
 
   function rebuild(sel, items, wanted){
     const keep = items.some(i => i.value === wanted) ? wanted : (items[0] ? items[0].value : '');
@@ -38782,6 +38836,12 @@ input[type="date"],input[type="time"],input[type="month"]{-webkit-tap-highlight-
     const cek = window.bentrokCekSlot;
     if(typeof cek !== 'function') return;
     const urut = window.BOOKING_JAM_URUT, tgl = inTgl.value;
+
+    /* Pengecekan berkala (tiap 1,2 dtk) dilewati bila tanggal & data jadwal tidak berubah sejak hitungan terakhir. */
+    let refs = null;
+    try { refs = typeof window.__bkDataRefs === 'function' ? window.__bkDataRefs() : null; } catch(_) {}
+    if(!force && refs && lastRefs && tgl === lastTgl && refs.every((r, i) => r === lastRefs[i])) return;
+    lastTgl = tgl; lastRefs = refs;
 
     const free = urut.filter(j => { if(!tgl) return true; try { return cek(tgl, j).length === 0; } catch(_) { return true; } });
     const sig = tgl + '|' + free.join(',') + '|' + selJam.value + '|' + selDur.value;
