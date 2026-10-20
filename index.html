@@ -20606,7 +20606,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         /* ---------- Pengatur pemuatan bertahap ---------- */
         // Member tanpa jadwal ikut menentukan Jadwal Hari Ini (dan penanda "member siap" popup awal) → langsung dimuat.
         __LZ.memberTanpaJadwal.start();
-        __LZ.minuman.start();   // Minuman diminta paling awal supaya menu Minuman langsung siap saat dibuka
+        /* Minuman TIDAK lagi diminta paling awal: urutannya mengikuti menu yang sedang dibuka (lihat antrean di bawah). */
         const __LZ_ALL = ['memberTanpaJadwal','pelunasanMember','minuman','pengeluaran','teamProfiles','pendingSparingNames','adminJaga','adminJagaNames','adminJagaDefault','bookingFull'];
         const __LZ_KAS = ['pelunasanMember','minuman','pengeluaran'];
         const __LZ_PAGE_NEEDS = {
@@ -20709,7 +20709,28 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         (function startBackgroundQueue() {
             let started = false;
             const GAP = 150;           // jeda antar permintaan (ms) → urutan tetap terjaga, tidak menumpuk sekaligus
+            const FG_WAIT_MAX = 15000; // batas tunggu data menu aktif sebelum antrean latar belakang tetap lanjut (koneksi buruk)
             const issued = new Set();  // cegah pengulangan tak berujung bila penanda 'started' sebuah data tidak pernah menyala
+            /* Data yang DIDAHULUKAN untuk menu yang sedang standby. Menu Jadwal Hari Ini (dan menu utama) tidak punya
+               daftar __LZ_PAGE_NEEDS (tidak memblokir layar), jadi daftarnya didefinisikan di sini khusus untuk urutan. */
+            const JADWAL_FIRST = ['memberTanpaJadwal','lunasDarurat','bookingBatal','pemasukan','sparring'];
+            function fgKeys(page) {
+                if (page === 'jadwal' || page === 'home' || page === 'more') return JADWAL_FIRST;
+                return Object.prototype.hasOwnProperty.call(__LZ_PAGE_NEEDS, page) ? __LZ_PAGE_NEEDS[page] : __LZ_ALL;
+            }
+            /* Data tanpa pengatur lazy (lunasDarurat, bookingBatal, pemasukan) sudah diminta sejak startup:
+               statusnya cukup dilihat dari __dataPending (hilang begitu data dari server/salinan valid tiba). */
+            function keyStarted(k) {
+                if (k === 'teamLogos' || __LZ[k]) return __lzStarted(k);
+                return true;
+            }
+            function keyDone(k) {
+                if (k === 'teamLogos') return !!globalCache.__teamLogosFullLoaded;
+                const e = __LZ[k];
+                if (!e) return !__dataPending.has(k);
+                return !!(e.started && e.loaded && !__dataPending.has(k));   // benar-benar sudah masuk, bukan sekadar sudah diminta
+            }
+            let fgPage = null, fgSince = 0;
             const timer = setInterval(() => {
                 const ready = (globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded) || globalCache.__initialLoadingTimedOut;
                 if (!ready || started) return;
@@ -20724,11 +20745,23 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                         setTimeout(next, 400);
                         return;
                     }
-                    const queue = __lzNeeds(__lzCurrent).concat(__LZ_BG_ORDER);   // menu yang sedang dibuka didahulukan
+                    /* PRIORITAS 1 — data menu yang sedang standby: minta dulu (yang belum diminta), lalu TUNGGU sampai semuanya masuk. */
+                    if (fgPage !== __lzCurrent) { fgPage = __lzCurrent; fgSince = Date.now(); }
+                    const fg = fgKeys(__lzCurrent);
+                    const fgStart = fg.find(k => !keyStarted(k));
+                    if (fgStart) { issued.add(fgStart); __lzStart(fgStart); setTimeout(next, GAP); return; }
+                    const fgWaiting = fg.filter(k => !keyDone(k));
+                    if (fgWaiting.length && Date.now() - fgSince < FG_WAIT_MAX && !__lzGiveUp[__lzCurrent]) {
+                        setTimeout(next, 300);   // data menu aktif belum lengkap → data lain di latar belakang belum boleh diminta
+                        return;
+                    }
+                    /* PRIORITAS 2 — semua data menu aktif sudah masuk → lanjut data lain di latar belakang, satu per satu. */
+                    const queue = __lzNeeds(__lzCurrent).concat(__LZ_BG_ORDER);
                     const key = queue.find(k => !issued.has(k) && !__lzStarted(k));
                     if (!key) { window.__bgQueueDone = true; return; }
                     issued.add(key);
                     __lzStart(key);
+                    /* Bila admin pindah menu, putaran berikutnya langsung memakai prioritas menu yang baru. */
                     setTimeout(next, GAP);
                 };
                 next();
