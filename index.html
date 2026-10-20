@@ -37153,7 +37153,7 @@ html body #jdp-modal .jdp-multi-panel{max-height:min(28vh,190px);max-height:min(
     if (firstAct >= 0) {
       data.dates.forEach(function(dt, ci){
         if (dt.active) return;
-        drawStrip(ci, ci < firstAct ? 'BULAN SEBELUMNYA' : 'BULAN SELANJUTNYA', ln);
+        drawStrip(ci, ci < firstAct ? 'LAST MONTH' : 'NEXT MONTH', ln);
       });
     }
 
