@@ -32284,16 +32284,16 @@ function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator
 function safeName(n){return String(n||'Daily-Report.jpg').replace(/[\\/:*?"<>|]+/g,'-')}
 window.openDailyReportIOSPreview=function(dataUrl,fileName){
  const old=document.getElementById('daily-report-ios-save-overlay'); if(old)old.remove();
- const o=document.createElement('div');o.id='daily-report-ios-save-overlay';o.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,.94);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box';
- const s=document.createElement('div');s.style.cssText='width:min(100%,520px);max-height:94vh;overflow:auto;background:#fff;border-radius:22px;padding:16px;box-sizing:border-box;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.35)';
- const h=document.createElement('div');h.textContent='📥 Simpan Daily Report';h.style.cssText='font-size:18px;font-weight:900;color:#0f172a;margin-bottom:6px';
- const p=document.createElement('div');p.textContent='Tekan lama gambar lalu pilih “Simpan ke Foto”, atau gunakan Bagikan.';p.style.cssText='font-size:12px;line-height:1.45;font-weight:700;color:#64748b;margin-bottom:12px';
+ const o=document.createElement('div');o.id='daily-report-ios-save-overlay';o.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,.94);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) 16px max(16px,env(safe-area-inset-bottom,0px));box-sizing:border-box';
+ const s=document.createElement('div');s.style.cssText='width:min(100%,520px);max-height:94vh;max-height:calc(100dvh - 32px);display:flex;flex-direction:column;overflow:hidden;background:#fff;border-radius:22px;padding:16px;box-sizing:border-box;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.35)';
+ const h=document.createElement('div');h.textContent='📥 Simpan Daily Report';h.style.cssText='flex:none;font-size:18px;font-weight:900;color:#0f172a;margin-bottom:6px';
+ const p=document.createElement('div');p.textContent='Tekan lama gambar lalu pilih “Simpan ke Foto”, atau gunakan Bagikan.';p.style.cssText='flex:none;font-size:12px;line-height:1.45;font-weight:700;color:#64748b;margin-bottom:12px';
  const img=document.createElement('img');img.src=dataUrl;img.alt=fileName||'Daily Report';img.style.cssText='display:block;width:100%;height:auto;border-radius:12px;background:#f8fafc;user-select:none;-webkit-user-select:none;-webkit-touch-callout:default';
- const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;margin-top:12px';
+ const row=document.createElement('div');row.style.cssText='flex:none;display:flex;gap:8px;margin-top:12px';
  const sh=document.createElement('button');sh.type='button';sh.textContent='↗ Bagikan';sh.style.cssText='flex:1;border:0;border-radius:12px;padding:12px;background:#0f172a;color:#fff;font-weight:900';
  const cl=document.createElement('button');cl.type='button';cl.textContent='Tutup';cl.style.cssText='flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:12px;background:#fff;color:#0f172a;font-weight:900';
  sh.onclick=async()=>{try{if(navigator.share&&navigator.canShare&&typeof File!=='undefined'){const blob=await(await fetch(dataUrl)).blob();const f=new File([blob],safeName(fileName),{type:'image/jpeg'});if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Daily Report'});return}}if(navigator.share){await navigator.share({title:'Daily Report',text:fileName||'Daily Report'});return}alert('Tekan lama gambar lalu pilih “Simpan ke Foto”.')}catch(e){if(e?.name!=='AbortError')alert('Tekan lama gambar lalu pilih “Simpan ke Foto”.')}};
- cl.onclick=()=>o.remove();o.onclick=e=>{if(e.target===o)o.remove()};row.append(sh,cl);s.append(h,p,img,row);o.append(s);document.body.append(o);return true;
+ cl.onclick=()=>o.remove();o.onclick=e=>{if(e.target===o)o.remove()};row.append(sh,cl);const box=document.createElement('div');box.style.cssText='flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;border-radius:12px';box.append(img);s.append(h,p,box,row);o.append(s);document.body.append(o);return true;
 };
 window.dailyReportSaveFile=function(dataUrl,fileName){if(!isIOS()){const a=document.createElement('a');a.download=fileName||'Daily-Report.jpg';a.href=dataUrl;document.body.append(a);a.click();a.remove();return{ios:false}}window.openDailyReportIOSPreview(dataUrl,fileName);return{ios:true}};
 })();
