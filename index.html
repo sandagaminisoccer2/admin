@@ -15938,6 +15938,37 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         // Disimpan menempel pada booking Tim 1 dari jadwal tersebut (identik
         // dengan cara DP Manual disimpan di atas), tidak mengubah kalkulasi
         // pembayaran yang sudah ada — hanya mengisi ulang form saat dibuka.
+        // Memulihkan pengaturan form lain yang disimpan lewat tombol "Simpan Belum Bayar":
+        // jenis pembayaran, nama Tim 2, opsi sewa, tambahan waktu, keterangan khusus,
+        // pembagian diskon member, dan status Member/Non-Member yang diubah manual.
+        function pulihkanDraftBelumBayar(d){
+            if(!d) return;
+            const jenisEl=document.getElementById('in-jenis-pembayaran');
+            if(d.draftJenis && jenisEl && jenisEl.value!==d.draftJenis){
+                jenisEl.value=d.draftJenis;
+                jenisEl.dispatchEvent(new Event('change',{bubbles:true}));
+            }
+            const nama2El=document.getElementById('in-tim-2-nama');
+            if(d.namaTim2 && nama2El && !String(nama2El.value||'').trim()) nama2El.value=String(d.namaTim2).trim();
+            const setCb=function(id,v){ const el=document.getElementById(id); if(el && v!==undefined) el.checked=!!v; };
+            setCb('in-sewa-bola',d.draftSewaBola);
+            setCb('in-sewa-rompi-1',d.draftSewaRompi1);
+            setCb('in-sewa-rompi-2',d.draftSewaRompi2);
+            const waktuEl=document.getElementById('in-tambahan-waktu');
+            if(waktuEl && d.draftTambahanWaktu!==undefined) waktuEl.value=String(d.draftTambahanWaktu);
+            const ketEl=document.getElementById('in-ket-khusus');
+            if(ketEl && d.draftKetKhusus!==undefined) ketEl.value=String(d.draftKetKhusus);
+            if(d.draftDiskonMemberAlokasi){
+                const r=document.querySelector(`input[name="diskon-member-alokasi"][value="${d.draftDiskonMemberAlokasi}"]`);
+                if(r) r.checked=true;
+            }
+            ['1','2'].forEach(function(no){
+                const v=d['draftStatus'+no];
+                const el=document.getElementById('in-status-'+no);
+                if(el && (v==='Member' || v==='Non-Member')){ el.value=v; el.dataset.manual='1'; }
+            });
+        }
+
         function loadDiskonManualTersimpan(nama,tgl,jam){
             const nominalEl=document.getElementById('in-diskon-manual');
             const tim1El=document.getElementById('in-diskon-manual-tim1-nominal');
@@ -15959,27 +15990,27 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             const f=getBookingForPaymentTeam(n.tim1,tgl,jam);
             const dataBooking=f?.[1]||null;
             // 1) Diskon yang tersimpan langsung pada booking (cara lama).
-            if(dataBooking && dataBooking.diskonManualTersimpan!==undefined){
-                terapkan(dataBooking);
-                return;
-            }
-            terapkan(null);
-            // 2) Draft "Simpan Belum Bayar" (berlaku untuk booking maupun jadwal member).
+            terapkan(dataBooking && dataBooking.diskonManualTersimpan!==undefined ? dataBooking : null);
+            // 2) Draft "Simpan Belum Bayar" (booking maupun jadwal member): diskon + semua pengaturan.
             const key=getPendingSparingKey(getUangMasukTeamName()||nama,tgl,getUangMasukJam()||String(jam||'').substring(0,5));
             if(!key) return;
+            const pakai=function(val){
+                if(!val) return;
+                if(val.diskonManualTersimpan!==undefined) terapkan(val);
+                pulihkanDraftBelumBayar(val);
+                if(typeof window.updateUangMasukCards==='function') window.updateUangMasukCards();
+                if(typeof hitungOtomatisBiaya==='function') hitungOtomatisBiaya();
+            };
             const dariCache=globalCache.pendingSparingNames?.[key];
-            if(dariCache && dariCache.diskonManualTersimpan!==undefined){
-                terapkan(dariCache);
-                return;
-            }
+            if(dariCache){ pakai(dariCache); return; }
             get(ref(db,'pendingSparingNames/'+key)).then(function(snap){
                 const val=snap.val();
-                if(val && val.diskonManualTersimpan!==undefined){
+                if(val){
                     globalCache.pendingSparingNames=globalCache.pendingSparingNames||{};
                     globalCache.pendingSparingNames[key]=val;
-                    terapkan(val);
+                    pakai(val);
                 }
-            }).catch(function(err){ console.warn('Draft diskon belum dapat dimuat:',err); });
+            }).catch(function(err){ console.warn('Draft belum bayar belum dapat dimuat:',err); });
         }
         window.simpanDiskonManualTersimpan = async function(){
             const nama=document.getElementById('in-tim')?.value||'';
@@ -21491,17 +21522,24 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 diskonManualTim1NominalTersimpan: Math.max(0, Number.isFinite(tim1Input)?tim1Input:0),
                 diskonManualTim2NominalTersimpan: Math.max(0, Number.isFinite(tim2Input)?tim2Input:0)
             };
-            const adaDiskon=diskon.diskonManualTersimpan>0 || diskon.diskonManualTim1NominalTersimpan>0 || diskon.diskonManualTim2NominalTersimpan>0 || !!diskon.diskonManualKetTersimpan;
             const adaTim2=(mode==='sparing' && !!nama2);
-            if(!adaDiskon && !adaTim2){
-                alert('Belum ada diskon atau nama Tim 2 yang diisi untuk disimpan.');
-                return;
-            }
+            const st1=document.getElementById('in-status-1');
+            const st2=document.getElementById('in-status-2');
             const payload={
                 namaTim1:nama1,
                 tanggal:tgl,
                 jam:jam,
                 ...diskon,
+                // Semua pengaturan form lain ikut disimpan sebagai draft.
+                draftJenis:mode,
+                draftSewaBola:!!document.getElementById('in-sewa-bola')?.checked,
+                draftSewaRompi1:!!document.getElementById('in-sewa-rompi-1')?.checked,
+                draftSewaRompi2:!!document.getElementById('in-sewa-rompi-2')?.checked,
+                draftTambahanWaktu:String(document.getElementById('in-tambahan-waktu')?.value||'0'),
+                draftKetKhusus:String(document.getElementById('in-ket-khusus')?.value||'').trim().slice(0,120),
+                draftDiskonMemberAlokasi:document.querySelector('input[name="diskon-member-alokasi"]:checked')?.value||'rata',
+                draftStatus1:(st1 && st1.dataset.manual==='1') ? String(st1.value||'') : '',
+                draftStatus2:(st2 && st2.dataset.manual==='1') ? String(st2.value||'') : '',
                 updatedAt:Date.now()
             };
             if(adaTim2){
