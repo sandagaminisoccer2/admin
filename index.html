@@ -20452,6 +20452,8 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         // DATA SPARING: diminta LANGSUNG setelah data Jadwal Hari Ini (member + booking)
         // diminta, lalu muncul notifikasi begitu data sparing berhasil dimuat.
         function showSparingLoadedToast(state) {
+            // Notifikasi tengah-atas dimatikan: status data sparing sudah ditampilkan oleh penanda di kanan atas.
+            return;
             state = state || 'done';
             try {
                 if (!document.getElementById('sparing-toast-style')) {
