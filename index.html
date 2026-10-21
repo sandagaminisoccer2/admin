@@ -7642,7 +7642,11 @@ body > .sticky-back-btn,
       if(n2) n2.value='';
       if(s2) s2.value='Non-Member';
       if(j2) j2.value='';
-      if(m2) m2.value='Belum Bayar';
+      // Default metode Tim 2 = Cash (sama seperti Tim 1), bukan Belum Bayar.
+      if(m2){
+        if(typeof window.syncUangMasukMethodDropdown === 'function') window.syncUangMasukMethodDropdown(2, 'Cash');
+        else m2.value='Cash';
+      }
     }
   }
   function install(){
@@ -7674,7 +7678,8 @@ body > .sticky-back-btn,
       // Saat pertama kali berpindah ke Sparing, Tim 2 dianggap membayar Cash.
       // Jika admin sudah memilih metode lain, pilihan tersebut tidak ditimpa.
       if(met2.value === 'Belum Bayar'){
-        met2.value = 'Cash';
+        if(typeof window.syncUangMasukMethodDropdown === 'function') window.syncUangMasukMethodDropdown(2, 'Cash');
+        else met2.value = 'Cash';
         if(typeof window.toggleFreePaymentInput === 'function') window.toggleFreePaymentInput(2);
       }
     }
