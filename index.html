@@ -19925,8 +19925,21 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
         // =========================================================
         window.getAdminShiftMalamForReport = async (dateKey) => {
             try {
-                const snapshot = await get(ref(db, 'adminJaga'));
-                const all = snapshot.val() || {};
+                // Minta langsung jadwal admin + pengaturan default (paralel) supaya
+                // nama admin tidak kosong walau data standby belum selesai dimuat.
+                let all = {};
+                try {
+                    const [snapAdmin, snapDefault] = await Promise.all([
+                        get(ref(db, 'adminJaga')),
+                        get(ref(db, 'adminJagaDefault')).catch(() => null)
+                    ]);
+                    all = snapAdmin.val() || {};
+                    const def = snapDefault ? snapDefault.val() : null;
+                    if(def) adminDefaultFirebase = def;
+                } catch(fetchErr) {
+                    console.warn('Ambil admin jaga langsung gagal, pakai data yang sudah ada:', fetchErr);
+                    all = globalCache.adminJaga || {};
+                }
                 const entries = Object.values(all);
 
                 const candidates = entries.filter(item => {
@@ -20673,7 +20686,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             'masuk': ['memberTanpaJadwal','pelunasanMember','minuman','pengeluaran','teamProfiles'],
             'masuk-manual': ['memberTanpaJadwal','pelunasanMember','minuman','pengeluaran','teamProfiles'],
             'setor-tunai': __LZ_KAS,
-            'daily-recap': __LZ_KAS.concat(['adminJaga','adminJagaNames','adminJagaDefault']),
+            'daily-recap': ['adminJaga','adminJagaNames','adminJagaDefault'].concat(__LZ_KAS),   // admin jaga diminta PERTAMA agar nama admin di hasil download tidak kosong
             'monthly-recap': __LZ_ALL,
             'laporan': __LZ_ALL,
             'booking-history': ['pelunasanMember'],   // hanya booking hari ini ke depan (sudah ada di data tahap 1), riwayat lama tidak diminta
@@ -27189,7 +27202,7 @@ window.downloadDailyRecapJPGFull = async function() {
     // bukan dari nama admin yang sedang membuka aplikasi.
     const adminName = await Promise.race([
         getAdminShiftMalam(rawDate),
-        new Promise(resolve => setTimeout(() => resolve('-'), 3000))
+        new Promise(resolve => setTimeout(() => resolve('-'), 10000))
     ]);
     setProgress(28, 'Mengambil data...', 'Data admin dan rekap sedang disiapkan.');
 
@@ -27596,7 +27609,7 @@ window.downloadRincianMinumanJPG = async function() {
             if (typeof window.getAdminShiftMalamForReport === 'function') {
                 adminName = await Promise.race([
                     window.getAdminShiftMalamForReport(rawDate),
-                    new Promise(resolve => setTimeout(() => resolve('-'), 3000))
+                    new Promise(resolve => setTimeout(() => resolve('-'), 10000))
                 ]);
             }
         } catch (e) { console.error('Gagal mengambil admin shift malam:', e); }
