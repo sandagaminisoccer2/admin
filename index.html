@@ -27201,7 +27201,7 @@ window.downloadDailyRecapJPGFull = async function() {
     // Nama admin diambil dari JADWAL ADMIN JAGA pada tanggal laporan,
     // bukan dari nama admin yang sedang membuka aplikasi.
     const adminName = await Promise.race([
-        getAdminShiftMalam(rawDate),
+        window.getAdminMalamForDailyReport(rawDate),
         new Promise(resolve => setTimeout(() => resolve('-'), 10000))
     ]);
     setProgress(28, 'Mengambil data...', 'Data admin dan rekap sedang disiapkan.');
@@ -27606,12 +27606,10 @@ window.downloadRincianMinumanJPG = async function() {
         // Admin shift malam (sama seperti Daily Report utama)
         let adminName = '-';
         try {
-            if (typeof window.getAdminShiftMalamForReport === 'function') {
-                adminName = await Promise.race([
-                    window.getAdminShiftMalamForReport(rawDate),
-                    new Promise(resolve => setTimeout(() => resolve('-'), 10000))
-                ]);
-            }
+            adminName = await Promise.race([
+                window.getAdminMalamForDailyReport(rawDate),
+                new Promise(resolve => setTimeout(() => resolve('-'), 10000))
+            ]);
         } catch (e) { console.error('Gagal mengambil admin shift malam:', e); }
         setProgress(28, 'Mengambil data...', 'Menyusun daftar transaksi minuman.');
 
@@ -39761,6 +39759,64 @@ html body #page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar{
 html body #page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar:hover{filter:brightness(.97)}
 html body #page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar:disabled{opacity:.6 !important}
 </style>
+<script id="daily-report-admin-malam-v1">
+(function(){
+  /* Ambil nama ADMIN SHIFT MALAM pada tanggal laporan Daily Recap.
+     Urutan: (1) baca langsung adminJaga + adminJagaDefault dari Firebase,
+             (2) fungsi bawaan modul, (3) cache aplikasi. Tidak pernah mengembalikan kosong
+     bila jadwal bisa dihitung. Dipakai oleh download Laporan Keuangan dan Rincian Minuman. */
+  var ANCHOR='2026-08-12';
+  function valid(n){n=String(n==null?'':n).trim();return n&&n!=='-'?n:'';}
+  function isMalam(it,dateKey){
+    if(!it||String(it.tanggal||'')!==String(dateKey))return false;
+    var sh=String(it.shift||'').trim().toLowerCase(),ket=String(it.keterangan||'').trim().toLowerCase();
+    if(sh==='malam'||ket.indexOf('shift malam')>-1)return true;
+    if(sh)return false;
+    var jm=parseInt(String(it.mulai||'').split(':')[0],10),js=parseInt(String(it.selesai||'').split(':')[0],10);
+    return !isNaN(jm)&&!isNaN(js)&&(jm>=17||js<=8);
+  }
+  function saved(all,dateKey){
+    var c=Object.values(all||{}).filter(function(it){return isMalam(it,dateKey);});
+    c.sort(function(a,b){return Number(b.timestamp||0)-Number(a.timestamp||0);});
+    return valid(c[0]&&c[0].nama);
+  }
+  function dayDiff(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);}
+  function byDefault(def,dateKey){
+    var list=[];
+    Object.values(def||{}).forEach(function(x){if(x&&x.mulai&&x.pagi&&x.malam)list.push(x);});
+    list.sort(function(p,q){return String(p.mulai)<String(q.mulai)?-1:String(p.mulai)>String(q.mulai)?1:Number(p.timestamp||0)-Number(q.timestamp||0);});
+    var cfg=null;list.forEach(function(c){if(String(c.mulai)<=dateKey)cfg=c;});
+    if(cfg){
+      var sw=cfg.bergantian!==false&&Math.abs(dayDiff(cfg.mulai,dateKey))%2===1;
+      return String(sw?cfg.pagi:cfg.malam);
+    }
+    var sw2=Math.abs(dayDiff(ANCHOR,dateKey))%2===1;
+    return sw2?'Zikri':'Alfi';
+  }
+  window.getAdminMalamForDailyReport=async function(dateKey){
+    var all=null,def=null;
+    try{
+      var db=window.__APP_FIREBASE_DB__,ref=window.__APP_FIREBASE_REF__,get=window.__APP_FIREBASE_GET_RAW__;
+      if(db&&ref&&get){
+        var r=await Promise.all([get(ref(db,'adminJaga')),get(ref(db,'adminJagaDefault')).catch(function(){return null;})]);
+        all=r[0].val()||{};def=r[1]?r[1].val():null;
+        var n=saved(all,dateKey);if(n)return n;
+      }
+    }catch(e){console.warn('Ambil admin malam langsung gagal:',e);}
+    try{
+      if(typeof window.getAdminShiftMalamForReport==='function'){
+        var m=valid(await window.getAdminShiftMalamForReport(dateKey));if(m)return m;
+      }
+    }catch(e){console.warn('getAdminShiftMalamForReport gagal:',e);}
+    try{
+      var gc=window.__sandagaGlobalCache||{};
+      var c=saved(all||gc.adminJaga,dateKey);if(c)return c;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey)))return byDefault(def,String(dateKey));
+    }catch(e){}
+    return '-';
+  };
+})();
+</script>
 </body>
 
 <style id="FINAL_FIX_UANG_KELUAR_ONE_BIG_GLASS_CARD">
