@@ -20970,7 +20970,7 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
            Hanya penanda: tidak menghalangi klik, aplikasi tetap bisa dipakai.
            (Pill khusus sparing yang lama disembunyikan karena sparing kini ikut dalam urutan ini.) */
         (function dataDetailStatus() {
-            const MIN_SHOW_MS = 600, DONE_MS = 700, GIVE_UP_MS = 60000;
+            const MIN_SHOW_MS = 600, DONE_MS = 700, GIVE_UP_MS = 60000, ROTATE_MS = 1500;
             if (!document.getElementById('data-detail-style')) {
                 const st = document.createElement('style');
                 st.id = 'data-detail-style';
@@ -20978,11 +20978,10 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     + '#data-detail{position:fixed;z-index:99991;top:16px;right:56px;height:22px;box-sizing:border-box;display:none;align-items:center;gap:6px;padding:0 10px 0 8px;border-radius:999px;background:rgba(37,99,235,.95);color:#fff;font:800 10px/1 system-ui,-apple-system,Segoe UI,sans-serif;white-space:nowrap;pointer-events:none;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2)}'
                     + '#data-detail.is-on{display:flex}'
                     + '#data-detail i{width:10px;height:10px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:ddspin .8s linear infinite}'
-                    + '#data-detail b{position:absolute;left:0;bottom:0;height:2px;width:40%;background:rgba(255,255,255,.9);animation:ddbar 1.1s ease-in-out infinite}'
                     + '#data-detail[data-state="done"]{background:rgba(22,163,74,.96)}'
-                    + '#data-detail[data-state="done"] i,#data-detail[data-state="done"] b{display:none}'
-                    + '@keyframes ddspin{to{transform:rotate(360deg)}}@keyframes ddbar{0%{left:-40%}100%{left:100%}}'
-                    + '@media (prefers-reduced-motion:reduce){#data-detail i{animation-duration:2s}#data-detail b{animation:none;width:100%;opacity:.4}}';
+                    + '#data-detail[data-state="done"] i'
+                    + '@keyframes ddspin{to{transform:rotate(360deg)}}'
+                    + '@media (prefers-reduced-motion:reduce){#data-detail i{animation-duration:2s}}';
                 document.head.appendChild(st);
             }
             let el = document.getElementById('data-detail');
@@ -20991,29 +20990,34 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 el.id = 'data-detail'; el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
                 document.body.appendChild(el);
             }
-            const lz = (k) => () => !!(__LZ[k] && __LZ[k].started && !__LZ[k].loaded);
-            const pend = (k) => () => __dataPending.has(k);
-            /* [nama yang tampil, fungsi "masih memuat?"] */
+            const lz = (k) => () => { const e = __LZ[k]; if (!e || e.loaded) return false; return e.started ? 'loading' : 'waiting'; };
+            const pend = (k) => () => __dataPending.has(k) ? 'loading' : false;
+            const anyOf = (...fs) => () => { let r = false; for (const f of fs) { const v = f(); if (v === 'loading') return 'loading'; if (v) r = v; } return r; };
+            /* [nama yang tampil, fungsi status, soft?]
+               Fungsi status mengembalikan false (tidak aktif), 'loading' (sedang diunduh) atau 'waiting' (sudah antre, belum diminta).
+               Daftar ini mencakup SEMUA alasan lingkaran status berputar, supaya pill tidak kosong selama lingkaran belum hijau.
+               soft = true: bukan syarat lingkaran, boleh menyerah setelah GIVE_UP_MS agar tidak menempel selamanya. */
             const SRC = [
-                ['jadwal member', () => !globalCache.__initialMemberLoaded && !globalCache.__initialLoadingTimedOut],
-                ['booking', () => !globalCache.__initialBookingLoaded && !globalCache.__initialLoadingTimedOut],
-                ['poster jadwal', () => typeof window.__jdpBusy === 'function' && window.__jdpBusy()],
+                ['menyimpan data', () => { try { return !!(window.__saveProgressBusy && window.__saveProgressBusy()) && 'loading'; } catch (_) { return false; } }],
+                ['jadwal member', () => !globalCache.__initialMemberLoaded && 'loading'],
+                ['booking', () => !globalCache.__initialBookingLoaded && 'loading'],
+                ['poster jadwal', () => typeof window.__jdpBusy === 'function' && window.__jdpBusy() && 'loading', true],
                 ['status lunas', pend('lunasDarurat')],
                 ['pembatalan booking', pend('bookingBatal')],
                 ['pemasukan', pend('pemasukan')],
-                ['sparing', () => __dataPending.has('sparring') || __replayPending.has('sparring') || (window.__sparingSyncCount || 0) > 0 || !(__LZ.sparring && __LZ.sparring.loaded)],
+                ['sparing', () => (__dataPending.has('sparring') || __replayPending.has('sparring') || (window.__sparingSyncCount || 0) > 0 || !(__LZ.sparring && __LZ.sparring.loaded)) && 'loading', true],
                 ['minuman', lz('minuman')],
                 ['member tanpa jadwal', lz('memberTanpaJadwal')],
                 ['pelunasan member', lz('pelunasanMember')],
                 ['uang keluar', lz('pengeluaran')],
                 ['profil tim', lz('teamProfiles')],
                 ['nama sparing', lz('pendingSparingNames')],
-                ['admin jaga', () => lz('adminJaga')() || lz('adminJagaNames')() || lz('adminJagaDefault')()],
-                ['logo jadwal hari ini', () => !!window.__todayLogoPreloadRunning && !globalCache.__teamLogosFullLoaded],
-                ['logo semua tim', () => !!window.__adminTeamLogosListenerStarted && !globalCache.__teamLogosFullLoaded && !window.__adminLogoGiveUp],
-                ['riwayat booking', lz('bookingFull')]
+                ['admin jaga', anyOf(lz('adminJaga'), lz('adminJagaNames'), lz('adminJagaDefault'))],
+                ['logo jadwal hari ini', () => !!window.__todayLogoPreloadRunning && !globalCache.__teamLogosFullLoaded && 'loading', true],
+                ['logo semua tim', () => !globalCache.__teamLogosFullLoaded && (window.__adminTeamLogosListenerStarted ? 'loading' : 'waiting')],
+                ['riwayat booking', () => { const bf = __LZ.bookingFull; return !!(bf && bf.started && !bf.loaded) && 'loading'; }]
             ];
-            const NAMEMAP = { poster: 'poster jadwal', member: 'jadwal member', booking: 'booking', lunasDarurat: 'status lunas', bookingBatal: 'pembatalan booking', pemasukan: 'pemasukan', sparring: 'sparing', minuman: 'minuman', memberTanpaJadwal: 'member tanpa jadwal', pelunasanMember: 'pelunasan member', pengeluaran: 'uang keluar', teamProfiles: 'profil tim', pendingSparingNames: 'nama sparing', adminJaga: 'admin jaga', adminJagaNames: 'admin jaga', adminJagaDefault: 'admin jaga' };
+            const NAMEMAP = { poster: 'poster jadwal', member: 'jadwal member', booking: 'booking', lunasDarurat: 'status lunas', bookingBatal: 'pembatalan booking', pemasukan: 'pemasukan', sparring: 'sparing', minuman: 'minuman', memberTanpaJadwal: 'member tanpa jadwal', pelunasanMember: 'pelunasan member', pengeluaran: 'uang keluar', teamProfiles: 'profil tim', pendingSparingNames: 'nama sparing', adminJaga: 'admin jaga', adminJagaNames: 'admin jaga', adminJagaDefault: 'admin jaga', bookingFull: 'riwayat booking' };
             const seen = {};      /* nama -> {since, gaveUp} untuk data yang antre/sedang tampil */
             const queue = [];     /* antrean nama data menurut urutan mulai dimuat */
             const lastShown = {}; /* nama -> waktu terakhir selesai tampil (cegah tampil dobel) */
@@ -21036,11 +21040,19 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
             }
             function render() {
                 if (!cur) { el.classList.remove('is-on'); return; }
-                if (el.getAttribute('data-name') !== cur.name || el.getAttribute('data-state') !== cur.state || !el.classList.contains('is-on')) {
+                const text = cur.state === 'done'
+                    ? '✓ ' + cur.name
+                    : (cur.mode === 'waiting' ? 'Antre ' : 'Memuat ') + cur.name + (cur.extra > 0 ? ' +' + cur.extra : '');
+                const sp = el.querySelector('span');
+                if (cur.state === 'loading' && el.getAttribute('data-state') === 'loading' && el.classList.contains('is-on') && sp) {
+                    /* Hanya ganti teks: spinner & garis tidak dibuat ulang, jadi tidak ada kedipan saat nama berganti. */
+                    if (sp.textContent !== text) sp.textContent = text;
+                    el.setAttribute('data-name', cur.name);
+                } else if (el.getAttribute('data-name') !== cur.name || el.getAttribute('data-state') !== cur.state || !el.classList.contains('is-on')) {
                     el.setAttribute('data-name', cur.name);
                     el.setAttribute('data-state', cur.state);
-                    el.innerHTML = cur.state === 'done' ? '<span></span>' : '<i></i><span></span><b></b>';
-                    el.querySelector('span').textContent = (cur.state === 'done' ? '✓ ' : 'Memuat ') + cur.name;
+                    el.innerHTML = cur.state === 'done' ? '<span></span>' : '<i></i><span></span>';
+                    el.querySelector('span').textContent = text;
                     el.classList.add('is-on');
                 }
             }
@@ -21053,15 +21065,22 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                 touched.forEach(t => { const n = NAMEMAP[t[0]]; if (n) enqueue(n, now); });
                 /* 2) Data yang masih berjalan menurut pengecekan status */
                 const activeNow = {};
-                SRC.forEach(([name, isBusy]) => {
-                    let active = false;
-                    try { active = !!isBusy(); } catch (_) {}
-                    if (!active) return;
-                    activeNow[name] = true;
+                SRC.forEach(([name, isBusy, soft]) => {
+                    let st = false;
+                    try { st = isBusy() || false; } catch (_) {}
+                    if (!st) return;
+                    if (activeNow[name] !== 'loading') activeNow[name] = st;   /* 'loading' menang atas 'waiting' */
                     enqueue(name, now);
                     const s = seen[name];
-                    if (s && !s.gaveUp && now - s.since > GIVE_UP_MS) s.gaveUp = true;   /* batas aman: jangan menempel selamanya */
+                    /* Batas aman hanya untuk sumber 'soft'; sumber yang membuat lingkaran berputar tetap tampil sampai selesai. */
+                    if (soft && s && !s.gaveUp && now - s.since > GIVE_UP_MS) s.gaveUp = true;
                 });
+                /* Data apa pun yang diminta tetapi belum ada namanya di daftar → tetap ditampilkan memakai nama kuncinya */
+                __dataPending.forEach(k => { const n = NAMEMAP[k] || String(k); if (!activeNow[n]) { activeNow[n] = 'loading'; enqueue(n, now); } });
+                /* Lingkaran masih berputar menunggu antrean latar belakang, tetapi belum ada data bernama → jangan biarkan pill kosong */
+                if (!Object.keys(activeNow).length && !window.__bgQueueDone && globalCache.__initialMemberLoaded && globalCache.__initialBookingLoaded) {
+                    activeNow['data berikutnya'] = 'waiting'; enqueue('data berikutnya', now);
+                }
                 /* Popup "Memuat data..." menutupi layar (z-index lebih tinggi dari pill): langkah yang sudah lewat
                    di belakangnya TETAP antre, dan baru ditampilkan satu per satu setelah popup menutup. */
                 if (document.getElementById('app-initial-loading-overlay')) { render(); return; }
@@ -21073,6 +21092,11 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                     if (cur.state === 'loading') {
                         const stillBusy = !!activeNow[cur.name] && s && !s.gaveUp;
                         if (!stillBusy && now - cur.shownAt >= SHOW) { cur.state = 'done'; cur.doneAt = now; }
+                        else if (stillBusy && queue.length && now - cur.shownAt >= ROTATE_MS) {
+                            /* Data ini masih berjalan tetapi ada data lain yang menunggu giliran tampil → bergantian,
+                               supaya admin melihat SEMUA data yang sedang dimuat, bukan hanya satu yang lambat. */
+                            queue.push(cur.name); cur = null;
+                        }
                     } else if (now - cur.doneAt >= DONE) {
                         delete seen[cur.name]; lastShown[cur.name] = now;
                         cur = null;
@@ -21084,9 +21108,14 @@ const diskonManualEl = document.getElementById('in-diskon-manual');
                         const s = seen[name];
                         if (!s) continue;
                         if (s.gaveUp) { delete seen[name]; continue; }
-                        cur = { name, state: 'loading', shownAt: now, doneAt: 0 };
+                        const live = !!activeNow[name];   /* sudah selesai selagi menunggu giliran → langsung ✓, jangan tampil "Memuat" lagi */
+                        cur = { name, state: live ? 'loading' : 'done', shownAt: now, doneAt: live ? 0 : now, mode: activeNow[name] || 'loading', extra: 0 };
                         break;
                     }
+                }
+                if (cur && cur.state === 'loading') {
+                    cur.mode = activeNow[cur.name] || cur.mode;
+                    cur.extra = Math.max(0, Object.keys(activeNow).length - (activeNow[cur.name] ? 1 : 0));
                 }
                 render();
             }, 120);
