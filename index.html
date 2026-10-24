@@ -11071,68 +11071,69 @@ html #page-masuk > form > [data-control="in-ket-khusus"]{grid-column:1 / -1;orde
         </div>
     </div>
 
-    <section class="p-3 sm:p-5 rounded-2xl border border-emerald-500/35 bg-white/35 shadow-lg">
-        <div class="flex items-center justify-between gap-2 mb-3">
-            <div>
-                <p class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-700">Kontrol Cepat</p>
-                <h3 class="text-base sm:text-lg font-black text-slate-900">💰 KAS HARI INI</h3>
-            </div>
-            <span id="daily-cash-status" class="px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-slate-100 text-slate-600">Belum dicek</span>
+    <!-- ANGKA (hanya dibaca, tidak bisa diketuk) -->
+    <div class="dr-hero">
+        <p class="dr-hero-label">Total sisa cash</p>
+        <p id="daily-cash-seharusnya" class="dr-hero-value">Rp 0</p>
+        <p class="dr-hero-note">Cash lapangan + cash minuman</p>
+    </div>
+
+    <div class="dr-pockets">
+        <div class="dr-pocket dr-pocket-lap">
+            <p class="dr-k">Sisa cash lapangan</p>
+            <p id="daily-sisa-cash-lapangan" class="dr-v">Rp 0</p>
         </div>
-
-        <div class="grid grid-cols-2 lg:grid-cols-7 gap-2.5 sm:gap-3">
-            <div class="p-3 rounded-xl border border-blue-500/30 bg-white/70">
-                <p class="text-[10px] font-bold text-slate-500">Total Pemasukan</p>
-                <p id="daily-total-pemasukan" class="text-sm sm:text-lg font-black text-blue-800 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 rounded-xl border border-emerald-500/30 bg-white/70">
-                <p class="text-[10px] font-bold text-slate-500">Cash</p>
-                <p id="daily-total-cash" class="text-sm sm:text-lg font-black text-emerald-800 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 rounded-xl border border-sky-500/30 bg-white/70">
-                <p class="text-[10px] font-bold text-slate-500">QRIS / Transfer</p>
-                <p id="daily-total-qris" class="text-sm sm:text-lg font-black text-sky-800 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 rounded-xl border border-rose-500/30 bg-white/70">
-                <p class="text-[10px] font-bold text-slate-500">Pengeluaran</p>
-                <p id="daily-total-keluar" class="text-sm sm:text-lg font-black text-rose-800 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 rounded-xl border-2 daily-glass-balance-card">
-                <p class="text-[10px] font-bold text-emerald-700">Sisa Cash Lapangan</p>
-                <p id="daily-sisa-cash-lapangan" class="text-sm sm:text-lg font-black text-emerald-900 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 rounded-xl border border-purple-500/30 bg-white/70">
-                <p class="text-[10px] font-bold text-purple-700">Sisa Cash Minuman</p>
-                <p id="daily-sisa-cash-minuman" class="text-sm sm:text-lg font-black text-purple-800 mt-1">Rp 0</p>
-            </div>
-            <div class="p-3 rounded-xl border-2 col-span-2 lg:col-span-1 daily-glass-balance-card">
-                <p class="text-[10px] font-bold text-emerald-700">Total Sisa Cash</p>
-                <p id="daily-cash-seharusnya" class="text-base sm:text-xl font-black text-emerald-900 mt-1">Rp 0</p>
-            </div>
+        <div class="dr-pocket dr-pocket-min">
+            <p class="dr-k">Sisa cash minuman</p>
+            <p id="daily-sisa-cash-minuman" class="dr-v">Rp 0</p>
         </div>
+    </div>
 
-    </section>
+    <div class="dr-flow">
+        <p class="dr-flow-title">Uang masuk dan keluar</p>
+        <div class="dr-row dr-row-main">
+            <span class="dr-dot dr-dot-in"></span><span class="dr-k">Total pemasukan</span>
+            <span id="daily-total-pemasukan" class="dr-v">Rp 0</span>
+        </div>
+        <div class="dr-row dr-row-sub">
+            <span class="dr-dot dr-dot-cash"></span><span class="dr-k">Cash</span>
+            <span id="daily-total-cash" class="dr-v">Rp 0</span>
+        </div>
+        <div class="dr-row dr-row-sub">
+            <span class="dr-dot dr-dot-qris"></span><span class="dr-k">QRIS / Transfer</span>
+            <span id="daily-total-qris" class="dr-v">Rp 0</span>
+        </div>
+        <div class="dr-row dr-row-main dr-row-out">
+            <span class="dr-dot dr-dot-out"></span><span class="dr-k">Pengeluaran</span>
+            <span id="daily-total-keluar" class="dr-v">Rp 0</span>
+        </div>
+    </div>
 
-    <div id="daily-menu-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <button class="glass-btn daily-mini-card" onclick="showDailySub('lapangan')">
-            <span class="daily-mini-icon">⚽</span>
-            <span class="daily-mini-text">UANG LAPANGAN</span>
-            <span class="daily-mini-arrow">→</span>
+    <!-- TOMBOL (selalu di bawah angka, bentuk berbeda dari kartu angka) -->
+    <div class="dr-nav-head">
+        <p class="dr-nav-head-title">Buka rincian</p>
+        <p class="dr-nav-head-hint">Ketuk untuk melihat daftar</p>
+    </div>
+    <div id="daily-menu-grid" class="dr-nav">
+        <button type="button" class="dr-nav-btn dr-nav-lap" onclick="showDailySub('lapangan')" aria-label="Buka rincian Lapangan">
+            <span class="dr-nav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 8 3.2 2.3-1.2 3.7h-4l-1.2-3.7z"/><path d="M12 3v5M15.2 10.3 20 8.8M14 14l3 4.2M10 14l-3 4.2M8.8 10.3 4 8.8"/></svg></span>
+            <span class="dr-nav-txt"><span class="dr-nav-title">Lapangan</span><span class="dr-nav-sub">Uang lapangan</span></span>
+            <svg class="dr-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
-        <button class="glass-btn daily-mini-card" onclick="showDailySub('minuman')">
-            <span class="daily-mini-icon">🥤</span>
-            <span class="daily-mini-text">MINUMAN</span>
-            <span class="daily-mini-arrow">→</span>
+        <button type="button" class="dr-nav-btn dr-nav-min" onclick="showDailySub('minuman')" aria-label="Buka rincian Minuman">
+            <span class="dr-nav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12l-1.4 15.2a2 2 0 0 1-2 1.8H9.4a2 2 0 0 1-2-1.8z"/><path d="M6.6 10h10.8"/></svg></span>
+            <span class="dr-nav-txt"><span class="dr-nav-title">Minuman</span><span class="dr-nav-sub">Penjualan</span></span>
+            <svg class="dr-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
-        <button class="glass-btn daily-mini-card" onclick="showDailySub('pengeluaran')">
-            <span class="daily-mini-icon">💸</span>
-            <span class="daily-mini-text">PENGELUARAN</span>
-            <span class="daily-mini-arrow">→</span>
+        <button type="button" class="dr-nav-btn dr-nav-out" onclick="showDailySub('pengeluaran')" aria-label="Buka rincian Keluar">
+            <span class="dr-nav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></span>
+            <span class="dr-nav-txt"><span class="dr-nav-title">Keluar</span><span class="dr-nav-sub">Pengeluaran</span></span>
+            <svg class="dr-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
-        <button class="glass-btn daily-mini-card" onclick="showDailySub('ringkasan')">
-            <span class="daily-mini-icon">📌</span>
-            <span class="daily-mini-text">RINGKASAN</span>
-            <span class="daily-mini-arrow">→</span>
+        <button type="button" class="dr-nav-btn dr-nav-sum" onclick="showDailySub('ringkasan')" aria-label="Buka rincian Ringkasan">
+            <span class="dr-nav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+            <span class="dr-nav-txt"><span class="dr-nav-title">Ringkasan</span><span class="dr-nav-sub">Total keuangan</span></span>
+            <svg class="dr-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
     </div>
 </div>
@@ -57271,3 +57272,271 @@ html body main #page-daily-recap#page-daily-recap #ringkasan-minuman-box > *{ bo
   html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div{ padding:12px 12px !important; }
 }
 </style>
+
+<!-- DAILY RECAP — WARNA LEMBUT (menimpa warna mencolok sebelumnya; hanya tampilan) -->
+<style id="daily-recap-soft-colors-v1">
+html body main #page-daily-recap#page-daily-recap{
+  --dr-line: rgba(148,163,184,.22);
+  --dr-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 18px -10px rgba(15,23,42,.12);
+}
+/* Kartu hero & sisa cash: pastel, tanpa glow, teks gelap */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div.daily-glass-balance-card{
+  background:linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%) !important;
+  border:1px solid #bfdbfe !important; box-shadow:var(--dr-shadow) !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important; filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div.daily-glass-balance-card::before,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div.daily-glass-balance-card::after{ display:none !important; content:none !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-lapangan){
+  background:linear-gradient(135deg,#f0fdf4 0%,#d1fae5 100%) !important; border-color:#a7f3d0 !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman){
+  background:linear-gradient(135deg,#faf5ff 0%,#ede9fe 100%) !important; border:1px solid #ddd6fe !important; box-shadow:var(--dr-shadow) !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman)::before,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman)::after{ display:none !important; content:none !important; }
+/* teks di kartu pastel */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-cash-seharusnya) p{ color:#1e3a8a !important; text-shadow:none !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-cash-seharusnya) p:first-child{ color:#3b5ba5 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-lapangan) p{ color:#065f46 !important; text-shadow:none !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-lapangan) p:first-child{ color:#2f8f6b !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman) p{ color:#5b21b6 !important; text-shadow:none !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman) p:first-child{ color:#7c5cc4 !important; }
+
+/* Kartu putih: bingkai & aksen lebih halus, angka warna lebih kalem */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:not(.daily-glass-balance-card):not(:has(#daily-sisa-cash-minuman)){
+  border:1px solid var(--dr-line) !important; box-shadow:var(--dr-shadow) !important; background:rgba(255,255,255,.9) !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-total-pemasukan{ color:#334e8a !important; }
+html body main #page-daily-recap#page-daily-recap #daily-total-cash{ color:#2f7d62 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-total-qris{ color:#2f7fa3 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-total-keluar{ color:#b4506a !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div > p:first-child{ font-weight:700 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-total-pemasukan){ border-left:3px solid #93b4ee !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-total-cash){ border-left:3px solid #86d0b3 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-total-qris){ border-left:3px solid #8cc9e3 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section > .grid > div:has(#daily-total-keluar){ border-left:3px solid #eaa3b5 !important; }
+
+/* Tombol menu: bingkai halus, teks lebih kalem */
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card{
+  background:rgba(255,255,255,.9) !important; border:1px solid var(--dr-line) !important; box-shadow:var(--dr-shadow) !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(1) .daily-mini-text{ color:#2f7d62 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(2) .daily-mini-text{ color:#6d4fb3 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(3) .daily-mini-text{ color:#b4506a !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(4) .daily-mini-text{ color:#334e8a !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-icon{ opacity:.9; filter:saturate(.6); }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-icon > *{ filter:saturate(.7); }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card span:not(.daily-mini-icon):not(.daily-mini-text):not(.daily-mini-arrow){ opacity:.8; }
+
+/* Sub-halaman: judul, chip, tabel lebih lembut */
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] h3{ color:#1e293b !important; }
+html body main #page-daily-recap#page-daily-recap [id^="subtotal-"] > span{ font-weight:800 !important; border-color:var(--dr-line) !important; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] > section{ border-color:var(--dr-line) !important; }
+html body main #page-daily-recap#page-daily-recap table th{ background:#f4f7fb !important; color:#64748b !important; }
+html body main #page-daily-recap#page-daily-recap table thead tr{ background:#f4f7fb !important; }
+html body main #page-daily-recap#page-daily-recap table tbody tr:nth-child(even) td{ background:#fafbfd !important; }
+html body main #page-daily-recap#page-daily-recap table td button{ background:#fdf2f4 !important; color:#b4506a !important; border-color:#f6d5dc !important; }
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid > div{ background:#fafbfd !important; }
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid > div p:last-child{ filter:saturate(.8); }
+</style>
+
+<!-- DAILY RECAP — IKON & TOMBOL MENU LEBIH KALEM -->
+<style id="daily-recap-menu-icons-soft-v1">
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card{
+  gap:12px !important; padding:12px 14px !important; align-items:center !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-icon{
+  width:40px !important; height:40px !important; min-width:40px !important; flex:0 0 40px !important;
+  border-radius:12px !important; border:0 !important; box-shadow:none !important; filter:none !important; opacity:1 !important;
+  font-size:18px !important; display:inline-flex !important; align-items:center !important; justify-content:center !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-icon .mi{
+  width:1.2em !important; height:1.2em !important; vertical-align:middle !important; filter:none !important; opacity:.95;
+}
+/* warna ikon: pastel lembut, satu keluarga */
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(1) .daily-mini-icon{ background:#edf7f2 !important; color:#5aa386 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(2) .daily-mini-icon{ background:#f2eff9 !important; color:#8f79c6 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(3) .daily-mini-icon{ background:#fbf0f3 !important; color:#c98396 !important; }
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card:nth-child(4) .daily-mini-icon{ background:#eef3fa !important; color:#7490bd !important; }
+/* teks: judul slate kalem, keterangan abu */
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-text,
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-text::before{
+  color:#334155 !important; font-weight:800 !important; text-shadow:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-text::after{
+  color:#94a3b8 !important; font-weight:600 !important; text-shadow:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card .daily-mini-arrow{ color:#cbd5e1 !important; opacity:1 !important; }
+/* kartu terpilih: sorot halus */
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid .daily-mini-card.is-selected{
+  border-color:#bfd0ea !important; background:#f5f8fd !important; box-shadow:0 0 0 3px rgba(147,180,238,.18) !important;
+}
+</style>
+<style id="daily-recap-redesign-v60">
+/* =========================================================
+   DAILY RECAP — REDESAIN v60
+   Aturan: ANGKA = datar, hanya dibaca. TOMBOL = timbul, ada ikon + panah.
+   Hanya tampilan. Tidak mengubah data/Firebase/fungsi apa pun.
+   ========================================================= */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard{
+  display:flex !important;flex-direction:column !important;gap:12px !important;
+  min-height:0 !important;height:auto !important;margin:0 0 96px !important;padding:0 !important;
+  font-variant-numeric:tabular-nums;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > *{margin:0 !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard :is(p,span){
+  text-shadow:none !important;letter-spacing:0 !important;margin:0;
+}
+
+/* ---------- 1. Kartu utama: total sisa cash ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero{
+  position:relative;overflow:hidden;border-radius:22px;padding:18px 20px 18px;
+  background:linear-gradient(155deg,#0b3b2e 0%,#14573f 55%,#1b6b4a 100%) !important;
+  border:0 !important;box-shadow:0 10px 24px -10px rgba(11,59,46,.6) !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+}
+/* motif lingkaran tengah lapangan */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero::before{
+  content:"";position:absolute;right:-46px;top:50%;width:170px;height:170px;margin-top:-85px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.12);pointer-events:none;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero::after{
+  content:"";position:absolute;right:-1px;top:0;bottom:0;width:2px;background:rgba(255,255,255,.12);pointer-events:none;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero-label{
+  position:relative;z-index:1;font-size:13px !important;font-weight:600 !important;color:rgba(255,255,255,.82) !important;text-align:left !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero #daily-cash-seharusnya{
+  position:relative;z-index:1;display:block;margin-top:6px !important;font-size:34px !important;line-height:1.1 !important;
+  font-weight:800 !important;color:#fff !important;text-align:left !important;white-space:nowrap;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero-note{
+  position:relative;z-index:1;margin-top:8px !important;font-size:12px !important;font-weight:500 !important;color:rgba(255,255,255,.66) !important;text-align:left !important;
+}
+
+/* ---------- 2. Dua kantong: lapangan & minuman ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pockets{
+  display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket{
+  border-radius:16px;padding:13px 14px;border:0 !important;box-shadow:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket-lap{background:#e6f5ec !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket-min{background:#efeafb !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket .dr-k{
+  font-size:12px !important;font-weight:600 !important;text-align:left !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket-lap .dr-k{color:#2f7a55 !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket-min .dr-k{color:#6d4fb3 !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket .dr-v{
+  display:block;margin-top:5px !important;font-size:19px !important;line-height:1.15 !important;font-weight:800 !important;text-align:left !important;white-space:nowrap;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket-lap #daily-sisa-cash-lapangan{color:#0b4a32 !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket-min #daily-sisa-cash-minuman{color:#43267f !important}
+
+/* ---------- 3. Daftar uang masuk & keluar ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-flow{
+  background:#fff !important;border:1px solid #e5eaf1 !important;border-radius:18px;padding:6px 16px 4px;box-shadow:none !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-flow-title{
+  padding:10px 0 6px;font-size:13px !important;font-weight:700 !important;color:#475569 !important;text-align:left !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row{
+  display:grid !important;grid-template-columns:10px 1fr auto;align-items:center;column-gap:10px;
+  padding:11px 0;border-top:1px solid #eef2f6;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-sub{padding:8px 0 8px 20px;border-top:0 !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-sub + .dr-row-sub{padding-top:0}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-out{margin-top:2px}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row .dr-k{
+  font-size:14px !important;font-weight:600 !important;color:#334155 !important;text-align:left !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-sub .dr-k{font-size:13px !important;font-weight:500 !important;color:#64748b !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row .dr-v{
+  font-size:15px !important;font-weight:800 !important;color:#0f172a !important;text-align:right !important;white-space:nowrap;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-sub .dr-v{font-size:14px !important;font-weight:700 !important;color:#475569 !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-out .dr-v{color:#be123c !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-dot{width:10px;height:10px;border-radius:50%;display:block}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-row-sub .dr-dot{width:7px;height:7px;justify-self:center}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-dot-in{background:#2563eb}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-dot-cash{background:#10b981}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-dot-qris{background:#0ea5e9}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-dot-out{background:#e11d48}
+
+/* ---------- 4. Tombol rincian: timbul, ikon solid, panah ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:8px !important;padding:0 2px;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head-title{font-size:15px !important;font-weight:800 !important;color:#0f172a !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head-hint{font-size:11.5px !important;font-weight:500 !important;color:#64748b !important}
+
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid.dr-nav{
+  display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important;
+  padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important;
+  min-height:0 !important;height:auto !important;flex:0 0 auto !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-btn{
+  --a:#2563eb;--a2:#1d4ed8;
+  appearance:none;-webkit-appearance:none;cursor:pointer;position:relative;
+  display:flex !important;flex-direction:row !important;align-items:center !important;justify-content:flex-start !important;gap:10px !important;
+  width:100%;min-height:68px !important;height:auto !important;padding:10px 10px 10px 10px !important;
+  border-radius:16px !important;background:#fff !important;
+  border:1.5px solid var(--a) !important;border-bottom-width:4px !important;
+  box-shadow:0 6px 14px -8px rgba(15,23,42,.35) !important;
+  text-align:left !important;transition:transform .08s ease, border-bottom-width .08s ease, box-shadow .08s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-btn:active{
+  transform:translateY(3px) !important;border-bottom-width:1.5px !important;box-shadow:none !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-btn:focus-visible{outline:3px solid rgba(37,99,235,.35);outline-offset:2px}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-lap{--a:#059669}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-min{--a:#7c3aed}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-out{--a:#e11d48}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-sum{--a:#2563eb}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-ico{
+  flex:0 0 42px;width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--a) !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-ico svg{
+  width:23px;height:23px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-txt{
+  flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-title{
+  display:block;font-size:15px !important;font-weight:800 !important;line-height:1.15 !important;color:#0f172a !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-sub{
+  display:block;font-size:11.5px !important;font-weight:500 !important;line-height:1.2 !important;color:#64748b !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-chev{
+  flex:0 0 18px;width:18px;height:18px;fill:none;stroke:var(--a);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-btn::before,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-btn::after{display:none !important;content:none !important}
+
+@media (max-width:340px){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-hero #daily-cash-seharusnya{font-size:29px !important}
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-pocket .dr-v{font-size:16px !important}
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-sub{display:none}
+}
+@media (min-width:768px){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid.dr-nav{grid-template-columns:repeat(4,minmax(0,1fr)) !important}
+}
+@media (prefers-reduced-motion:reduce){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid .dr-nav-btn{transition:none}
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-cash-seharusnya,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-sisa-cash-lapangan,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-sisa-cash-minuman,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-total-pemasukan,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-total-cash,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-total-qris,
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-total-keluar{text-shadow:none !important;-webkit-text-stroke:0 !important;filter:none !important}
+</style>
+
