@@ -56925,3 +56925,184 @@ html body:has(#page-daily-recap:not(.hidden)) nav#quick-bottom-nav.quick-bottom-
   }
 }
 </style>
+
+<!-- ============================================================
+     ANIMASI HALUS & NATURAL (add-on, hanya transform/opacity agar ringan di HP)
+     Bisa dimatikan total dengan: window.SMOOTH_ANIM_OFF = true (sebelum blok ini)
+     ============================================================ -->
+<style id="smooth-motion-v1">
+:root{
+  --ease-out: cubic-bezier(.22,1,.36,1);      /* melambat natural di akhir */
+  --ease-soft: cubic-bezier(.4,0,.2,1);
+  --ease-spring: cubic-bezier(.34,1.4,.64,1);  /* sedikit memantul */
+}
+html, body{ -webkit-tap-highlight-color: transparent; }
+button, a, select, label, summary, [role="button"], [onclick]{ touch-action: manipulation; }
+
+/* Transisi warna/bayangan yang halus untuk semua kontrol (specificity 0: tidak menimpa transisi milik elemen) */
+:where(button, a, input, select, textarea){
+  transition: background-color .22s var(--ease-soft), border-color .22s var(--ease-soft),
+              color .22s var(--ease-soft), box-shadow .25s var(--ease-soft), opacity .22s var(--ease-soft),
+              scale .16s var(--ease-out);
+}
+
+/* Efek tekan (pakai properti `scale` supaya tidak bentrok dengan transform bawaan elemen) */
+:where(button, [role="button"], [onclick], .glass-btn, .quick-nav-item):active{
+  scale: .965;
+}
+.quick-bottom-nav .quick-nav-item .quick-nav-icon{
+  transition: transform .35s var(--ease-spring), color .2s var(--ease-soft);
+}
+.quick-bottom-nav .quick-nav-item.active .quick-nav-icon{ transform: translateY(-2px) scale(1.08); }
+.quick-bottom-nav .quick-nav-item .quick-nav-label{ transition: opacity .2s var(--ease-soft), color .2s var(--ease-soft); }
+
+/* Panel/kartu: bayangan mengikuti sentuhan dengan lembut */
+.glass-panel, .glass-btn{ transition: box-shadow .25s var(--ease-soft), background-color .25s var(--ease-soft), scale .16s var(--ease-out); }
+
+/* Baris tabel & item daftar */
+:where(tbody tr){ transition: background-color .18s var(--ease-soft); }
+
+@media (prefers-reduced-motion: reduce){
+  :where(button, a, input, select, textarea){ transition-duration: .01ms !important; }
+  :where(button, [role="button"], [onclick]):active{ scale: 1; }
+}
+</style>
+
+<script id="smooth-motion-v1-js">
+(function(){
+  'use strict';
+  if (window.SMOOTH_ANIM_OFF) return;
+  if (!Element.prototype.animate) return;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+
+  var EASE = 'cubic-bezier(.22,1,.36,1)';
+  var booted = false;
+  var running = new WeakMap();
+
+  function isFixed(el){
+    try { return getComputedStyle(el).position === 'fixed'; } catch(_) { return false; }
+  }
+  function visible(el){
+    return el.nodeType === 1 && !el.classList.contains('hidden') && el.offsetParent !== null;
+  }
+  function cancelPrev(el){
+    var a = running.get(el); if (a) { try { a.cancel(); } catch(_){} }
+  }
+  function play(el, kf, opt){
+    cancelPrev(el);
+    var a = el.animate(kf, opt);
+    running.set(el, a);
+    a.onfinish = a.oncancel = function(){ if (running.get(el) === a) running.delete(el); };
+    return a;
+  }
+
+  /* Cari anak-anak yang layak di-stagger (turun satu-dua level bila halaman hanya punya pembungkus) */
+  function pickItems(root){
+    var kids = Array.prototype.filter.call(root.children, function(c){
+      return visible(c) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && !isFixed(c);
+    });
+    for (var d = 0; d < 2 && kids.length <= 2; d++){
+      var host = null, best = 0;
+      kids.forEach(function(k){
+        var n = Array.prototype.filter.call(k.children, visible).length;
+        if (n > best){ best = n; host = k; }
+      });
+      if (!host || best < 3) break;
+      kids = Array.prototype.filter.call(host.children, function(c){
+        return visible(c) && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE' && !isFixed(c);
+      });
+    }
+    return kids;
+  }
+
+  function enterPage(page, isHome){
+    if (isFixed(page)) return;               /* mode popup: sudah punya animasi sendiri */
+    /* Halaman: fade lembut */
+    play(page, [{opacity:0},{opacity:1}], {duration: 240, easing: 'ease-out'});
+
+    var items = pickItems(page);
+    if (!items.length){
+      play(page, [{opacity:0, transform:'translateY(14px)'},{opacity:1, transform:'none'}],
+           {duration: 380, easing: EASE});
+      return;
+    }
+    var max = Math.min(items.length, 12);
+    for (var i = 0; i < max; i++){
+      var el = items[i];
+      play(el, [
+        {opacity:0, transform: isHome ? 'scale(.985)' : 'translateY(16px)'},
+        {opacity:1, transform: 'none'}
+      ], {duration: 420, delay: i * 38, easing: EASE, fill: 'backwards'});
+    }
+  }
+
+  /* Pantau perpindahan halaman utama: main > div (page-*) */
+  var pageObs = new MutationObserver(function(records){
+    var first = {};
+    var order = [];
+    records.forEach(function(r){
+      var t = r.target;
+      if (!t.__sid){ t.__sid = Math.random().toString(36).slice(2); }
+      if (!(t.__sid in first)){ first[t.__sid] = (r.oldValue || '').split(/\s+/).indexOf('hidden') !== -1; order.push(t); }
+    });
+    order.forEach(function(t){
+      var wasHidden = first[t.__sid];
+      if (wasHidden && !t.classList.contains('hidden') && booted){
+        enterPage(t, t.id === 'page-jadwal');
+      }
+    });
+  });
+
+  /* Sub-halaman di Daily Recap, dsb. */
+  var subObs = new MutationObserver(function(records){
+    records.forEach(function(r){
+      var t = r.target;
+      var was = (r.oldValue || '').split(/\s+/).indexOf('hidden') !== -1;
+      if (was && !t.classList.contains('hidden') && booted){
+        play(t, [{opacity:0, transform:'translateY(14px)'},{opacity:1, transform:'none'}],
+             {duration: 340, easing: EASE});
+      }
+    });
+  });
+
+  function attach(){
+    var main = document.querySelector('main');
+    if (main){
+      Array.prototype.forEach.call(main.children, function(c){
+        if (c.tagName === 'DIV') pageObs.observe(c, {attributes:true, attributeFilter:['class'], attributeOldValue:true});
+      });
+    }
+    document.querySelectorAll('[id^="sub-page-"]').forEach(function(c){
+      subObs.observe(c, {attributes:true, attributeFilter:['class'], attributeOldValue:true});
+    });
+    /* Jangan animasikan tampilan awal saat aplikasi baru dibuka */
+    setTimeout(function(){ booted = true; }, 2000);
+  }
+
+  /* Popup/overlay yang dibuat dinamis dan belum punya animasi sendiri */
+  var bodyObs = new MutationObserver(function(records){
+    if (!booted) return;
+    records.forEach(function(r){
+      Array.prototype.forEach.call(r.addedNodes, function(n){
+        if (n.nodeType !== 1 || n.tagName === 'SCRIPT' || n.tagName === 'STYLE') return;
+        var cs; try { cs = getComputedStyle(n); } catch(_) { return; }
+        if (cs.position !== 'fixed' || cs.animationName !== 'none') return;
+        var inner = n.firstElementChild;
+        play(n, [{opacity:0},{opacity:1}], {duration: 200, easing: 'ease-out'});
+        if (inner && getComputedStyle(inner).animationName === 'none'){
+          play(inner, [{opacity:0, transform:'translateY(14px) scale(.96)'},{opacity:1, transform:'none'}],
+               {duration: 320, easing: EASE});
+        }
+      });
+    });
+  });
+
+  function start(){
+    attach();
+    bodyObs.observe(document.body, {childList:true});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
