@@ -36029,7 +36029,7 @@ function upcomingMap(){
     const tgl = String(b.tgl || '').split('T')[0];
     if(inWin.has(tgl)) put(b.nama, tgl, b.jam);
   });
-  Object.values(gc.sparing || {}).forEach(s => {
+  Object.values(gc.sparring || {}).forEach(s => {
     if(!s || (s.status && s.status !== 'matched')) return;
     const tgl = String(s.tanggal || '').split('T')[0];
     if(!inWin.has(tgl)) return;
@@ -36063,7 +36063,7 @@ function collectTeams(){
   (gc.memberRawEntries || []).forEach(m => add(m?.nama, 'Member', recordTime(m, m?.key)));
   Object.entries(gc.memberTanpaJadwal || {}).forEach(([k, m]) => add(m?.nama, 'Member', recordTime(m, k)));
   Object.entries(gc.booking || {}).forEach(([k, b]) => add(b?.nama, 'Booking', recordTime(b, k)));
-  Object.entries(gc.sparing || {}).forEach(([k, s]) => {
+  Object.entries(gc.sparring || {}).forEach(([k, s]) => {
     const t = recordTime(s, k);
     add(s?.timA, 'Sparing', t);
     add(s?.timB, 'Sparing', t);
