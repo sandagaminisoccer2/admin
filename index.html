@@ -57106,3 +57106,168 @@ button, a, select, label, summary, [role="button"], [onclick]{ touch-action: man
   else start();
 })();
 </script>
+
+<!-- ============================================================
+     DAILY RECAP — TAMPILAN BARU (rapi di HP & desktop). Hanya CSS, logika/data tidak diubah.
+     ============================================================ -->
+<style id="daily-recap-redesign-v1">
+html body main #page-daily-recap#page-daily-recap{
+  --dr-radius: 20px;
+  --dr-card: rgba(255,255,255,.94);
+  --dr-line: rgba(148,163,184,.28);
+  --dr-ink: #0f172a;
+  --dr-muted: #64748b;
+  --dr-shadow: 0 1px 2px rgba(15,23,42,.05), 0 8px 24px -8px rgba(15,23,42,.14);
+  width:100% !important; max-width:100% !important;
+  font-variant-numeric: tabular-nums;
+}
+html body main #page-daily-recap#page-daily-recap > .flex.justify-between{ border-bottom:0 !important; margin-bottom:10px !important; padding-bottom:0 !important; }
+html body main #page-daily-recap#page-daily-recap > .flex.justify-between h2{ font-size:1.05rem !important; letter-spacing:.04em; }
+
+/* ---------- Dashboard: tanpa paksa-isi-layar, tinggi mengikuti isi ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard{
+  display:flex !important; flex-direction:column !important; gap:14px !important;
+  min-height:0 !important; height:auto !important; margin-bottom:18px !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard > section{
+  flex:0 0 auto !important; background:transparent !important; border:0 !important; box-shadow:none !important;
+  padding:0 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+}
+/* Judul "Kontrol Cepat / Kas Hari Ini" dibuat ringan */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .flex.items-center{ margin:0 2px 10px !important; }
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .flex.items-center h3{ font-size:1rem !important; }
+
+/* ---------- Kartu angka ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid{
+  display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  grid-template-rows:none !important; grid-auto-rows:auto !important; gap:12px !important; align-content:start !important; flex:0 0 auto !important; height:auto !important; min-height:0 !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div{
+  min-width:0; margin:0 !important; border-radius:var(--dr-radius) !important;
+  padding:14px 16px !important; display:flex !important; flex-direction:column !important; justify-content:center !important; gap:4px !important;
+  height:auto !important; min-height:84px !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div > p:first-child{
+  font-size:11.5px !important; line-height:1.25 !important; letter-spacing:.02em; margin:0 !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div > p:last-child{
+  font-size:clamp(.92rem,4vw,1.3rem) !important; line-height:1.15 !important; margin:0 !important; font-weight:900 !important; white-space:nowrap; letter-spacing:-.01em;
+}
+/* Urutan: total sisa (hero) → sisa lapangan/minuman → pemasukan, cash, qris, pengeluaran */
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-cash-seharusnya){ order:0; grid-column:1 / -1 !important; min-height:104px !important; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-cash-seharusnya) > p:last-child{ font-size:clamp(1.7rem,8vw,2.4rem) !important; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-lapangan){ order:1; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman){ order:2; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-pemasukan){ order:3; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-cash){ order:4; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-qris){ order:5; }
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-keluar){ order:6; }
+/* kartu putih netral */
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-pemasukan),
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-cash),
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-qris),
+html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-keluar){
+  background:var(--dr-card) !important; box-shadow:var(--dr-shadow) !important;
+}
+
+/* ---------- Menu 4 tombol ---------- */
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid{
+  display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:12px !important;
+  height:auto !important; min-height:0 !important; flex:0 0 auto !important;
+}
+html body main #page-daily-recap#page-daily-recap #daily-menu-grid .daily-mini-card{
+  height:auto !important; min-height:76px !important; padding-top:12px !important; padding-bottom:12px !important; border-radius:var(--dr-radius) !important; box-shadow:var(--dr-shadow) !important;
+}
+
+/* ---------- Kontrol tanggal ---------- */
+html body main #page-daily-recap#page-daily-recap .daily-recap-date-control{ border-radius:var(--dr-radius) !important; }
+
+/* ---------- Sub-halaman (Lapangan / Minuman / Pengeluaran / Ringkasan) ---------- */
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"]{ display:flex; flex-direction:column; gap:12px; margin-top:4px !important; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"].hidden{ display:none !important; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] > div.flex{
+  margin:0 !important; padding:10px 14px !important; border-radius:16px !important;
+  background:var(--dr-card) !important; border:1px solid var(--dr-line) !important; box-shadow:var(--dr-shadow) !important;
+  flex-direction:row !important; align-items:center !important; justify-content:space-between !important; gap:10px !important;
+}
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] > div.flex > span{ font-size:11px !important; letter-spacing:.06em; color:var(--dr-muted) !important; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] > div.flex > input{ width:auto !important; min-width:150px; flex:0 0 auto; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] > section{
+  background:var(--dr-card) !important; border:1px solid var(--dr-line) !important; border-radius:var(--dr-radius) !important;
+  box-shadow:var(--dr-shadow) !important; padding:16px !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+}
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] > section > div:first-child{ border-bottom:1px solid var(--dr-line) !important; padding-bottom:12px !important; gap:6px !important; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] h3{ font-size:1rem !important; letter-spacing:.02em; }
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] [id^="label-tanggal-"]{ font-size:12px !important; color:var(--dr-muted) !important; font-weight:700 !important; }
+
+/* chip subtotal → grid rapi, sama lebar */
+html body main #page-daily-recap#page-daily-recap [id^="subtotal-"]{
+  display:grid !important; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:8px !important; width:100%; margin-top:6px !important;
+}
+html body main #page-daily-recap#page-daily-recap [id^="subtotal-"] > span{
+  display:flex !important; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:1px;
+  padding:8px 10px !important; border-radius:14px !important; box-shadow:none !important; font-size:12px !important; line-height:1.25;
+  background:rgba(248,250,252,.95) !important; border-width:1px !important; white-space:normal !important;
+}
+
+html body main #page-daily-recap#page-daily-recap [id^="subtotal-"] > span:last-child:nth-child(odd){ grid-column:1 / -1; }
+
+/* tabel: bersih, tanpa kotak-kotak tebal */
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] section > div.shadow,
+html body main #page-daily-recap#page-daily-recap [id^="sub-page-"] section > div.overflow-hidden{
+  background:#fff !important; border:1px solid var(--dr-line) !important; border-radius:16px !important; box-shadow:none !important;
+  backdrop-filter:none !important; -webkit-backdrop-filter:none !important; overflow-x:auto !important; -webkit-overflow-scrolling:touch;
+}
+html body main #page-daily-recap#page-daily-recap table{ border-collapse:separate !important; border-spacing:0 !important; width:100% !important; font-size:12.5px !important; }
+html body main #page-daily-recap#page-daily-recap table thead tr{ background:#f1f5f9 !important; color:#475569 !important; }
+html body main #page-daily-recap#page-daily-recap table th{
+  background:#f1f5f9 !important; color:#475569 !important; font-size:10.5px !important; font-weight:800 !important;
+  text-transform:uppercase; letter-spacing:.06em; padding:10px 8px !important; border:0 !important; border-bottom:1px solid var(--dr-line) !important;
+}
+html body main #page-daily-recap#page-daily-recap table td{
+  padding:11px 8px !important; border:0 !important; border-bottom:1px solid rgba(148,163,184,.18) !important; color:var(--dr-ink) !important; vertical-align:middle;
+}
+html body main #page-daily-recap#page-daily-recap table tbody tr:nth-child(even) td{ background:rgba(248,250,252,.9) !important; }
+html body main #page-daily-recap#page-daily-recap table tbody tr:last-child td{ border-bottom:0 !important; }
+html body main #page-daily-recap#page-daily-recap table td:first-child, html body main #page-daily-recap#page-daily-recap table th:first-child{ text-align:left !important; padding-left:12px !important; }
+html body main #page-daily-recap#page-daily-recap table td:nth-child(3){ font-weight:800; white-space:nowrap; }
+/* tombol Hapus lebih kecil & lembut */
+html body main #page-daily-recap#page-daily-recap table td button{
+  min-height:0 !important; height:auto !important; padding:5px 10px !important; font-size:11px !important; font-weight:800 !important; line-height:1.2 !important;
+  border-radius:10px !important; box-shadow:none !important; background:#fff1f2 !important; color:#be123c !important; border:1px solid #fecdd3 !important;
+}
+
+/* Ringkasan total: kartu kecil rapi, rata kiri */
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:10px !important; }
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid > div{
+  background:#f8fafc !important; border-radius:16px !important; box-shadow:none !important; padding:12px 14px !important;
+  text-align:left !important; border:1px solid var(--dr-line) !important; display:flex; flex-direction:column; gap:3px; justify-content:center;
+}
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid > div p{ text-align:left !important; margin:0 !important; }
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid > div p:first-child{ font-size:11px !important; color:var(--dr-muted) !important; line-height:1.3; }
+html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid > div p:last-child{ font-size:1.05rem !important; }
+html body main #page-daily-recap#page-daily-recap #rekap-alur-pengeluaran{ font-size:11px !important; font-weight:700 !important; color:var(--dr-muted) !important; background:#f8fafc !important; border-color:var(--dr-line) !important; text-align:left !important; line-height:1.5; }
+
+/* Rincian minuman */
+html body main #page-daily-recap#page-daily-recap #ringkasan-minuman-box > *{ border-radius:14px !important; }
+
+/* ---------- Desktop ---------- */
+@media (min-width:900px){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid{ grid-template-columns:repeat(12,minmax(0,1fr)) !important; gap:14px !important; }
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-cash-seharusnya){ grid-column:1 / -1 !important; min-height:112px !important; padding:20px 26px !important; }
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-lapangan),
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-sisa-cash-minuman){ grid-column:span 6 !important; min-height:96px !important; padding:18px 24px !important; }
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-pemasukan),
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-cash),
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-qris),
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-total-keluar){ grid-column:span 3 !important; }
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div > p:last-child{ font-size:1.4rem !important; }
+  html body main #page-daily-recap #daily-cash-dashboard > section > .grid > div:has(#daily-cash-seharusnya) > p:last-child{ font-size:2.4rem !important; }
+  html body main #page-daily-recap#page-daily-recap #daily-menu-grid#daily-menu-grid{ grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:14px !important; }
+  html body main #page-daily-recap#page-daily-recap #sub-page-ringkasan section > .grid{ grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:12px !important; }
+  html body main #page-daily-recap#page-daily-recap table{ font-size:13.5px !important; }
+}
+@media (max-width:380px){
+  html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard > section > .grid > div{ padding:12px 12px !important; }
+}
+</style>
