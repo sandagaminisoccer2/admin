@@ -11110,10 +11110,6 @@ html #page-masuk > form > [data-control="in-ket-khusus"]{grid-column:1 / -1;orde
     </div>
 
     <!-- TOMBOL (selalu di bawah angka, bentuk berbeda dari kartu angka) -->
-    <div class="dr-nav-head">
-        <p class="dr-nav-head-title">Buka rincian</p>
-        <p class="dr-nav-head-hint">Ketuk untuk melihat daftar</p>
-    </div>
     <div id="daily-menu-grid" class="dr-nav">
         <button type="button" class="dr-nav-btn dr-nav-lap" onclick="showDailySub('lapangan')" aria-label="Buka rincian Lapangan">
             <span class="dr-nav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m12 8 3.2 2.3-1.2 3.7h-4l-1.2-3.7z"/><path d="M12 3v5M15.2 10.3 20 8.8M14 14l3 4.2M10 14l-3 4.2M8.8 10.3 4 8.8"/></svg></span>
@@ -57470,10 +57466,12 @@ html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-ca
 
 /* ---------- 4. Tombol rincian: timbul, ikon solid, panah ---------- */
 html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head{
-  display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:8px !important;padding:0 2px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px !important;padding:10px 14px;
+  background:rgba(255,255,255,.96) !important;border-radius:14px;border-left:5px solid #14573f !important;
+  box-shadow:0 4px 12px -6px rgba(15,23,42,.45) !important;
 }
-html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head-title{font-size:15px !important;font-weight:800 !important;color:#0f172a !important}
-html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head-hint{font-size:11.5px !important;font-weight:500 !important;color:#64748b !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head-title{font-size:15px !important;font-weight:800 !important;color:#0f172a !important;text-shadow:none !important}
+html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard .dr-nav-head-hint{font-size:12px !important;font-weight:600 !important;color:#475569 !important;text-shadow:none !important;text-align:right}
 
 html body main #page-daily-recap#page-daily-recap #daily-cash-dashboard#daily-cash-dashboard #daily-menu-grid#daily-menu-grid.dr-nav{
   display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:10px !important;
