@@ -5070,6 +5070,20 @@ html body #page-booking-schedule.sub-menu-modern:not(.hidden) .bs-poster-btn{gri
 html body #page-booking-schedule.sub-menu-modern:not(.hidden) #btn-cek-bentrok.bs-bentrok{grid-column:2!important;grid-row:3!important}
 }
 </style>
+<style id="booking-schedule-spacing-v6">
+@media (min-width:1024px){
+/* Jarak seragam 14px: periode/keterangan -> tabel -> tombol (margin bawah pembungkus tabel dinolkan) */
+html body:not(#mm1):not(#mm2):not(#mm3):not(#mm4):not(#mm5):not(#mm6) #page-booking-schedule.sub-menu-modern:not(.hidden){
+  row-gap:14px!important;column-gap:14px!important}
+html body:not(#mm1):not(#mm2):not(#mm3):not(#mm4):not(#mm5):not(#mm6) #page-booking-schedule.sub-menu-modern:not(.hidden) #booking-schedule-grid-wrap{
+  margin:0!important;padding:0!important}
+html body:not(#mm1):not(#mm2):not(#mm3):not(#mm4):not(#mm5):not(#mm6) #page-booking-schedule.sub-menu-modern:not(.hidden) :is(.bs-period,.bs-legend,.bs-poster-btn,#btn-cek-bentrok.bs-bentrok){
+  margin:0!important}
+/* tinggi baris tabel dihitung ulang karena celah bawah tabel menyusut 12px */
+html body #page-booking-schedule #booking-schedule-grid-wrap #bs-desk-wrap{
+  --bsd-row-h:clamp(56px,calc((100dvh - var(--mc-top,84px) - var(--mc-bottom,100px) - 288px) / 7),96px)}
+}
+</style>
 <script id="booking-schedule-desktop-transpose-v1">
 (function(){
   "use strict";

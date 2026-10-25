@@ -2,7 +2,7 @@
    Tujuan: aplikasi cepat dibuka & tetap hidup saat sinyal lemah/offline.
    Data Firebase TIDAK disentuh di sini (itu ditangani IndexedDB + Firebase di dalam aplikasi).
    >>> Setiap kali upload versi baru index.html ke GitHub, naikkan angka VERSION di bawah. <<< */
-const VERSION = 'v7';
+const VERSION = 'v8';
 const SHELL = 'sandaga-shell-' + VERSION;
 const LIBS = 'sandaga-libs-' + VERSION;
 const SHELL_FILES = ['./', 'index.html', 'manifest.json', 'ikon.png'];
