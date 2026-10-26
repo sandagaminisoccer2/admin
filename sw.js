@@ -2,10 +2,10 @@
    Tujuan: aplikasi cepat dibuka & tetap hidup saat sinyal lemah/offline.
    Data Firebase TIDAK disentuh di sini (itu ditangani IndexedDB + Firebase di dalam aplikasi).
    >>> Setiap kali upload versi baru index.html ke GitHub, naikkan angka VERSION di bawah. <<< */
-const VERSION = 'v8';
+const VERSION = 'v9';
 const SHELL = 'sandaga-shell-' + VERSION;
 const LIBS = 'sandaga-libs-' + VERSION;
-const SHELL_FILES = ['./', 'index.html', 'manifest.json', 'ikon.png'];
+const SHELL_FILES = ['./', 'index.html', 'tailwind.css', 'manifest.json', 'ikon.png'];
 const NAV_TIMEOUT = 3500;   // jaringan lebih lambat dari ini → pakai salinan perangkat
 
 const LIB_HOSTS = ['cdn.tailwindcss.com', 'cdn.jsdelivr.net', 'www.gstatic.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
