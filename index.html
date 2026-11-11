@@ -11,7 +11,9 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="preconnect" href="https://foto-mahasiswa-default-rtdb.firebaseio.com" crossorigin/>
 <script id="logo-shrink-v1">(function(){
-var MAX_CHARS=60000,SIDES=[192,144,112,96];
+/* Logo tim dijaga tetap tajam: maks 512px, WebP/JPEG kualitas tinggi.
+   Gambar yang sudah <=512px dan ukurannya wajar TIDAK diubah sama sekali. */
+var MAX_CHARS=120000,SIDES=[512,448,384,320,256],QS=[.92,.85];
 window.__shrinkLogo=function(src){
   return new Promise(function(done){
     try{
@@ -22,18 +24,22 @@ window.__shrinkLogo=function(src){
         try{
           var w=im.naturalWidth,h=im.naturalHeight;
           if(!w||!h)return done(src);
-          if(Math.max(w,h)<=192&&src.length<=MAX_CHARS)return done(src);
-          var jpeg=/^data:image\/jpe?g/i.test(src),out=src;
-          for(var i=0;i<SIDES.length;i++){
+          if(Math.max(w,h)<=SIDES[0]&&src.length<=MAX_CHARS)return done(src);
+          var jpeg=/^data:image\/jpe?g/i.test(src),out=src,stop=false;
+          for(var i=0;i<SIDES.length&&!stop;i++){
             var sc=Math.min(1,SIDES[i]/Math.max(w,h));
             var cw=Math.max(1,Math.round(w*sc)),ch=Math.max(1,Math.round(h*sc));
             var c=document.createElement("canvas");c.width=cw;c.height=ch;
-            c.getContext("2d").drawImage(im,0,0,cw,ch);
-            var u=jpeg?c.toDataURL("image/jpeg",.85):c.toDataURL("image/png");
+            var x=c.getContext("2d");x.imageSmoothingEnabled=true;x.imageSmoothingQuality="high";
+            x.drawImage(im,0,0,cw,ch);
+            for(var j=0;j<QS.length;j++){
+              var u=jpeg?c.toDataURL("image/jpeg",QS[j]):c.toDataURL("image/webp",QS[j]);
+              if(!jpeg&&u.indexOf("data:image/webp")!==0)u=c.toDataURL("image/png");
+              if(!u||u.indexOf("data:image/")!==0){stop=true;break}
+              out=u;
+              if(u.length<=MAX_CHARS){stop=true;break}
+            }
             c.width=c.height=0;
-            if(!u||u.indexOf("data:image/")!==0)break;
-            out=u;
-            if(u.length<=MAX_CHARS)break;
           }
           done(out.length<src.length?out:src);
         }catch(e){done(src)}
@@ -42,38 +48,6 @@ window.__shrinkLogo=function(src){
       im.src=src;
     }catch(e){done(src)}
   });
-};
-window.kecilkanLogoLama=async function(){
-  var btn=document.getElementById("ttl-shrink-btn");
-  var fb={db:window.__APP_FIREBASE_DB__,ref:window.__APP_FIREBASE_REF__,get:window.__APP_FIREBASE_GET_RAW__||window.__APP_FIREBASE_GET__,update:window.__APP_FIREBASE_UPDATE__};
-  if(!fb.db||!fb.ref||!fb.get||!fb.update){alert("Firebase belum siap. Coba lagi sebentar.");return}
-  if(btn){btn.disabled=true;btn.textContent="Memeriksa logo..."}
-  var reset=function(){if(btn){btn.disabled=false;btn.textContent="🗜 Kecilkan Logo Lama (hemat memori)"}};
-  try{
-    var snap=await fb.get(fb.ref(fb.db,"teamLogos"));
-    var data=snap.val()||{};
-    var big=Object.keys(data).filter(function(k){return data[k]&&typeof data[k].logo==="string"&&data[k].logo.length>MAX_CHARS});
-    var total=0;big.forEach(function(k){total+=data[k].logo.length});
-    if(!big.length){alert("Semua logo sudah kecil. Tidak ada yang perlu dikecilkan.");reset();return}
-    if(!confirm("Ditemukan "+big.length+" logo besar (total sekitar "+(total/1048576).toFixed(1)+" MB).\n\nLogo akan dikecilkan otomatis (tampilan tetap sama). Lanjutkan?")){reset();return}
-    var saved=0,ok=0,fail=0,pk={};
-    try{var ps=await fb.get(fb.ref(fb.db,"teamProfiles"));pk=ps.val()||{}}catch(e){pk={}}
-    for(var i=0;i<big.length;i++){
-      var k=big[i],old=data[k].logo;
-      if(btn)btn.textContent="Mengecilkan "+(i+1)+" / "+big.length+"...";
-      try{
-        var nw=await window.__shrinkLogo(old);
-        if(nw&&nw.length<old.length*0.8){
-          await fb.update(fb.ref(fb.db,"teamLogos/"+k),{logo:nw});
-          if(pk[k]&&pk[k].logo===old){await fb.update(fb.ref(fb.db,"teamProfiles/"+k),{logo:nw})}
-          
-          saved+=old.length-nw.length;ok++;
-        }
-      }catch(e){fail++}
-    }
-    alert("Selesai. "+ok+" logo dikecilkan, hemat sekitar "+(saved/1048576).toFixed(1)+" MB"+(fail?" ("+fail+" gagal)":"")+".\n\nMuat ulang aplikasi supaya memori bersih.");
-  }catch(e){alert("Gagal mengecilkan logo: "+(e&&e.message||e))}
-  reset();
 };
 })();</script><script>if("serviceWorker"in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}(function(){function chip(){var el=document.getElementById("lz-offline");if(navigator.onLine!==false){if(el)el.remove();return}if(el||!document.body)return;el=document.createElement("div");el.id="lz-offline";el.setAttribute("role","status");el.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:99988;padding:7px 14px;border-radius:999px;background:rgba(180,83,9,.94);color:#fff;font:800 11px/1.25 system-ui,-apple-system,sans-serif;text-align:center;max-width:92vw;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.25)";el.textContent="Offline — menampilkan data terakhir yang tersimpan. Simpan data baru setelah online.";document.body.appendChild(el)}window.addEventListener("online",chip);window.addEventListener("offline",chip);if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",chip);else chip()})();</script>
 <script>(function(){var _si=window.setInterval;window.setInterval=function(fn,ms){if(typeof fn!=="function")return _si.apply(window,arguments);var rest=Array.prototype.slice.call(arguments,2);return _si.call(window,function(){if(document.hidden)return;return fn.apply(this,arguments)},ms,...rest)}})();</script>
@@ -1922,7 +1896,6 @@ Alur pengeluaran: dipotong dari sumber uang yang dipilih saat input (Uang Lapang
       <button type="button" class="team-list-refresh" onclick="renderTimTanpaLogo(true)" aria-label="Segarkan daftar">↻</button>
     </div>
 
-    <button type="button" id="ttl-shrink-btn" class="ttl-add-btn" style="margin:0 0 10px" onclick="kecilkanLogoLama()">🗜 Kecilkan Logo Lama (hemat memori)</button>
     <div id="ttl-status" class="ttl-status hidden"></div>
     <div id="ttl-grid"></div>
     <div id="ttl-empty" class="team-list-empty hidden">
