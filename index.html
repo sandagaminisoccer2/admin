@@ -418,6 +418,14 @@ h.__lazyStub=true;window.html2canvas=h;
   </svg>
 <span class="tdh-label">Riwayat</span>
 </button>
+<button type="button" class="today-history-btn today-history-btn-detail" onclick="openJadwalDetailDownload()" title="Download detail booking lapangan (gambar)" aria-label="Download detail booking">
+  <svg class="today-history-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 11.5v5m0 0-2-2m2 2 2-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+<span class="tdh-label">Detail</span>
+</button>
 </div>
 </div>
 <div class="today-schedule-list-modern" id="today-schedule-list"></div>
@@ -5193,6 +5201,18 @@ function relabel(){
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",relabel);else relabel();
 })();
+</script>
+<style id="jadwal-detail-btn-style">#page-jadwal #today-schedule-panel .today-schedule-head-actions{gap:7px!important}</style>
+<script id="jadwal-detail-download-script">
+window.openJadwalDetailDownload=function(){
+  if(typeof window.openMonthlyDetailDownload!=="function")return;
+  window.openMonthlyDetailDownload();
+  var d=window.__todayScheduleSelectedDate;
+  var s=document.getElementById("mdi-start"),e=document.getElementById("mdi-end");
+  if(!d||!s||!e||!/^\d{4}-\d{2}-\d{2}$/.test(d))return;
+  s.value=d;e.value=d;
+  e.dispatchEvent(new Event("change"));
+};
 </script>
 
 </body>
