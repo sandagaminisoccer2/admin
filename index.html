@@ -4845,6 +4845,25 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){retur
 function cleanName(n){return String(n||"").replace(/\s*\(Booking\)\s*$/i,"").replace(/\s*\(.*?\)\s*$/,"").trim()}
 function norm(n){return cleanName(n).toLowerCase().replace(/\s+/g," ")}
 
+/* status member sama seperti aplikasi (isRegisteredMemberByName + resolveTeamMemberStatus):
+   tim yang terdaftar sebagai member (jadwal tetap / member tanpa jadwal / tim tambahan) = Member,
+   walau catatan bookingnya tersimpan "Non-Member". Selain itu pakai status di catatan booking. */
+function isRegisteredMember(nama){
+  var t=norm(nama);if(!t)return false;
+  var G=window.__sandagaGlobalCache||{};
+  var tj=G.memberTanpaJadwal||{};
+  if(Object.keys(tj).some(function(k){var it=tj[k];return it&&norm(it.nama)===t&&String(it.status||"Member").trim().toLowerCase()!=="non member"}))return true;
+  var tl=typeof window.__timTambahanList==="function"?window.__timTambahanList:null;
+  var mem=G.member||{};
+  return Object.keys(mem).some(function(jam){var per=mem[jam]||{};return Object.keys(per).some(function(h){
+    var c=per[h];if(!c||!c.nama)return false;
+    if(String(c.status||"Member").trim().toLowerCase()==="non member")return false;
+    if(norm(c.nama)===t)return true;
+    var ex=[];try{ex=tl?tl(c.timTambahan,c.nama):[]}catch(e){ex=[]}
+    return ex.some(function(x){return norm(x)===t})})});
+}
+function statusFor(nama,fallback){return isRegisteredMember(nama)?"Member":fallback}
+
 /* tarif lapangan: sama persis dengan getHargaLapangan di aplikasi */
 function harga(tgl,jam,status){
   var d=parseYmd(tgl);if(!d)return 0;var hari=d.getDay(),j=parseInt(String(jam).substring(0,2),10),h=0;
@@ -4856,15 +4875,17 @@ function harga(tgl,jam,status){
   return h;
 }
 
+function bgYmd(g){var m=/^BG-(\d{12,})-/.exec(String(g||""));if(!m)return "";var t=Number(m[1]);return(t>1.5e12&&t<4.1e12)?tsToYmd(t):""}
+function bookDate(b,k){return String(b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||bgYmd(b.bookingGroupId)||(Number(b.dp||0)>0?b.tglDp:"")||"").substring(0,10)}
 function buildRows(start,end){
+  var todayYmd=ymd(new Date());
   var G=window.__sandagaGlobalCache||{};
   var booking=G.booking||{},batal=G.bookingBatal||{},pem=G.pemasukan||{};
   var recs=[];
   Object.keys(booking).forEach(function(k){
     var b=booking[k];if(!b||!b.tgl)return;
     var p=String(b.tgl).split("T"),date=p[0];
-    var tb=b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||(Number(b.dp||0)>0?b.tglDp:"")||"";
-    tb=String(tb).substring(0,10);
+    var tb=bookDate(b,k);
     var playIn=date>=start&&date<=end,bookIn=!!tb&&tb>=start&&tb<=end;
     if(!playIn&&!bookIn)return;
     recs.push({k:k,b:b,date:date,luar:!playIn,jam:String(p[1]||"07:00").substring(0,5),nm:norm(b.nama)});
@@ -4881,9 +4902,9 @@ function buildRows(start,end){
   });
   var rows=groups.map(function(g){
     var b=g.b,first=g.slots[0],last=g.slots[g.slots.length-1];
-    var total=0;g.slots.forEach(function(s){total+=harga(g.date,s.jam,s.b.status||b.status)});
+    var total=0;g.slots.forEach(function(s){total+=harga(g.date,s.jam,statusFor(b.nama,s.b.status||b.status))});
     total=Math.max(0,total-Math.max(0,Number(b.diskonManualTersimpan||0)));
-    var tglBook=b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||(Number(b.dp||0)>0?b.tglDp:"")||"";
+    var tglBook=bookDate(b,first.k);
     var moves=[];
     g.slots.forEach(function(s){if(Array.isArray(s.b.riwayatPindah)&&!moves.length)moves=s.b.riwayatPindah.slice()});
     if(!moves.length&&b.oneDayOverride&&b.originalTanggal&&(b.originalTanggal!==g.date||(b.originalJam&&String(b.originalJam).substring(0,5)!==first.jam))){
@@ -4891,7 +4912,7 @@ function buildRows(start,end){
     }
     var cancel=null;
     g.slots.forEach(function(s){if(s.b.batal&&!cancel)cancel={pada:s.b.batalPada||0}});
-    return{nama:cleanName(b.nama).toUpperCase(),status:b.status||"-",tglBooking:tglBook,tglMain:g.date,
+    return{nama:cleanName(b.nama).toUpperCase(),status:statusFor(b.nama,b.status||"-"),tglBooking:tglBook,tglMain:g.date,
       jamMulai:first.jam,jamAkhir:addHour(last.jam),durasi:g.slots.length,
       dp:g.dpSum,tglDp:b.tglDp||"",metode:b.metode||"",total:total,paid:0,sisa:0,
       cancel:cancel,moves:moves,sparingLawan:b.sparringOpponent===true,nm:g.nm,jamKey:first.jam,member:false,masukSaja:!!g.luar};
@@ -4927,6 +4948,8 @@ function buildRows(start,end){
   rows.forEach(function(r){
     if(r.cancel){r.sisa=0;return}
     r.sisa=Math.max(0,r.total-r.dp-r.paid);
+    /* tanggal main sudah lewat (sebelum hari ini) = otomatis LUNAS */
+    if(r.tglMain&&r.tglMain<todayYmd)r.sisa=0;
   });
   return rows;
 }
@@ -4941,7 +4964,22 @@ function summarize(rows){
 }
 
 /* ===== render gambar ===== */
-function badge(txt,bg,fg){return'<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:'+bg+';color:'+fg+';font-size:10px;font-weight:900;letter-spacing:.02em;white-space:nowrap">'+txt+'</span>'}
+/* badge digambar sebagai SVG: teks dipusatkan secara matematis (tinggi 18px, baseline = tengah + setengah cap-height),
+   jadi tidak ikut bergeser turun oleh html2canvas seperti span biasa */
+var _badgeCtx=null;
+function badgeTextW(txt){
+  try{if(!_badgeCtx)_badgeCtx=document.createElement("canvas").getContext("2d");
+    _badgeCtx.font="900 10px Arial,Helvetica,sans-serif";
+    return _badgeCtx.measureText(txt).width+txt.length*.2}catch(e){return txt.length*6.8}
+}
+function badge(txt,bg,fg,center){
+  var w=Math.ceil(badgeTextW(txt))+20,h=18;
+  var st=center?"display:inline-block;vertical-align:top":"display:block;overflow:visible";
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="'+st+'">'+
+    '<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="9" ry="9" fill="'+bg+'"/>'+
+    '<text x="'+(w/2)+'" y="12.6" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="10" font-weight="900" letter-spacing="0.2" fill="'+fg+'">'+txt+'</text></svg>';
+  return center?'<div style="text-align:center;line-height:0;font-size:0">'+svg+'</div>':svg
+}
 function rowHtml(r,i){
   var bg=r.cancel?"#fff1f2":(i%2?"#f8fafc":"#fff");
   var td='padding:9px 8px;border:1px solid #cbd5e1;vertical-align:middle;';
@@ -4961,7 +4999,7 @@ function rowHtml(r,i){
   if(r.cancel)sisaHtml='<span style="color:#94a3b8;font-weight:800">—</span>';
   else if(r.total<=0)sisaHtml='<span style="color:#94a3b8;font-weight:800">-</span>';
   else if(r.sisa>0)sisaHtml='<div style="font-weight:900;color:#c2410c">'+rp(r.sisa)+'</div><div style="font-size:10px;color:#64748b;font-weight:700;margin-top:2px">dari '+rp(r.total)+'</div>';
-  else sisaHtml=badge("LUNAS","#059669","#fff")+'<div style="font-size:10px;color:#64748b;font-weight:700;margin-top:3px">'+rp(r.total)+'</div>';
+  else sisaHtml=badge("LUNAS","#059669","#fff",true)+'<div style="font-size:10px;color:#64748b;font-weight:700;margin-top:3px">'+rp(r.total)+'</div>';
   var stat=String(r.status||"");
   return'<tr style="background:'+bg+'">'+
    '<td style="'+td+'text-align:center;font-weight:800;color:#475569">'+(i+1)+'</td>'+
@@ -4992,7 +5030,13 @@ function pageHtml(rows,offset,pageNo,pageCount,start,end,sum){
    '<div style="display:flex;justify-content:space-between;margin-top:12px;font-size:10px;font-weight:800;color:#64748b"><span>Dicetak '+esc(fmtTs(Date.now()))+'</span><span>Halaman '+pageNo+' / '+pageCount+'</span></div>'+
    '</div></div>';
 }
-function toBlob(canvas){return new Promise(function(res,rej){canvas.toBlob(function(b){b?res(b):rej(new Error("Gagal membuat gambar"))},"image/jpeg",.92)})}
+function toBlob(canvas){return new Promise(function(res,rej){
+  var done=false;function fallback(){
+    try{var u=canvas.toDataURL("image/jpeg",.92),p=u.split(","),bin=atob(p[1]),n=bin.length,arr=new Uint8Array(n);while(n--)arr[n]=bin.charCodeAt(n);res(new Blob([arr],{type:"image/jpeg"}))}
+    catch(e){rej(new Error("Gagal membuat gambar"))}}
+  if(!canvas||!canvas.width||!canvas.height){rej(new Error("Gagal membuat gambar"));return}
+  try{canvas.toBlob(function(b){if(done)return;done=true;b?res(b):fallback()},"image/jpeg",.92)}catch(e){fallback()}
+})}
 
 async function generate(start,end,onProgress){
   var rows=buildRows(start,end);
@@ -5011,8 +5055,15 @@ async function generate(start,end,onProgress){
     document.body.appendChild(holder);
     try{
       await new Promise(function(r){setTimeout(r,60)});
-      var hh=holder.firstElementChild.offsetHeight||1,sc=Math.max(.5,Math.min(scale,Math.sqrt(14e6/(1280*hh)),16000/hh));var canvas=await window.html2canvas(holder.firstElementChild,{scale:sc,backgroundColor:"#eef4f8",useCORS:true,logging:false});
-      var blob=await toBlob(canvas);
+      var hh=holder.firstElementChild.offsetHeight||1,sc=Math.max(.5,Math.min(scale,Math.sqrt(14e6/(1280*hh)),16000/hh));var blob=null,canvas=null,lastErr=null,tryScale=sc;
+      for(var attempt=0;attempt<4&&!blob;attempt++){
+        try{
+          canvas=await window.html2canvas(holder.firstElementChild,{scale:tryScale,backgroundColor:"#eef4f8",useCORS:true,logging:false});
+          blob=await toBlob(canvas);
+        }catch(e){lastErr=e;try{if(canvas){canvas.width=canvas.height=0}}catch(_){}
+          tryScale=Math.max(.6,tryScale*.7);await new Promise(function(r){setTimeout(r,250)})}
+      }
+      if(!blob)throw lastErr||new Error("Gagal membuat gambar");
       var name="Detail-Booking-"+start+"_sd_"+end+(pages.length>1?"-"+(p+1):"")+".jpg";
       files.push(new File([blob],name,{type:"image/jpeg"}));urls.push(URL.createObjectURL(blob));
       canvas.width=canvas.height=0;
@@ -5034,8 +5085,8 @@ function injectStyle(){
   if(document.getElementById("mdi-style"))return;
   var st=document.createElement("style");st.id="mdi-style";
   st.textContent=".monthly-download-detail{background:linear-gradient(135deg,#7c3aed,#6d28d9)}"+
-  "#mdi-overlay{position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px}"+
-  "#mdi-box{width:100%;max-width:460px;max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:20px;box-shadow:0 24px 60px rgba(15,23,42,.35);font-family:inherit;color:#0f172a}"+
+  "#mdi-overlay{position:fixed;inset:0;z-index:2147483600;background:radial-gradient(ellipse at center,rgba(10,17,40,.90) 0%,rgba(4,8,22,.95) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;animation:mdiFade .18s ease-out}@keyframes mdiFade{from{opacity:0}to{opacity:1}}@keyframes mdiPop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}"+
+  "#mdi-box{width:100%;max-width:460px;max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:20px;border-top:4px solid #7c3aed;box-shadow:0 0 0 1px rgba(255,255,255,.16),0 0 40px rgba(124,58,237,.25),0 30px 80px rgba(0,0,0,.65);font-family:inherit;color:#0f172a;animation:mdiPop .22s cubic-bezier(.2,.8,.2,1)}"+
   "#mdi-box h3{margin:0;font-size:16px;font-weight:900;text-align:center}#mdi-box .mdi-sub{margin:4px 0 14px;text-align:center;font-size:11px;font-weight:700;color:#64748b}"+
   ".mdi-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.mdi-presets button{flex:1 1 auto;padding:7px 10px;border-radius:999px;border:1px solid #cbd5e1;background:#f8fafc;font-size:11px;font-weight:800;color:#334155;cursor:pointer}"+
   ".mdi-presets button.on{background:#6d28d9;border-color:#6d28d9;color:#fff}"+
@@ -6613,3 +6664,81 @@ html body:not(#mm1):not(#mm2):not(#mm3):not(#mm4):not(#mm5):not(#mm6):not(#mm7):
   tick();setInterval(tick,10000);document.addEventListener("DOMContentLoaded",tick);window.addEventListener("load",tick);
 })();
 </script>
+
+<style id="uang-masuk-desktop-layout-v1">
+/* =========================================================
+   Uang Masuk / Pelunasan Lapangan: tata letak DESKTOP (>=1024px)
+   - modal lebih lebar, isian di kiri + pembayaran di kanan
+   - ringkasan tagihan jadi strip satu baris
+   - tombol aksi satu baris
+   HP / tablet kecil (<1024px) TIDAK berubah.
+   ========================================================= */
+@media (min-width:1024px){
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk{--um-pad:24px;width:min(1120px,calc(100vw - 48px))!important;max-width:none!important;height:auto!important;min-height:0!important;max-height:calc(100dvh - 32px)!important;border-radius:26px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk::-webkit-scrollbar-track{background:transparent!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk::-webkit-scrollbar-thumb{background:#cbd5e1!important;border-radius:8px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>h2{padding:20px 76px 14px var(--um-pad)!important;font-size:15px!important;letter-spacing:.06em!important;border-radius:26px 26px 0 0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>h2::before{display:none!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>h2::after{left:var(--um-pad)!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>h2 #jadwal-uang-masuk-modal-close{top:12px!important;right:18px!important;cursor:pointer!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>h2 #jadwal-uang-masuk-modal-close:hover{background:#e2e8f0!important;color:#0f172a!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form{grid-template-columns:repeat(12,minmax(0,1fr))!important;column-gap:14px!important;row-gap:10px!important;align-items:stretch!important;align-content:start!important;padding:16px 0 0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>*{order:0!important;grid-column:1 / -1}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>[data-control="in-tgl"]{grid-column:1 / span 3!important;grid-row:1!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>[data-control="in-jam-main"]{grid-column:4 / span 3!important;grid-row:1!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>[data-control="in-tim"]{grid-column:1 / span 6!important;grid-row:2!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>[data-control="in-ket-khusus"]{grid-column:1 / span 6!important;grid-row:3!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>[data-control="in-tambahan-waktu"]{grid-column:1 / span 3!important;grid-row:4!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>[data-control="in-jenis-pembayaran"]{grid-column:4 / span 3!important;grid-row:4!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>#in-keterangan-manual{grid-row:30!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-payment-wrap{grid-column:7 / span 6!important;grid-row:1 / span 4!important;align-self:stretch!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-rows:minmax(min-content,1fr)!important;gap:12px!important;margin:0!important;padding:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>#info-tagihan-tim{grid-column:1 / -1!important;grid-row:5!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;margin:0!important;padding:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-emerald-500"]{grid-column:1 / span 5!important;grid-row:6!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]{grid-column:6 / span 7!important;grid-row:6!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>#member-discount-allocation-wrap{grid-column:1 / -1!important;grid-row:7!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>#uang-masuk-sticky-actions{grid-column:1 / -1!important;grid-row:40!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk:has(.uang-masuk-payment-wrap>.uang-masuk-payment-card:nth-child(2):not(.hidden):not(.force-hidden))>form>.uang-masuk-option-panel[class*="border-emerald-500"]{grid-column:7 / span 6!important;grid-row:1 / span 4!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk:has(.uang-masuk-payment-wrap>.uang-masuk-payment-card:nth-child(2):not(.hidden):not(.force-hidden))>form>.uang-masuk-payment-wrap{grid-column:1 / -1!important;grid-row:6!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:auto!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk:has(.uang-masuk-payment-wrap>.uang-masuk-payment-card:nth-child(2):not(.hidden):not(.force-hidden))>form>.uang-masuk-option-panel[class*="border-violet-400"]{grid-column:1 / -1!important;grid-row:7!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk:has(.uang-masuk-payment-wrap>.uang-masuk-payment-card:nth-child(2):not(.hidden):not(.force-hidden))>form>#member-discount-allocation-wrap{grid-row:8!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.masuk-field-card{display:flex!important;flex-direction:column!important;min-height:52px!important;margin:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.masuk-field-card .masuk-field-value{flex:1 1 auto!important;min-height:50px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.masuk-ket-card{display:flex!important;flex-direction:column!important;justify-content:center!important;margin:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk .uang-masuk-payment-card{padding:16px 18px!important;gap:10px!important;border-radius:18px!important;justify-content:flex-start!important;overflow:visible!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #in-jumlah-1,html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #in-jumlah-2{min-height:56px!important;font-size:22px!important;font-weight:900!important;letter-spacing:.01em!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #in-jumlah-1::placeholder,html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #in-jumlah-2::placeholder{font-size:14px!important;font-weight:700!important;letter-spacing:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel{display:flex!important;flex-direction:column!important;gap:10px!important;margin:0!important;padding:16px 18px!important;border-radius:18px!important;align-self:stretch!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel>*{margin:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-emerald-500"]>.grid{grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;align-content:start!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]>*{grid-column:1 / -1}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]>#in-diskon-manual{grid-column:1!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]>#in-diskon-manual-ket{grid-column:2!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]>.grid:not(#in-diskon-manual-berbeda-wrap){grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]>.grid>label{min-height:46px!important;padding:8px 10px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel[class*="border-violet-400"]>.grid>label span{font-size:12.5px!important;line-height:1.2!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div{display:grid!important;grid-template-columns:minmax(0,1.1fr) minmax(0,1.5fr) minmax(0,1fr)!important;grid-template-rows:auto auto!important;column-gap:18px!important;row-gap:4px!important;align-items:center!important;padding:12px 18px!important;border-radius:16px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div>:nth-child(1){grid-column:1!important;grid-row:1!important;margin:0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div>:nth-child(2){grid-column:1!important;grid-row:2!important;margin:0!important;font-size:17px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div>.grid{grid-column:2!important;grid-row:1 / span 2!important;margin:0!important;gap:8px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div>.bg-blue-600{grid-column:3!important;grid-row:1 / span 2!important;margin:0!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:2px!important;padding:10px 16px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div>.bg-blue-600 b{font-size:24px!important;line-height:1.1!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #info-tagihan-tim>div>.bg-violet-100{grid-column:1 / -1!important;grid-row:3!important;margin:4px 0 0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:stretch!important;gap:10px!important;grid-template-columns:none!important;padding:12px var(--um-pad) 16px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions>button{flex:1 1 0!important;width:auto!important;min-width:0!important;min-height:54px!important;grid-area:auto!important;grid-column:auto!important;grid-row:auto!important;white-space:nowrap!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions #btn-hapus-dari-jadwal{order:1!important;flex:0 0 auto!important;padding:0 24px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions #btn-tampilkan-customer{order:2!important;flex:1.2 1 0!important;max-width:none!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions #btn-simpan-belum-bayar{order:3!important;flex:1 1 0!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions #btn-simpan-pemasukan{order:4!important;flex:1.3 1 0!important}
+}
+@media (min-width:1024px) and (max-height:760px){
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form{row-gap:8px!important;padding-top:12px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.masuk-field-card{min-height:46px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.masuk-field-card .masuk-field-value{min-height:44px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk .uang-masuk-payment-card{padding:12px 16px!important;gap:8px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #in-jumlah-1,html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #in-jumlah-2{min-height:48px!important;font-size:20px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk>form>.uang-masuk-option-panel{padding:12px 16px!important;gap:8px!important}
+html body.jadwal-uang-masuk-modal-active #page-masuk#page-masuk #uang-masuk-sticky-actions>button{min-height:48px!important}
+}
+</style>
