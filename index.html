@@ -4820,7 +4820,7 @@ function init(){var page=$("page-promo-poster");if(!page)return;var drop=$("pp-d
 window.openPromoPosterAdmin=function(){if(typeof window.quickMoreOpen==="function")window.quickMoreOpen("promo-poster");else if(typeof window.showPage==="function")window.showPage("promo-poster")};
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init()})();</script>
 
-<style id="monthly-recap-no-wrapper-glass">html body #page-monthly-recap.sub-menu-modern,html body #page-monthly-recap.sub-menu-modern.glass-panel{background:transparent!important;background-image:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;padding:0!important;overflow:visible!important}html body #page-monthly-recap.sub-menu-modern::before,html body #page-monthly-recap.sub-menu-modern::after{display:none!important;content:none!important}</style>
+<style id="monthly-recap-no-wrapper-glass">html body:not(#mm1):not(#mm2):not(#mm3):not(#mm4):not(#mm5):not(#mm6) #page-monthly-recap.sub-menu-modern{background:transparent!important;background-color:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}html body #page-monthly-recap.sub-menu-modern::before,html body #page-monthly-recap.sub-menu-modern::after{display:none!important;content:none!important}#page-monthly-recap .monthly-download-detail{background:linear-gradient(135deg,#7c3aed,#6d28d9)}#page-monthly-recap>.flex.flex-wrap.justify-center{margin-bottom:14px!important}</style>
 <script id="monthly-detail-image-v1">
 (function(){
 "use strict";
@@ -4862,7 +4862,7 @@ function buildRows(start,end){
   Object.keys(booking).forEach(function(k){
     var b=booking[k];if(!b||!b.tgl)return;
     var p=String(b.tgl).split("T"),date=p[0];
-    var tb=b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||(b.timestamp?tsToYmd(b.timestamp):"")||b.tglDp||"";
+    var tb=b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||(Number(b.dp||0)>0?b.tglDp:"")||"";
     tb=String(tb).substring(0,10);
     var playIn=date>=start&&date<=end,bookIn=!!tb&&tb>=start&&tb<=end;
     if(!playIn&&!bookIn)return;
@@ -4882,7 +4882,7 @@ function buildRows(start,end){
     var b=g.b,first=g.slots[0],last=g.slots[g.slots.length-1];
     var total=0;g.slots.forEach(function(s){total+=harga(g.date,s.jam,s.b.status||b.status)});
     total=Math.max(0,total-Math.max(0,Number(b.diskonManualTersimpan||0)));
-    var tglBook=b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||(b.timestamp?tsToYmd(b.timestamp):"")||b.tglDp||"";
+    var tglBook=b.tglBooking||(b.dibuatPada?tsToYmd(b.dibuatPada):"")||(Number(b.dp||0)>0?b.tglDp:"")||"";
     var moves=[];
     g.slots.forEach(function(s){if(Array.isArray(s.b.riwayatPindah)&&!moves.length)moves=s.b.riwayatPindah.slice()});
     if(!moves.length&&b.oneDayOverride&&b.originalTanggal&&(b.originalTanggal!==g.date||(b.originalJam&&String(b.originalJam).substring(0,5)!==first.jam))){
@@ -5000,7 +5000,7 @@ async function generate(start,end,onProgress){
     try{await window.__loadLib("html2canvas")}catch(e){throw new Error("Fitur gambar membutuhkan koneksi internet.")}
   }
   var sum=summarize(rows),pages=[];
-  for(var i=0;i<rows.length;i+=ROWS_PER_PAGE)pages.push(rows.slice(i,i+ROWS_PER_PAGE));
+  pages.push(rows);
   var scale=(window.innerWidth<900||IS_IOS)?1.5:2,files=[],urls=[];
   for(var p=0;p<pages.length;p++){
     if(onProgress)onProgress(p+1,pages.length);
@@ -5010,7 +5010,7 @@ async function generate(start,end,onProgress){
     document.body.appendChild(holder);
     try{
       await new Promise(function(r){setTimeout(r,60)});
-      var canvas=await window.html2canvas(holder.firstElementChild,{scale:scale,backgroundColor:"#eef4f8",useCORS:true,logging:false});
+      var hh=holder.firstElementChild.offsetHeight||1,sc=Math.max(.5,Math.min(scale,Math.sqrt(14e6/(1280*hh)),16000/hh));var canvas=await window.html2canvas(holder.firstElementChild,{scale:sc,backgroundColor:"#eef4f8",useCORS:true,logging:false});
       var blob=await toBlob(canvas);
       var name="Detail-Booking-"+start+"_sd_"+end+(pages.length>1?"-"+(p+1):"")+".jpg";
       files.push(new File([blob],name,{type:"image/jpeg"}));urls.push(URL.createObjectURL(blob));
@@ -5089,7 +5089,7 @@ function openModal(){
     var rows=buildRows(s,e);
     if(!rows.length){info.textContent="Tidak ada data booking pada periode ini.";info.className="err";go.disabled=true;return null}
     var sm=summarize(rows);
-    info.textContent=sm.booking+" booking • "+sm.cancel+" cancel • "+sm.pindah+" pindah jadwal • "+Math.ceil(rows.length/ROWS_PER_PAGE)+" gambar";
+    info.textContent=sm.booking+" booking • "+sm.cancel+" cancel • "+sm.pindah+" pindah jadwal • "+"1 gambar";
     go.disabled=false;return rows;
   }
   $("mdi-presets").addEventListener("click",function(ev){
