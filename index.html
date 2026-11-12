@@ -4936,6 +4936,41 @@ function buildRows(start,end){
     rows.push({nama:cleanName(c.nama).toUpperCase(),status:"Member",tglBooking:"",tglMain:date,jamMulai:jam,jamAkhir:addHour(jam),durasi:1,
       dp:0,tglDp:"",metode:"",total:0,paid:0,sisa:0,cancel:{pada:c.timestamp||0},moves:[],sparingLawan:false,nm:nm,jamKey:jam,member:true});
   });
+  /* jadwal member tetap (tanpa catatan booking per tanggal) yang main pada periode */
+  (function(){
+    var mem=G.member||{},HARI=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+    var d0=parseYmd(start),d1=parseYmd(end);if(!d0||!d1)return;
+    function hv(j){var h=parseInt(j,10);return h<7?h+24:h}
+    var occ={};
+    Object.keys(booking).forEach(function(k){var b=booking[k];if(!b||!b.tgl||b.batal===true)return;var p=String(b.tgl).split("T");occ[p[0]+"|"+String(p[1]||"").substring(0,2)]=1});
+    function isCx(date,nm,jam){return Object.keys(batal).some(function(k){var c=batal[k];if(!c||c.aktif===false)return false;return String(c.tanggal||"").split("T")[0]===date&&String(c.jam||"").substring(0,5)===jam&&norm(c.nama)===nm})}
+    var jamKeys=Object.keys(mem).filter(function(j){return /^\d{2}:\d{2}/.test(j)});
+    for(var d=new Date(d0),n=0;d<=d1&&n<400;d.setDate(d.getDate()+1),n++){
+      var ds=ymd(d),hari=HARI[d.getDay()],byNm={},order=[];
+      jamKeys.forEach(function(jam){
+        var cell=(mem[jam]||{})[hari];
+        if(!cell||!cell.nama||cell.type==="off")return;
+        if(String(cell.nama).trim().toUpperCase()==="OFF")return;
+        if(typeof window.isMemberScheduledOnDate==="function"&&!window.isMemberScheduledOnDate(cell,ds))return;
+        var jk=jam.substring(0,5),nm=norm(cell.nama);
+        if(occ[ds+"|"+jk.substring(0,2)])return;
+        if(isCx(ds,nm,jk))return;
+        if(!byNm[nm]){byNm[nm]={nama:cell.nama,slots:[]};order.push(nm)}
+        byNm[nm].slots.push(jk);
+      });
+      order.forEach(function(nm){
+        var g=byNm[nm],sl=g.slots.sort(function(a,c){return hv(a)-hv(c)}),runs=[],cur=[];
+        sl.forEach(function(j){if(cur.length&&hv(j)!==hv(cur[cur.length-1])+1){runs.push(cur);cur=[]}cur.push(j)});
+        if(cur.length)runs.push(cur);
+        runs.forEach(function(run){
+          var tot=0;run.forEach(function(j){tot+=harga(ds,j,"Member")});
+          rows.push({nama:cleanName(g.nama).toUpperCase(),status:"Member",tglBooking:"",tglMain:ds,
+            jamMulai:run[0],jamAkhir:addHour(run[run.length-1]),durasi:run.length,dp:0,tglDp:"",metode:"",
+            total:tot,paid:0,sisa:0,cancel:null,moves:[],sparingLawan:false,nm:nm,jamKey:run[0],member:false,masukSaja:false,memberTetap:true});
+        });
+      });
+    }
+  })();
   rows.sort(function(a,c){if(!!a.masukSaja!==!!c.masukSaja)return a.masukSaja?1:-1;return a.tglMain<c.tglMain?-1:a.tglMain>c.tglMain?1:a.jamMulai<c.jamMulai?-1:a.jamMulai>c.jamMulai?1:0});
   /* pelunasan dari catatan pemasukan */
   var pays=Object.keys(pem).map(function(k){return pem[k]}).filter(function(p){return p&&p.tgl});
@@ -4951,6 +4986,20 @@ function buildRows(start,end){
       var target=tr[0];
       if(jamP!=null){tr.forEach(function(r){var s=parseInt(r.jamMulai,10);if(jamP>=s&&jamP<s+r.durasi)target=r})}
       target.paid+=c[1];
+    });
+  });
+  Object.keys(G.pelunasanMember||{}).forEach(function(k){
+    var rec=G.pelunasanMember[k];if(!rec)return;var nm=norm(rec.member);
+    (rec.alokasi||[]).forEach(function(a){
+      if(!a||!(Number(a.amount)>0))return;
+      var date=String(a.tanggal||"").substring(0,10),h=parseInt(String(a.jam||""),10);if(!isNaN(h)&&h<7)h+=24;
+      var hit=null;
+      rows.forEach(function(r){
+        if(hit||r.cancel||!r.memberTetap||r.tglMain!==date||r.nm!==nm)return;
+        var s0=parseInt(r.jamMulai,10);if(s0<7)s0+=24;
+        if(isNaN(h)||(h>=s0&&h<s0+r.durasi))hit=r;
+      });
+      if(hit)hit.paid+=Number(a.amount);
     });
   });
   rows.forEach(function(r){
@@ -5012,7 +5061,7 @@ function rowHtml(r,i){
   return'<tr style="background:'+bg+'">'+
    '<td style="'+td+'text-align:center;font-weight:800;color:#475569">'+(i+1)+'</td>'+
    '<td style="'+td+'text-align:left"><div style="font-weight:900;color:#0f172a;font-size:12px">'+esc(r.nama||"-")+'</div><div style="font-size:10px;color:#64748b;font-weight:800;margin-top:2px">'+esc(stat)+'</div></td>'+
-   '<td style="'+td+'text-align:center;font-weight:700">'+esc(fmtD(r.tglBooking))+'</td>'+
+   '<td style="'+td+'text-align:center;font-weight:700">'+(r.memberTetap?'<span style="color:#1d4ed8;font-weight:800">Member tetap</span>':esc(fmtD(r.tglBooking)))+'</td>'+
    '<td style="'+td+'text-align:center;font-weight:800">'+esc(fmtDay(r.tglMain))+'</td>'+
    '<td style="'+td+'text-align:center;font-weight:900;white-space:nowrap">'+esc(jamFmt(r.jamMulai))+' - '+esc(r.jamAkhir)+'<div style="font-size:10px;color:#64748b;font-weight:700;margin-top:2px">'+r.durasi+' jam</div></td>'+
    '<td style="'+td+'text-align:center">'+dpHtml+'</td>'+
